@@ -246,7 +246,7 @@ def generate_launch_description() -> LaunchDescription:
 
     args.add_arg('voxel_size', 0.05, description='Set nvBlox Voxel Size', cli=True)
 
-    args.add_arg('use_foxglove_whitelist', False, cli=True)
+    args.add_arg('use_foxglove_whitelist', True, cli=True)
 
     args.add_opaque_function(generate_launch_description_impl)
 
