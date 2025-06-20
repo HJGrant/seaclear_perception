@@ -24,10 +24,10 @@ from launch.conditions import IfCondition, LaunchConfigurationEquals, LaunchConf
 from launch_ros.actions import Node
 import launch_ros.descriptions
 
-NVBLOX_CONFIG = 'nvblox_config'
-CUVSLAM_CONFIG = 'cuvslam_config'
 COMMON_CONFIG = 'common_config'
+NVBLOX_CONFIG = 'nvblox_config'
 
+# the output of the OAK-D camera is BGR, and as far as I can tell there is no way to change this in the camera config, so we transform the data to rgb manually, since this is what nvBlox requires
 def convert_bgr_to_rgb():
     return LaunchDescription([
         Node(
@@ -42,80 +42,21 @@ def convert_bgr_to_rgb():
         )
     ]) 
 
-def launch_setup_oakd_rgbd(context, *args, **kwargs):
-    params_file = LaunchConfiguration("params_file")
-    package_prefix = get_package_share_directory("oakd_isaac_ros")
-    print("### OAK-D LAUNCH FILE: " + str(os.path.join(package_prefix, "launch", "tools", "camera.launch.py")) + " ###")
-
-    name = LaunchConfiguration("name").perform(context)
-    return [
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(package_prefix, "launch", "tools", "camera.launch.py")
-            ),
-            launch_arguments={
-                "name": name,
-                "params_file": params_file,
-                "parent_frame": LaunchConfiguration("parent_frame"),
-                "cam_pos_x": LaunchConfiguration("cam_pos_x"),
-                "cam_pos_y": LaunchConfiguration("cam_pos_y"),
-                "cam_pos_z": LaunchConfiguration("cam_pos_z"),
-                "cam_roll": LaunchConfiguration("cam_roll"),
-                "cam_pitch": LaunchConfiguration("cam_pitch"),
-                "cam_yaw": LaunchConfiguration("cam_yaw"),
-                "use_rviz": LaunchConfiguration("use_rviz"),
-                "pointcloud.enable": "false",
-                "rs_compat": LaunchConfiguration("rs_compat"),
-            }.items(),
-        ),
-    ]
-
-def generate_launch_description_oakd_rgbd():
-    package_prefix = get_package_share_directory("oakd_isaac_ros")
-    print("### OAK-D PARAM FILE: " + str(os.path.join(package_prefix, "config", "oak_d", "oakd_rgbd.yaml")) + " ###")
-    declared_arguments = [
-        DeclareLaunchArgument("name", default_value="oak"),
-        DeclareLaunchArgument("camera_model", default_value="OAK-D"),
-        DeclareLaunchArgument("parent_frame", default_value="oak-d-base-frame"),
-        DeclareLaunchArgument("cam_pos_x", default_value="0.0"),
-        DeclareLaunchArgument("cam_pos_y", default_value="0.0"),
-        DeclareLaunchArgument("cam_pos_z", default_value="0.0"),
-        DeclareLaunchArgument("cam_roll", default_value="0.0"),
-        DeclareLaunchArgument("cam_pitch", default_value="0.0"),
-        DeclareLaunchArgument("cam_yaw", default_value="0.0"),
-        DeclareLaunchArgument(
-            "params_file",
-            default_value=os.path.join(package_prefix, "config", "oak_d", "oakd_rgbd.yaml"),
-        ),
-        DeclareLaunchArgument("use_rviz", default_value="False"),
-        DeclareLaunchArgument("rectify_rgb", default_value="False"),
-        DeclareLaunchArgument("rs_compat", default_value="False"),
-    ]
-
-    return LaunchDescription(
-        declared_arguments + [OpaqueFunction(function=launch_setup_oakd_rgbd)]
-    )
-
-def get_nvblox_remappings(cameras: dict) -> List[Tuple[str, str]]:
-    remappings = []
-
-    for i in range(len(cameras)):
-        depth = cameras[i].get('depth')
-        color = cameras[i].get('color')
-        remappings.append((f'camera_{i}/depth/image', depth.get('image')))
-        remappings.append((f'camera_{i}/depth/camera_info', depth.get('info')))
-        remappings.append((f'camera_{i}/color/image', color.get('image')))
-        remappings.append((f'camera_{i}/color/camera_info', color.get('info')))
-    return remappings
-
+# extract the parameters from the top_level config file and read in the base_level config
 def get_nvblox_params(num_cameras: int, nvblox_config: dict, common_config: dict) -> List[Any]:
 
+    # initiate a list to store the parameters
     parameters = []
+    # first check the additional config files
     for config_file in nvblox_config.get('config_files', []):
         assert 'path' in config_file, 'No `path` provided in config_files'
-        print("### NVBLOX MAIN CONFIG FILE: " + str(config_file) + " ###" )
+        
+        print("### NVBLOX BASE LEVEL CONFIG: " + str(config_file) + " ###" )
+
         parameters.append(lu.get_path(config_file.get('package', 'oakd_isaac_ros'),
                                       config_file.get('path')))
+
+    # this is the moment where the overriden parameters are taken from
     parameters.extend(nvblox_config.get('parameters', []))
     parameters.append({'num_cameras': num_cameras})
 
@@ -128,22 +69,33 @@ def get_nvblox_params(num_cameras: int, nvblox_config: dict, common_config: dict
     if 'odom_frame' in common_config:
         parameters.append({'global_frame': common_config.get('odom_frame')})
 
-    parameters.append(
-        lu.get_path('oakd_isaac_ros',
-                    'config/nvblox/specializations/nvblox_dynamics.yaml'))
-
-    print("### APPENDED NVBLOX PARAMS: " + str(lu.get_path('oakd_isaac_ros', 'config/nvblox/specializations/nvblox_dynamics.yaml')) + " ###")
-
     return parameters
 
+# next thing is to get the nvblox remappings
+def get_nvblox_remappings(cameras: dict) -> List[Tuple[str, str]]:
+    remappings = []
+
+    for i in range(len(cameras)):
+        depth = cameras[i].get('depth')
+        color = cameras[i].get('color')
+        remappings.append((f'camera_{i}/depth/image', depth.get('image')))
+        remappings.append((f'camera_{i}/depth/camera_info', depth.get('info')))
+        remappings.append((f'camera_{i}/color/image', color.get('image')))
+        remappings.append((f'camera_{i}/color/camera_info', color.get('info')))
+    return remappings
+
+# start the nvBLOX pipeline
+# the argument container is passed and also the nvblox and common config values are passsed as dictionaries
 def start_nvblox(args: lu.ArgumentContainer, nvblox_config: dict,
                  common_config: dict) -> List[Action]:
 
+    # check which camera is used and check that there is at least one camera
     cameras = nvblox_config.get('remappings', [])
     num_cameras = len(cameras)
     assert num_cameras != 0, 'You need to provide at least one input channel'
     assert num_cameras <= 4, 'No more than 4 input channels must be provided'
 
+    # now we run another function to open the nvBLOX params
     parameters = get_nvblox_params(num_cameras, nvblox_config, common_config)
 
     ## set the voxel size dynamically on launch
@@ -187,29 +139,43 @@ def start_nvblox(args: lu.ArgumentContainer, nvblox_config: dict,
         
     return actions
 
+# generate frame transforms in order to place the 3D model and the camera at the right orientation
 def generate_static_transforms():
     return LaunchDescription([
-        Node(package = "tf2_ros", 
-                       executable = "static_transform_publisher",
-                       arguments = ["0", "0", "0", "0", "0", "0", "map", "odom"]),
+        Node(
+            package = "tf2_ros", 
+            executable = "static_transform_publisher",
+            arguments = ["0", "0", "0", "0", "0", "0", "map", "odom"]),
 
-        Node(package = "tf2_ros", 
-                       executable = "static_transform_publisher",
-                       arguments = ["0", "0", "0", "0", "0", "0", "odom", "oak-d-base-frame"])
+        Node(
+            package = "tf2_ros", 
+            executable = "static_transform_publisher",
+            arguments = ["0", "0", "0", "0", "0", "0", "odom", "oak-d-base-frame"]),
+            
+        Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            arguments=["0", "0", "0", "0", "0", "0", "oak-d-base-frame", "oak_rgb_camera_optical_frame"],
+        ),
     ])
 
+# here we define the implicit launch description
 def generate_launch_description_impl(args: lu.ArgumentContainer) -> List[Action]:
-    config_file = lu.get_path('oakd_isaac_ros', args.config_file)
-    print("### LAUNCH FILE CONFIG :" + str(config_file))
-    with open(config_file, "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
+    nvblox_config_file = lu.get_path('oakd_isaac_ros', args.nvblox_config_file)
+    oakd_config_file_path = lu.get_path('oakd_isaac_ros', args.oakd_config_file)
+
+    with open(nvblox_config_file, "r", encoding="utf-8") as file:
+        nvblox_config = yaml.safe_load(file)
+
     actions = []
 
-    common_config = config.get(COMMON_CONFIG, {})
-    if NVBLOX_CONFIG in config and lu.is_false(args.disable_nvblox):
-        nvblox_config = config.get(NVBLOX_CONFIG)
+    # extract common config and the nvblox config from the config file and launch nvBLOX
+    common_config = nvblox_config.get(COMMON_CONFIG, {})
+    if NVBLOX_CONFIG in nvblox_config and lu.is_false(args.disable_nvblox):
+        nvblox_config = nvblox_config.get(NVBLOX_CONFIG)
         actions.extend(start_nvblox(args, nvblox_config, common_config))
 
+    # launch the visualization pipeline
     actions.append(
         lu.include(
             'oakd_isaac_ros',
@@ -217,7 +183,22 @@ def generate_launch_description_impl(args: lu.ArgumentContainer) -> List[Action]
             launch_arguments={'use_foxglove_whitelist': args.use_foxglove_whitelist},
         ))
     
-    actions.append(generate_launch_description_oakd_rgbd())
+
+    # append the launch file for the OAK-D
+    actions.append(
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(
+                    get_package_share_directory('oakd_isaac_ros'),
+                    'launch/tools/camera.launch.py'
+                )
+            ),
+            launch_arguments={
+                'params_file': str(oakd_config_file_path),
+                # Add other arguments as needed
+            }.items()
+        )
+    )
 
     actions.append(convert_bgr_to_rgb())
 
@@ -225,29 +206,40 @@ def generate_launch_description_impl(args: lu.ArgumentContainer) -> List[Action]
 
     return actions
 
+# this function is the top-level functionality where we delcase the launch files and config files to be used in our setup
 def generate_launch_description() -> LaunchDescription:
     package_name = 'oakd_isaac_ros'  # Change this to match your package name
 
-    # Get the path to the config file inside the package's "config" directory
-    default_config_path = os.path.join(
-        get_package_share_directory(package_name),
+    # get the nvBLOX config file
+    nvblox_default_config = os.path.join(
+        str(get_package_share_directory(package_name)),
         'config',
         'nvblox_dynamics.yaml'
+    )
+
+    # get the OAK-D config file
+    oak_d_default_config = os.path.join(
+        str(get_package_share_directory(package_name)),
+        'config',
+        'oak_d',
+        'oakd_rgbd.yaml'
     )
 
     # Define arguments
     args = lu.ArgumentContainer()
     args.add_arg('disable_nvblox', False, description='Disable nvblox', cli=True)
     args.add_arg('log_level', 'info', choices=['debug', 'info', 'warn'], cli=True)
-    
-    # Use the dynamically found config path instead of hardcoding it
-    args.add_arg('config_file', default_config_path,
-                 description='Path to the config file', cli=True)
-
-    args.add_arg('voxel_size', 0.05, description='Set nvBlox Voxel Size', cli=True)
-
+    # use Foxglove whitelist or show all topics?
     args.add_arg('use_foxglove_whitelist', False, cli=True)
+    # Use the dynamically found config paths instead of hardcoding them
+    args.add_arg('nvblox_config_file', str(nvblox_default_config),
+                 description='Path to the config file', cli=True)
+    args.add_arg('oakd_config_file', str(oak_d_default_config),
+                 description='Path to the config file', cli=True)
+    # set a default voxel_size but can be changed during launch
+    args.add_arg('voxel_size', 0.05, description='Set nvBlox Voxel Size', cli=True)
 
     args.add_opaque_function(generate_launch_description_impl)
 
     return LaunchDescription(args.get_launch_actions())
+
