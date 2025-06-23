@@ -132,8 +132,8 @@ def generate_launch_description() -> LaunchDescription:
     # People detection
     actions.append(
         lu.include(
-            'nvblox_examples_bringup',
-            'launch/perception/detection.launch.py',
+            'oakd_isaac_ros',
+            'launch/tools/detection.launch.py',
             launch_arguments={
                 #'namespace_list': camera_namespaces,
                 'input_topic_list': camera_input_topics,
