@@ -242,7 +242,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='Width of the input image.')
     args.add_arg('input_image_height', '720',
                  description='Height of the input image.')
-    args.add_arg('confidence_threshold', '0.25',
+    args.add_arg('confidence_threshold', '0.5',
                  description='Confidence threshold to filter candidate detections during NMS')
     args.add_arg('nms_threshold', '0.45',
                 description='NMS IOU threshold')
