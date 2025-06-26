@@ -38,8 +38,11 @@ def generate_launch_description() -> LaunchDescription:
     args = lu.ArgumentContainer()
     args.add_arg(
         'rosbag', 'None', description='Path to rosbag (running on sensor if not set).', cli=True)
-    args.add_arg('rosbag_args', '',
+    args.add_arg('rosbag_args', '--loop',
                  description='Additional args for ros2 bag play.', cli=True)
+    
+    args.add_arg('use_rosbag', default='false', description='Use rosbag instead of live OAK-D camera')
+
     args.add_arg('log_level', 'info', choices=[
                  'debug', 'info', 'warn'], cli=True)
     args.add_arg('num_cameras', 1,
@@ -88,7 +91,7 @@ def generate_launch_description() -> LaunchDescription:
 
     # Globally set use_sim_time if we're running from bag or sim
     actions.append(
-        SetParameter('use_sim_time', True, condition=IfCondition(lu.is_valid(args.rosbag))))
+        SetParameter('use_sim_time', True, condition=IfCondition(lu.is_valid(args.use_rosbag))))
 
     run_oakd_driver = UnlessCondition(
         OrSubstitution(lu.is_valid(args.rosbag), lu.is_false(args.run_oakd)))
@@ -99,7 +102,7 @@ def generate_launch_description() -> LaunchDescription:
     output_resized_camera_info_topics = ['/oak/segmentation/camera_info_resized']
     camera_mode = 'oakd'
 
-    # OAK-D
+    
     actions.append(
         lu.include(
             'oakd_isaac_ros',
@@ -107,8 +110,9 @@ def generate_launch_description() -> LaunchDescription:
             launch_arguments={
                 'container_name': args.container_name,
                 'params_file': os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'config', 'oak_d', 'oakd_rgbd.yaml'),
-            },
-            condition=run_oakd_driver))
+                },
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
+
 
     # People segmentation
     actions.append(
@@ -202,9 +206,15 @@ def generate_launch_description() -> LaunchDescription:
     # Play ros2bag
     actions.append(
         lu.play_rosbag(
-            bag_path=args.rosbag,
+            bag_path=os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'assets', 'test_bag'),
             additional_bag_play_args=args.rosbag_args,
-            condition=IfCondition(lu.is_valid(args.rosbag))))
+            condition=IfCondition(lu.is_valid(args.use_rosbag))))
+
+    #actions.append(
+    #    ExecuteProcess(
+    #        cmd=['ros2', 'bag', 'play', os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'assets', 'test_bag'), '--loop'],
+    #        output='screen',
+    #        condition=IfCondition(LaunchConfiguration('use_rosbag'))))
 
     # Visualization
     actions.append(
