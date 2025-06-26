@@ -145,9 +145,12 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     confidence_threshold = args.confidence_threshold
     nms_threshold = args.nms_threshold
 
-    namespace = "camera0"
-    input_topic = "camera0/color/image_raw"
-    input_info_topic = "camera0/color/image_raw/camera_info"
+    #namespace = "camera0"
+    #input_topic = "camera0/color/image_raw"
+    #input_info_topic = "camera0/color/image_raw/camera_info"
+    input_topic='/oak/rgb/image_raw'
+    input_info_topic='/oak/rgb/camera_info'
+
 
     encoder_dir = get_package_share_directory('isaac_ros_dnn_image_encoder')
     yolov8_encoder_launch = IncludeLaunchDescription(
@@ -161,9 +164,10 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
             'network_image_height': str(network_image_height),
             'image_mean': str(image_mean),
             'image_stddev': str(image_stddev),
-            'attach_to_shared_component_container': 'True',
-            'component_container_name': 'tensor_rt_container',
+            'attach_to_shared_component_container': 'False',
+            #'component_container_name': 'tensor_rt_container',
             'dnn_image_encoder_namespace': 'yolov8_encoder',
+            'keep_aspect_ratio': 'false',
             'image_input_topic': str(input_topic),
             'camera_info_input_topic': str(input_info_topic),
             'tensor_output_topic': '/tensor_pub',
@@ -193,6 +197,7 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         parameters=[{
             'confidence_threshold': confidence_threshold,
             'nms_threshold': nms_threshold,
+            'tensor_name': 'output_tensor',
         }]
     )
 
@@ -233,9 +238,9 @@ def generate_launch_description() -> LaunchDescription:
         '["camera0/color/image_raw/camera_info"]',
         description='List of camera image info input topics for each detection inference pipeline')
 
-    args.add_arg('input_image_width', '1920',
+    args.add_arg('input_image_width', '1280',
                  description='Width of the input image.')
-    args.add_arg('input_image_height', '1080',
+    args.add_arg('input_image_height', '720',
                  description='Height of the input image.')
     args.add_arg('confidence_threshold', '0.25',
                  description='Confidence threshold to filter candidate detections during NMS')
@@ -269,11 +274,11 @@ def generate_launch_description() -> LaunchDescription:
                  description='Full path to detection model TRT engine')
     args.add_arg('input_binding_names', '["images"]',
                  description='List of TRT input tensor binding names')
-    args.add_arg('input_tensor_names', '["images"]',
+    args.add_arg('input_tensor_names', '["input_tensor"]',
                  description='List of TRT input tensor names')
     args.add_arg('input_tensor_formats', '["nitros_tensor_list_nchw_rgb_f32"]',
                  description='List of TRT input tensor nitros type formats')
-    args.add_arg('output_tensor_names', '["output0"]',
+    args.add_arg('output_tensor_names', '["output_tensor"]',
                  description='List of TRT output tensor names')
     args.add_arg('output_binding_names', '["output0"]',
                  description='List of TRT output tensor binding names')
