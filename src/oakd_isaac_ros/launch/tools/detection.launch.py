@@ -201,14 +201,42 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         }]
     )
 
+    mask_resize_node = ComposableNode(
+        name='mask_resize_node',
+        package='isaac_ros_image_proc',
+        plugin='nvidia::isaac_ros::image_proc::ResizeNode',
+        #namespace=namespace,
+        extra_arguments=[{'--ros-args': '', '--log-level': 'debug'}],
+        parameters=[{
+            'input_width': 640,
+            'input_height': 640,
+            'output_width': 1280,
+            'output_height': 720,
+            'encoding_desired': 'mono8',
+            'keep_aspect_ratio': False,
+            'disable_padding': False,
+            'num_blocks': 40,
+            'input_qos_depth': 10,
+            'output_qos_depth': 10,
+            'camera_info_qos_depth': 10,
+            'image_qos_depth': 10,
+        }],
+        remappings=[
+            ('/image', '/camera0/detection/mask'),
+            ('/camera_info', '/camera0/detection/mask/camera_info'), 
+            ('/resize/image', '/camera0/detection/mask_resized'),
+            ('/resize/camera_info', '/camera0/detection/mask_resized/camera_info'),
+        ]
+    )
+
     detection_node = ComposableNodeContainer(
         name='tensor_rt_container',
         package='rclcpp_components',
         executable='component_container_mt',
-        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node],
+        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO'],
-        namespace='YOLOv8'
+        namespace=''
     )
 
     return [yolov8_encoder_launch, detection_node]

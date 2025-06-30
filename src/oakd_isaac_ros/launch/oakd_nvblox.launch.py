@@ -152,7 +152,7 @@ def generate_launch_description() -> LaunchDescription:
     actions.append(
         Node(
             package='oakd_isaac_ros',
-            executable='image_converter',
+            executable='image_converter.py',
             name='image_converter_node',
             output='screen',
             remappings=[

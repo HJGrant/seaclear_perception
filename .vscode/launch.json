@@ -1,21 +1,22 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
             "name": "ROS: Launch",
             "request": "launch",
             "target": "/workspaces/oakd_isaac_ros/install/oakd_isaac_ros/share/oakd_isaac_ros/launch/oakd_nvblox.launch.py",
+            "type": "ros",
             "launch": [
                 "rviz",
                 "gz",
                 "gzclient",
                 "gzserver"
             ],
-            "type": "ros"
+            "arguments": [
+                "mode:=people_detection",
+                "camera:=oakd",
+                "use_rosbag:=true"
+            ]
         }
     ]
 }
