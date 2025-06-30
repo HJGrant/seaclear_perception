@@ -99,3 +99,7 @@ docker pull hjgrant99/nvblox_dynamics_oakd:latest
 ```
 
 Or simply run `docker run --rm -it --gpus all --network host my_username/nvblox_dynamics_oakd` to download the docker image and automatically launch it after it's downloaded. 
+
+## Result 
+
+<iframe width="560" height="315" src="https://www.youtube.com/watch?v=OIjGRGrXV9s" frameborder="0" allowfullscreen></iframe>

@@ -17,18 +17,36 @@ find_package(vision_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(ament_cmake_python REQUIRED)
+find_package(rclpy REQUIRED)
+find_package(message_filters REQUIRED)
 
-add_executable(DetectionMaskNode src/oakd_isaac_ros/publish_mask.cpp)
-ament_target_dependencies(DetectionMaskNode 
+add_executable(publish_mask src/publish_mask.cpp)
+ament_target_dependencies(publish_mask 
   rclcpp 
   std_msgs 
   sensor_msgs 
   OpenCV 
   vision_msgs 
-  cv_bridge)
+  cv_bridge
+  message_filters)
+
 
 install(TARGETS
-  DetectionMaskNode
+  publish_mask
   DESTINATION lib/${PROJECT_NAME})
+
+# Install Python modules
+ament_python_install_package(${PROJECT_NAME})
+
+# Install Python executables
+install(PROGRAMS
+  scripts/image_converter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(DIRECTORY config launch assets
+  DESTINATION share/${PROJECT_NAME})
 
 ament_package()

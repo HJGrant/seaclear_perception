@@ -45,9 +45,8 @@ def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
         remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
 
         if mode is NvbloxMode.people_detection:
-            remappings.append((f'camera_0/mask/image', f'/camera0/detection/people_mask'))
-            remappings.append(
-                (f'camera_0/mask/camera_info', f'/oak/rgb/camera_info'))
+            remappings.append((f'camera_0/mask/image', f'/camera0/detection/mask_resized'))
+            remappings.append((f'camera_0/mask/camera_info', f'/camera0/detection/mask_resized/camera_info'))
             
     return remappings
 
@@ -86,6 +85,7 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
 
     # select the camera 
     if camera == "oakd":
+        print("##### Setting Camera to nvBLOX!! #####")
         remappings = get_oakd_remappings(mode)
         camera_config = oakd_config
         assert num_cameras == 1, 'OAK-D example can only run with 1 camera.'
@@ -110,15 +110,19 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
         parameters=parameters,
     )
 
-    actions = []
+    actions = [] 
     if args.run_standalone:
         actions.append(lu.component_container(args.container_name))
     actions.append(lu.load_composable_nodes(args.container_name, [nvblox_node]))
+
+    print("Remappings:", remappings)
+
     actions.append(
         lu.log_info(
             ["Starting nvblox with the '",
              str(camera), "' camera in '",
              str(mode), "' mode."]))
+    
     return actions
 
 def generate_launch_description() -> LaunchDescription:
