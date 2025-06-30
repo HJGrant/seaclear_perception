@@ -1,4 +1,5 @@
-ARG BASE_IMAGE=ubuntu:22.04
+ARG BASE_IMAGE
+#=ubuntu:22.04
 FROM ${BASE_IMAGE}
 
 #Install extra ROS packages for Isaac Perceptor
@@ -13,4 +14,13 @@ RUN wget -qO- https://docs.luxonis.com/install_dependencies.sh | bash
 RUN python3 -m pip install depthai
 RUN apt install -y ros-humble-depthai-ros
 
-RUN apt-get upgrade -y
+RUN apt update && apt install -y libopencv-dev
+
+RUN apt install -y \
+  ros-humble-sensor-msgs \
+  ros-humble-std-msgs \
+  ros-humble-geometry-msgs \
+  ros-humble-nav-msgs \
+  ros-humble-cv-bridge
+
+RUN apt update && apt-get upgrade -y
