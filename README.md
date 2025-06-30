@@ -102,4 +102,4 @@ Or simply run `docker run --rm -it --gpus all --network host my_username/nvblox_
 
 ## Result 
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/OIjGRGrXV9s" frameborder="0" allowfullscreen></iframe>
+[Watch the demo video](my_ws/assets/demo_vid.mp4)
