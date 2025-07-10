@@ -12,14 +12,15 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
+#include <rclcpp_components/register_node_macro.hpp>
 
 class publish_mask : public rclcpp::Node
 {
 public:
-  publish_mask()
+  publish_mask(const rclcpp::NodeOptions & options)
   : Node("detection_mask_node")
   {
-    this->declare_parameter<int>("target_class_id", 62);
+    this->declare_parameter<int>("target_class_id", 3);
     this->declare_parameter<int>("image_width", 640);
     this->declare_parameter<int>("image_height", 640);
 
@@ -209,10 +210,4 @@ private:
   sensor_msgs::msg::CameraInfo::SharedPtr last_camera_info_;
 };
 
-int main(int argc, char** argv)
-{
-  rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<publish_mask>());
-  rclcpp::shutdown();
-  return 0;
-}
+RCLCPP_COMPONENTS_REGISTER_NODE(publish_mask)
