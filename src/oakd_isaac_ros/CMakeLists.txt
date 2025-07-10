@@ -12,6 +12,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
@@ -22,8 +23,10 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(message_filters REQUIRED)
 
-add_executable(publish_mask src/publish_mask.cpp)
-ament_target_dependencies(publish_mask 
+add_library(publish_mask_component SHARED src/publish_mask.cpp)
+
+ament_target_dependencies(publish_mask_component 
+  rclcpp_components
   rclcpp 
   std_msgs 
   sensor_msgs 
@@ -32,10 +35,19 @@ ament_target_dependencies(publish_mask
   cv_bridge
   message_filters)
 
+rclcpp_components_register_node(
+    publish_mask_component
+    PLUGIN "publish_mask"
+    EXECUTABLE publish_mask
+)
 
-install(TARGETS
-  publish_mask
-  DESTINATION lib/${PROJECT_NAME})
+ament_export_targets(export_publish_mask_component)
+install(TARGETS publish_mask_component
+        EXPORT export_publish_mask_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})

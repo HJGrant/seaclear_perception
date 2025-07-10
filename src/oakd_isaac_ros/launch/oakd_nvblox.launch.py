@@ -173,15 +173,9 @@ def generate_launch_description() -> LaunchDescription:
         package="tf2_ros",
         executable="static_transform_publisher",
         arguments=["0", "0", "1.0", "0", "3.14", "1.5708", "odom", "oak-d-base-frame"],
+        )
     )
-)
-    #actions.append(
-    #    Node(
-    #        package="tf2_ros",
-    #        executable="static_transform_publisher",
-    #        arguments=["0", "0", "0", "0", "0", "0", "base_link", "oak-d-base-frame"],
-    #    )
-    #)
+
     actions.append(
         Node(
             package="tf2_ros",
@@ -206,15 +200,9 @@ def generate_launch_description() -> LaunchDescription:
     # Play ros2bag
     actions.append(
         lu.play_rosbag(
-            bag_path=os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'assets', 'test_bag'),
+            bag_path=os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'assets', 'underwater_test_bag'),
             additional_bag_play_args=args.rosbag_args,
             condition=IfCondition(lu.is_valid(args.use_rosbag))))
-
-    #actions.append(
-    #    ExecuteProcess(
-    #        cmd=['ros2', 'bag', 'play', os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'assets', 'test_bag'), '--loop'],
-    #        output='screen',
-    #        condition=IfCondition(LaunchConfiguration('use_rosbag'))))
 
     # Visualization
     actions.append(
@@ -226,15 +214,6 @@ def generate_launch_description() -> LaunchDescription:
                 #'camera': camera_mode,
                 'use_foxglove_whitelist': args.use_foxglove_whitelist,
             }))
-
-    # Container
-    # NOTE: By default (attach_to_container:=False) we launch a container which all nodes are
-    # added to, however, we expose the option to not launch a container, and instead attach to
-    # an already running container. The reason for this is that when running live on multiple
-    # realsenses we have experienced unreliability in the bringup of multiple realsense drivers.
-    # To (partially) mitigate this issue the suggested workflow for multi-realsenses is to:
-    # 1. Launch RS (cameras & splitter) and start a component_container
-    # 2. Launch nvblox + cuvslam and attached to the above running component container
 
     actions.append(
         lu.component_container(
