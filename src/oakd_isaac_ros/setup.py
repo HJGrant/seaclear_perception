@@ -41,7 +41,7 @@ setup(
     version='0.0.1',
     packages=find_packages(where='src'),  # Include src/ as package directory
     package_dir={'': 'src'},
-    data_files=package_files(data_files, ['launch/', 'config/']),
+    data_files=package_files(data_files, ['launch/', 'config/', 'assets/']),
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='itr',

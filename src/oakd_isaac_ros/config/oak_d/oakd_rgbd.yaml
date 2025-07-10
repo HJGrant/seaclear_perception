@@ -14,13 +14,13 @@
     left:
       i_publish_topic: true
       i_fps: 30.0
-      i_resolution: 720P
+      i_resolution: 400P
       i_low_bandiwdth_frame_freq: 30
       i_low_bandwidth: true
     right:
       i_publish_topic: true
       i_fps: 30.0
-      i_resolution: 720P
+      i_resolution: 400P
       i_low_bandiwdth_frame_freq: 30
       i_low_bandwidth: true
     rgb:
@@ -32,7 +32,13 @@
       i_isp_num: 2
     stereo:
       i_publish_topic: true
-      i_low_bandwidth: true
+      i_low_bandwidth: false
       i_align_depth: true
       i_lr_check: true
-      i_subpixel: false
+      i_subpixel: true
+      i_enable_temporal_filter: true
+      i_temporal_filter_alpha: 0.4
+      i_temporal_filter_delta: 20
+      i_temporal_filter_persistency: VALID_2_IN_LAST_4
+      i_enable_speckle_filter: true
+      i_speckle_filter_speckle_range: 50

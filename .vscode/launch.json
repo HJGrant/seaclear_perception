@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ROS: Launch",
+            "request": "launch",
+            "target": "/workspaces/oakd_isaac_ros/install/oakd_isaac_ros/share/oakd_isaac_ros/launch/oakd_nvblox.launch.py",
+            "type": "ros",
+            "launch": [
+                "rviz",
+                "gz",
+                "gzclient",
+                "gzserver"
+            ],
+            "arguments": [
+                "mode:=people_detection",
+                "camera:=oakd",
+                "use_rosbag:=true"
+            ]
+        }
+    ]
+}
