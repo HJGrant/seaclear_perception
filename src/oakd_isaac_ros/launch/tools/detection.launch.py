@@ -229,11 +229,18 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         ]
     )
 
+    depth_mask_publisher = ComposableNode(
+        name='depth_mask_publisher',
+        package='oakd_isaac_ros',
+        plugin='publish_mask',
+        extra_arguments=[{'--ros-args': '', '--log-level': 'debug'}]
+    )
+
     detection_node = ComposableNodeContainer(
         name='tensor_rt_container',
         package='rclcpp_components',
         executable='component_container_mt',
-        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node],
+        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher],
         output='screen',
         arguments=['--ros-args', '--log-level', 'INFO'],
         namespace=''
@@ -295,10 +302,10 @@ def generate_launch_description() -> LaunchDescription:
     #             '/isaac_ros_assets/models/yolov8/yolov8s.onnx',
     #             description='Full path to detection model TRT engine')
     args.add_arg('model_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/yolov8/yolov8s.onnx',
+                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx',
                  description='Full path to detection model TRT engine')
     args.add_arg('engine_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/yolov8/yolov8s.plan',
+                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan',
                  description='Full path to detection model TRT engine')
     args.add_arg('input_binding_names', '["images"]',
                  description='List of TRT input tensor binding names')
