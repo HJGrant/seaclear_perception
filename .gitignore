@@ -304,4 +304,9 @@ qtcreator-*
 COLCON_IGNORE
 AMENT_IGNORE
 
+#ML files
+*.onnx
+*.plan
+*.model
+
 # End of https://www.toptal.com/developers/gitignore/api/database,ros2
