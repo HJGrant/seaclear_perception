@@ -2,6 +2,11 @@
 
 This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
 
+## TODO
+- [ ] Find a way to turn off the static TSDF layer and only compute the dynamic layer
+- [ ] Interface the vision pipeline with the grasp detection pipeline
+
+
 ## Requirements
  - For x86_64: Ubuntu 22.04+ and CUDA 12.6+ 
  - For Jetson: Jetpack 6.1 or 6.2
