@@ -102,7 +102,7 @@ def generate_launch_description() -> LaunchDescription:
     output_resized_camera_info_topics = ['/oak/segmentation/camera_info_resized']
     camera_mode = 'oakd'
 
-    
+    # launch the OAK-D ROS driver, the config is in config/oak_d/oakd_rgbd.yaml
     actions.append(
         lu.include(
             'oakd_isaac_ros',
@@ -114,7 +114,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
 
 
-    # People segmentation
+    # Run people segmentation if the right flag has been raised
     actions.append(
         lu.include(
             'nvblox_examples_bringup',
@@ -133,7 +133,7 @@ def generate_launch_description() -> LaunchDescription:
             },
             condition=IfCondition(lu.has_substring(args.mode, NvbloxMode.people_segmentation))))
 
-    # People detection
+    # Run the object segmentation code by launching the 'people_segmentation' pipeline, in fact runs the SeaClear 1.0 YOLO inference
     actions.append(
         lu.include(
             'oakd_isaac_ros',
