@@ -249,6 +249,7 @@ def generate_launch_description() -> LaunchDescription:
     args = lu.ArgumentContainer()
     args.add_arg('disable_nvblox', False, description='Disable nvblox', cli=True)
     args.add_arg('log_level', 'info', choices=['debug', 'info', 'warn'], cli=True)
+
     # use Foxglove whitelist or show all topics?
     args.add_arg('use_foxglove_whitelist', False, cli=True)
     # Use the dynamically found config paths instead of hardcoding them

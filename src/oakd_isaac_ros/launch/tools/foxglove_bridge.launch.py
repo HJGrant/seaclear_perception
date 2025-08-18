@@ -58,13 +58,68 @@ TOPIC_WHITELIST = [
     '/diagnostics',
     # Global localization
     '/visual_localization/pose',
+
+    # Bar30 Pressure Sensor
+    '/bar30/depth',
+    '/bar30/odom',
+    '/bar30/pressure',
+    '/bar30/temperature',
+
+    # DVL-A50
+
 ]
 
 IMAGE_TOPIC_WHITELIST = ["depth", "left/image_resized"]
 
 
+MY_TOPIC_LIST = [
+    #nvblox 
+    '/nvblox_node/tsdf_layer',
+    '/nvblox_node/color_layer_marker',
+    '/nvblox_node/color_layer',
+    '/nvblox_node/mesh',
+    '/map',
+
+    #oak-d
+    '/oak',
+    '/oak/rgb/image_raw',
+    '/oak_rgb/camera_info',
+    '/oak/stereo/image_raw',
+    '/oak/stereo/camera_info',
+    '/oak/rgb/image_raw_rgb8',
+    '/oak/rgb/image_raw/compressed',
+
+    #URDF topcis
+    '/robot_description',
+    '/joint_states',
+    '/position_rad',
+    '/command/set_rel_pos_rad',
+    '/grapple_percentage',
+
+    # Robot
+    '/robot_description',
+    '/tf',
+    '/tf_static',
+    '/diagnostics',
+    '/visual_localization/pose',
+
+    #system stat topics
+    '/system_stats',
+
+    # torque gauge topics
+    '/torque_gauge',
+    '/torque_nm',
+
+    # Bar30 Pressure Sensor
+    '/bar30/depth',
+    '/bar30/odom',
+    '/bar30/pressure',
+    '/bar30/temperature',
+
+]
+
 def get_topic_whitelist():
-    topic_whitelist = TOPIC_WHITELIST
+    topic_whitelist = MY_TOPIC_LIST
 
     for camera in [
             '/front_stereo_camera', '/back_stereo_camera', '/left_stereo_camera',
@@ -80,7 +135,7 @@ def add_foxglove(args: lu.ArgumentContainer) -> list[lut.Action]:
     params = [{
         'send_buffer_limit': int(args.send_buffer_limit),
         'max_qos_depth': 30,
-        'use_compression': False,
+        'use_compression': True,
         'capabilities': ['clientPublish', 'connectionGraph', 'assets'],
     }]
 

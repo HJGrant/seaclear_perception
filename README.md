@@ -21,17 +21,20 @@ python3 -m pip install depthai
 
 ## Launching nvBlox with the OAK-D PoE
 ## Step 1 
-Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97 ` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected and data is being 
-recieved by running ` python -m depthai_viewer `. 
+Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97 ` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected by running: 
 
-If you can't see the OAK-D, follow this [troubleshooting guide.](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide#connected-to-the-same-lan-via-2-interfaces-wifi-ethernet)
+```bash
+ping 192.168.2.97
+```
+
+If you are having trouble with the OAK-D then go to troubleshooting. 
 
 ## Step 2
 Clone the repo and it's submodules (DepthAI ROS Driver, Isaac ROS Packages, ...) with the following command: 
 
 ```bash
 mkdir -p ~/workspaces/ && cd ~/workspaces/ && \
-git clone --recurse-submodules https://github.com/HJGrant/oakd_isaac_ros.git
+git clone --recurse-submodules https://gitlab.cc-asp.fraunhofer.de/seaclear-project/tum/sc2/development/oakd_isaac_ros.git
 ```
 Copy the .isaac_ros_common-config file into your home directory:
 ```bash
@@ -101,3 +104,11 @@ docker run --rm -it --runtime=nvidia --network host <my_username>/nvblox_dynamic
 ## Result 
 
 [Watch the demo video](my_ws/assets/demo_vid.mp4)
+
+
+## Troubleshooting
+
+### Cannot Recieve Data from OAK-D
+Check basic functionality of the OAK-D by running ` python -m depthai_viewer `.
+
+If you can't see the OAK-D, follow this [troubleshooting guide.](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide#connected-to-the-same-lan-via-2-interfaces-wifi-ethernet)
