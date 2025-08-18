@@ -41,7 +41,7 @@ def generate_launch_description() -> LaunchDescription:
     args.add_arg('rosbag_args', '--loop',
                  description='Additional args for ros2 bag play.', cli=True)
     
-    args.add_arg('use_rosbag', default='false', description='Use rosbag instead of live OAK-D camera')
+    args.add_arg('use_rosbag', default='false', description='Use rosbag instead of live OAK-D camera', cli=True)
 
     args.add_arg('log_level', 'info', choices=[
                  'debug', 'info', 'warn'], cli=True)
@@ -49,7 +49,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='How many cameras to use.', cli=True)
     args.add_arg(
         'mode',
-        default=NvbloxMode.static,
+        default=NvbloxMode.people_detection,
         choices=NvbloxMode.names(),
         description='The nvblox mode.',
         cli=True)
@@ -88,6 +88,9 @@ def generate_launch_description() -> LaunchDescription:
         description='Disable visualization of bandwidth-heavy topics',
         cli=True)
     actions = args.get_launch_actions()
+
+    actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
+
 
     # Globally set use_sim_time if we're running from bag or sim
     actions.append(
