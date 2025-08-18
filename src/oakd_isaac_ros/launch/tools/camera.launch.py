@@ -70,137 +70,19 @@ def launch_setup(context, *args, **kwargs):
     name = LaunchConfiguration("name").perform(context)
 
     # If RealSense compatibility is enabled, we need to override some parameters, topics and node names
-    parameter_overrides = {}
+    
     color_sens_name = "rgb"
     stereo_sens_name = "stereo"
     points_topic_name = f"{name}/points"
-    if pointcloud_enable.perform(context) == "true":
-        parameter_overrides = {
-            "pipeline_gen": {"i_enable_sync": True},
-            "rgb": {"i_synced": True},
-            "stereo": {"i_synced": True},
-        }
+
     depth_topic_suffix = "image_raw"
-    if rs_compat.perform(context) == "true":
-        depth_topic_suffix = "image_rect_raw"
-        depth_profile = LaunchConfiguration("depth_module.depth_profile").perform(
-            context
-        )
-        color_profile = LaunchConfiguration("rgb_camera.color_profile").perform(context)
-        infra_profile = LaunchConfiguration("depth_module.infra_profile").perform(
-            context
-        )
-        # split profile string (0,0,0 or 0x0x0 or 0X0X0) into with (int) height(int) and fps(double)
-        # find delimiter
-        delimiter = ","
-        if "x" in depth_profile:
-            delimiter = "x"
-        elif "X" in depth_profile:
-            delimiter = "X"
-        depth_profile = depth_profile.split(delimiter)
-        color_profile = color_profile.split(delimiter)
-        infra_profile = infra_profile.split(delimiter)
-
-        color_sens_name = "color"
-        stereo_sens_name = "depth"
-        if name == "oak":
-            name = "camera"
-        points_topic_name = f"{name}/depth/color/points"
-        if namespace == "":
-            namespace = "camera"
-        if parent_frame == "oak-d-base-frame":
-            parent_frame = f"{name}_link"
-        parameter_overrides = {
-            "camera": {
-                "i_rs_compat": True,
-            },
-            "pipeline_gen": {
-                "i_enable_sync": True,
-            },
-            "color": {
-                "i_publish_topic": is_launch_config_true(context, "enable_color"),
-                "i_synced": True,
-                "i_width": int(color_profile[0]),
-                "i_height": int(color_profile[1]),
-                "i_fps": float(color_profile[2]),
-            },
-            "depth": {
-                "i_publish_topic": is_launch_config_true(context, "enable_depth"),
-                "i_synced": True,
-                "i_width": int(depth_profile[0]),
-                "i_height": int(depth_profile[1]),
-                "i_fps": float(depth_profile[2]),
-            },
-            "infra1": {
-                "i_width": int(infra_profile[0]),
-                "i_height": int(infra_profile[1]),
-                "i_fps": float(infra_profile[2]),
-            },
-            "infra2": {
-                "i_width": int(infra_profile[0]),
-                "i_height": int(infra_profile[1]),
-                "i_fps": float(infra_profile[2]),
-            },
-        }
-        parameter_overrides["depth"] = {
-            "i_left_rect_publish_topic": True,
-            "i_right_rect_publish_topic": True,
-        }
-
-    tf_params = {}
-    if publish_tf_from_calibration.perform(context) == "true":
-        cam_model = ""
-        if override_cam_model.perform(context) == "true":
-            cam_model = camera_model.perform(context)
-        tf_params = {
-            "camera": {
-                "i_publish_tf_from_calibration": True,
-                "i_tf_tf_prefix": name,
-                "i_tf_camera_model": cam_model,
-                "i_tf_base_frame": name,
-                "i_tf_parent_frame": parent_frame,
-                "i_tf_cam_pos_x": cam_pos_x.perform(context),
-                "i_tf_cam_pos_y": cam_pos_y.perform(context),
-                "i_tf_cam_pos_z": cam_pos_z.perform(context),
-                "i_tf_cam_roll": cam_roll.perform(context),
-                "i_tf_cam_pitch": cam_pitch.perform(context),
-                "i_tf_cam_yaw": cam_yaw.perform(context),
-                "i_tf_imu_from_descr": imu_from_descr.perform(context),
-            }
-        }
 
     launch_prefix = setup_launch_prefix(context)
 
+
+    print(f"#### OAKD PARAMS_FILE LOCATION: {params_file.perform(context)} #######")
+
     return [
-        Node(
-            condition=IfCondition(LaunchConfiguration("use_rviz").perform(context)),
-            package="rviz2",
-            executable="rviz2",
-            name="rviz2",
-            output="log",
-            arguments=["-d", LaunchConfiguration("rviz_config")],
-        ),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(
-                os.path.join(urdf_launch_dir, "urdf_launch.py")
-            ),
-            launch_arguments={
-                "namespace": namespace,
-                "tf_prefix": name,
-                "camera_model": camera_model,
-                "base_frame": name,
-                "parent_frame": parent_frame,
-                "cam_pos_x": cam_pos_x,
-                "cam_pos_y": cam_pos_y,
-                "cam_pos_z": cam_pos_z,
-                "cam_roll": cam_roll,
-                "cam_pitch": cam_pitch,
-                "cam_yaw": cam_yaw,
-                "use_composition": use_composition,
-                "use_base_descr": publish_tf_from_calibration,
-                "rs_compat": rs_compat,
-            }.items(),
-        ),
         ComposableNodeContainer(
             name=f"{name}_container",
             namespace=namespace,
@@ -214,8 +96,6 @@ def launch_setup(context, *args, **kwargs):
                     namespace=namespace,
                     parameters=[
                         params_file,
-                        tf_params,
-                        parameter_overrides,
                     ],
                 )
             ],
@@ -252,37 +132,11 @@ def launch_setup(context, *args, **kwargs):
                 )
             ],
         ),
-        LoadComposableNodes(
-            condition=IfCondition(pointcloud_enable),
-            target_container=f"{namespace}/{name}_container",
-            composable_node_descriptions=[
-                ComposableNode(
-                    package="depth_image_proc",
-                    plugin="depth_image_proc::PointCloudXyzrgbNode",
-                    name="point_cloud_xyzrgb_node",
-                    namespace=namespace,
-                    remappings=[
-                        (
-                            "depth_registered/image_rect",
-                            f"{name}/{stereo_sens_name}/{depth_topic_suffix}",
-                        ),
-                        (
-                            "rgb/image_rect_color",
-                            f"{name}/{color_sens_name}/image_rect",
-                        ),
-                        ("rgb/camera_info", f"{name}/{color_sens_name}/camera_info"),
-                        ("points", points_topic_name),
-                    ],
-                ),
-            ],
-        ),
     ]
 
 
 def generate_launch_description():
     pacakge_prefix = get_package_share_directory("oakd_isaac_ros")
-
-    print("### OVERRIDDEN CAMERA DRIVER CONFIG: "+ os.path.join(pacakge_prefix, "config", "oak_d", "oakd_rgbd.yaml"))
 
     declared_arguments = [
         DeclareLaunchArgument("name", default_value="oak"),

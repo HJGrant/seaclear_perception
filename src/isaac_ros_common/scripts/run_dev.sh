@@ -229,7 +229,7 @@ DOCKER_ARGS+=("-e NVIDIA_VISIBLE_DEVICES=all")
 DOCKER_ARGS+=("-e NVIDIA_DRIVER_CAPABILITIES=all")
 DOCKER_ARGS+=("-e ROS_DOMAIN_ID")
 DOCKER_ARGS+=("-e USER")
-DOCKER_ARGS+=("-e ISAAC_ROS_WS=/workspaces/oakd_isaac_ros")
+DOCKER_ARGS+=("-e ISAAC_ROS_WS=/workspaces/isaac_ros-dev")
 DOCKER_ARGS+=("-e HOST_USER_UID=`id -u`")
 DOCKER_ARGS+=("-e HOST_USER_GID=`id -g`")
 
@@ -288,7 +288,7 @@ docker run -it --rm \
     -v $ISAAC_ROS_DEV_DIR:/workspaces/oakd_isaac_ros \
     -v /etc/localtime:/etc/localtime:ro \
     --name "$CONTAINER_NAME" \
-    --runtime nvidia \
+    --gpus all \
     --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
     --workdir /workspaces/oakd_isaac_ros \
     $BASE_NAME \

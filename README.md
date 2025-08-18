@@ -2,6 +2,11 @@
 
 This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
 
+## TODO
+- [ ] Find a way to turn off the static TSDF layer and only compute the dynamic layer
+- [ ] Interface the vision pipeline with the grasp detection pipeline
+
+
 ## Requirements
  - For x86_64: Ubuntu 22.04+ and CUDA 12.6+ 
  - For Jetson: Jetpack 6.1 or 6.2
@@ -65,43 +70,40 @@ After the build has completed, source the ROS2 environment and run the launch fi
 
 ```bash
 source install/setup.bash && \
-ros2 launch oakd_isaac_ros nvblox_dynamics.launch.py
+ros2 launch oakd_isaac_ros oakd_nvblox.launch.py mode:='people_detection' use_rosbag:='false' voxel_size:='0.05'
 ```
 
+Specifying the 'people_detection' mode will enable selective 3D reconstruction of objects in bounding box regions provided by the SeaClear YOLO model. Other mode options include 'static' and 'dynamic'. You can choose to run the pipeline on a pre-recorded rosbag file, or run the pipeline live with the OAK-D camera, by setting 'use_rosbag' to false/true respectively. Set the voxel size of the map by changing the value 'voxel_size'. The default value is 0.05, and reducing this value will increase the resolution of the map, with a decrease in rendering speed. 
+
 ## Step 6
-Visualize the output in Foxglove, by displaying the `/nvblox_node/color_layer` topic in a 3D Panel. 
+Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detect objects by subscribing to `/nvblox_node/color_layer` and '/nvblox_node/dynamic_occupancy_layer', respectively. Diplay these topics in a 3D panel in Foxglove. 
 
 
 ## Building a Deployment Docker
 If you would like to deploy this pipeline as a 1-click solution, that launches a Docker containter and automatically launches the correct ROS2 launch file, run the following command OUTSIDE of the docker container: 
 
 ```bash
-~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "x86_64.ros2_humble.oakd" --ros_ws ~/workspaces/oakd_isaac_ros --launch_package "oakd_isaac_ros" --launch_file "nvblox_dynamics.launch.py" -n "my_username/nvblox_dynamics_oakd" 
+~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "x86_64.ros2_humble.oakd" --ros_ws ~/workspaces/oakd_isaac_ros --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd" 
 ```
 
 For Jetson Devices run (not tested):
 
 ```bash
-~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "aarch64.ros2_humble.oakd" --ros_ws ~/workspaces/isaac_ros-dev --launch_package "oakd_isaac_ros" --launch_file "nvblox_dynamics.launch.py" -n "my_username/nvblox_dynamics_oakd_jetson_aarch64" 
+~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "aarch64.ros2_humble.oakd" --ros_ws ~/workspaces/isaac_ros-dev --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd_jetson_aarch64" 
 ```
 Now you should see the image when you run `docker images` and you can then launch the pipeline by runnning: 
 
 ```bash
-docker run --rm -it --gpus all --network host my_username/nvblox_dynamics_oakd 
+docker run --rm -it --gpus all --network host <my_username>/nvblox_dynamics_oakd 
 ```
 To run the deployment docker on Jetson use the following command: 
 ```bash
-docker run --rm -it --runtime=nvidia --network host my_username/nvblox_dynamics_oakd_jetson_aarch64 
+docker run --rm -it --runtime=nvidia --network host <my_username>/nvblox_dynamics_oakd_jetson_aarch64 
 ```
 
-## Pulling a pre-built Deployment Docker
-You can pull a pre-build deployment docker from my Docker Hub repositoriy: 
+## Result 
 
-```bash
-docker pull hjgrant99/nvblox_dynamics_oakd:latest
-```
-
-Or simply run `docker run --rm -it --gpus all --network host my_username/nvblox_dynamics_oakd` to download the docker image and automatically launch it after it's downloaded. 
+[Watch the demo video](my_ws/assets/demo_vid.mp4)
 
 
 ## Troubleshooting

@@ -266,7 +266,10 @@ AMENT_IGNORE
 *.db-wal
 
 ### ISAAC ROS ###
-isaac_ros_assets/
+isaac_ros_assets/isaac_ros_nvblox/
+isaac_ros_assets/isaac_ros_yolov8/
+isaac_ros_assets/models/peoplesemsegnet/
+isaac_ros_assets/models/yolov8/
 
 ### ROS2 ###
 install/
@@ -300,5 +303,10 @@ qtcreator-*
 # Colcon custom files
 COLCON_IGNORE
 AMENT_IGNORE
+
+#ML files
+*.onnx
+*.plan
+*.model
 
 # End of https://www.toptal.com/developers/gitignore/api/database,ros2
