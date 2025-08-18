@@ -41,7 +41,7 @@ def generate_launch_description() -> LaunchDescription:
     args.add_arg('rosbag_args', '--loop',
                  description='Additional args for ros2 bag play.', cli=True)
     
-    args.add_arg('use_rosbag', default='false', description='Use rosbag instead of live OAK-D camera')
+    args.add_arg('use_rosbag', default='false', description='Use rosbag instead of live OAK-D camera', cli=True)
 
     args.add_arg('log_level', 'info', choices=[
                  'debug', 'info', 'warn'], cli=True)
@@ -49,7 +49,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='How many cameras to use.', cli=True)
     args.add_arg(
         'mode',
-        default=NvbloxMode.static,
+        default=NvbloxMode.people_detection,
         choices=NvbloxMode.names(),
         description='The nvblox mode.',
         cli=True)
@@ -89,6 +89,9 @@ def generate_launch_description() -> LaunchDescription:
         cli=True)
     actions = args.get_launch_actions()
 
+    actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
+
+
     # Globally set use_sim_time if we're running from bag or sim
     actions.append(
         SetParameter('use_sim_time', True, condition=IfCondition(lu.is_valid(args.use_rosbag))))
@@ -102,7 +105,7 @@ def generate_launch_description() -> LaunchDescription:
     output_resized_camera_info_topics = ['/oak/segmentation/camera_info_resized']
     camera_mode = 'oakd'
 
-    
+    # launch the OAK-D ROS driver, the config is in config/oak_d/oakd_rgbd.yaml
     actions.append(
         lu.include(
             'oakd_isaac_ros',
@@ -114,7 +117,7 @@ def generate_launch_description() -> LaunchDescription:
         condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
 
 
-    # People segmentation
+    # Run people segmentation if the right flag has been raised
     actions.append(
         lu.include(
             'nvblox_examples_bringup',
@@ -133,7 +136,7 @@ def generate_launch_description() -> LaunchDescription:
             },
             condition=IfCondition(lu.has_substring(args.mode, NvbloxMode.people_segmentation))))
 
-    # People detection
+    # Run the object segmentation code by launching the 'people_segmentation' pipeline, in fact runs the SeaClear 1.0 YOLO inference
     actions.append(
         lu.include(
             'oakd_isaac_ros',
