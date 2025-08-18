@@ -58,6 +58,15 @@ TOPIC_WHITELIST = [
     '/diagnostics',
     # Global localization
     '/visual_localization/pose',
+
+    # Bar30 Pressure Sensor
+    '/bar30/depth',
+    '/bar30/odom',
+    '/bar30/pressure',
+    '/bar30/temperature',
+
+    # DVL-A50
+
 ]
 
 IMAGE_TOPIC_WHITELIST = ["depth", "left/image_resized"]
@@ -78,6 +87,7 @@ MY_TOPIC_LIST = [
     '/oak/stereo/image_raw',
     '/oak/stereo/camera_info',
     '/oak/rgb/image_raw_rgb8',
+    '/oak/rgb/image_raw/compressed',
 
     #URDF topcis
     '/robot_description',
@@ -92,6 +102,20 @@ MY_TOPIC_LIST = [
     '/tf_static',
     '/diagnostics',
     '/visual_localization/pose',
+
+    #system stat topics
+    '/system_stats',
+
+    # torque gauge topics
+    '/torque_gauge',
+    '/torque_nm',
+
+    # Bar30 Pressure Sensor
+    '/bar30/depth',
+    '/bar30/odom',
+    '/bar30/pressure',
+    '/bar30/temperature',
+
 ]
 
 def get_topic_whitelist():
