@@ -25,7 +25,10 @@ def generate_launch_description():
         executable="oakd_video_stream_node",
         name="oakd_video_stream",
         output="screen",
-        parameters=[{"output_mode": "rtsp"}]
+        remappings=[
+            ("/image_raw", "/oak/rgb/image_raw"),
+            ("/compressed_video", "/oak/compressed_video")
+        ]
     )
 
     return LaunchDescription([

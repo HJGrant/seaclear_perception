@@ -27,11 +27,11 @@ public:
     RCLCPP_INFO(this->get_logger(), "Initialising CompressedVideo Stream!");
 
     oak_image_sub = this->create_subscription<sensor_msgs::msg::Image>(
-    "/oak/rgb/image_raw",
+    "/image_raw",
     rclcpp::SensorDataQoS(),
     std::bind(&oakd_video_stream::writeToStreamCallback, this, std::placeholders::_1));
     
-    write_video_stream = this->create_publisher<foxglove_msgs::msg::CompressedVideo>("/oak/compressed_video", 10);
+    write_video_stream = this->create_publisher<foxglove_msgs::msg::CompressedVideo>("/compressed_video", 10);
     
     gst_init(nullptr, nullptr);
     std::string pipeline_desc =

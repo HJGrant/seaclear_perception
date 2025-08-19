@@ -121,7 +121,11 @@ def generate_launch_description() -> LaunchDescription:
             package="oakd_isaac_ros",
             executable="oakd_video_stream_node",
             name="oakd_video_stream",
-            output="screen"
+            output="screen",
+            remappings=[
+            ("/image_raw", "/oak/rgb/image_raw"),
+            ("/compressed_video", "/oak/compressed_video")
+        ]
         )
     )
 
