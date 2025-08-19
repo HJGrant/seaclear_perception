@@ -240,7 +240,7 @@ if [[ -n $SSH_AUTH_SOCK ]]; then
 fi
 
 if [[ $PLATFORM == "aarch64" ]]; then
-    #DOCKER_ARGS+=("-e NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all,nvidia.com/pva=all")
+    DOCKER_ARGS+=("-e NVIDIA_VISIBLE_DEVICES=nvidia.com/gpu=all,nvidia.com/pva=all")
     DOCKER_ARGS+=("-v /usr/bin/tegrastats:/usr/bin/tegrastats")
     DOCKER_ARGS+=("-v /tmp/:/tmp/")
     DOCKER_ARGS+=("-v /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra")
@@ -288,7 +288,7 @@ docker run -it --rm \
     -v $ISAAC_ROS_DEV_DIR:/workspaces/oakd_isaac_ros \
     -v /etc/localtime:/etc/localtime:ro \
     --name "$CONTAINER_NAME" \
-    --runtime=nvidia \
+    --runtime nvidia \
     --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
     --workdir /workspaces/oakd_isaac_ros \
     $BASE_NAME \

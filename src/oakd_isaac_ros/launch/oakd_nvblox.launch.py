@@ -116,6 +116,14 @@ def generate_launch_description() -> LaunchDescription:
                 },
         condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
 
+    actions.append(
+        Node(
+            package="oakd_isaac_ros",
+            executable="oakd_video_stream_node",
+            name="oakd_video_stream",
+            output="screen"
+        )
+    )
 
     # Run people segmentation if the right flag has been raised
     actions.append(

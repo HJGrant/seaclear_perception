@@ -22,9 +22,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(message_filters REQUIRED)
+find_package(foxglove_msgs REQUIRED)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GST REQUIRED gstreamer-1.0)
+pkg_check_modules(GSTAPP REQUIRED gstreamer-app-1.0)
+pkg_check_modules(GST_RTSP_SERVER REQUIRED gstreamer-rtsp-server-1.0)
 
 add_library(publish_mask_component SHARED src/publish_mask.cpp)
-
 ament_target_dependencies(publish_mask_component 
   rclcpp_components
   rclcpp 
@@ -34,6 +39,31 @@ ament_target_dependencies(publish_mask_component
   vision_msgs 
   cv_bridge
   message_filters)
+
+add_executable(oakd_video_stream_node src/publish_video_stream.cpp)
+ament_target_dependencies(oakd_video_stream_node
+  rclcpp
+  std_msgs
+  sensor_msgs
+  OpenCV
+  vision_msgs
+  cv_bridge
+  foxglove_msgs
+  message_filters
+  # Add any other dependencies you use
+)
+
+target_include_directories(oakd_video_stream_node PRIVATE
+  ${GST_INCLUDE_DIRS}
+  ${GSTAPP_INCLUDE_DIRS}
+  ${GST_RTSP_SERVER_INCLUDE_DIRS}
+)
+target_link_libraries(oakd_video_stream_node
+  gstrtspserver-1.0
+  ${GST_LIBRARIES}
+  ${GSTAPP_LIBRARIES}
+  ${GST_RTSP_SERVER_INCLUDE_DIRS}
+)
 
 rclcpp_components_register_node(
     publish_mask_component
@@ -51,6 +81,10 @@ install(TARGETS publish_mask_component
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
+
+install(TARGETS oakd_video_stream_node
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
 
 # Install Python executables
 install(PROGRAMS

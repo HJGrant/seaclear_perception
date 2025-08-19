@@ -88,6 +88,7 @@ MY_TOPIC_LIST = [
     '/oak/stereo/camera_info',
     '/oak/rgb/image_raw_rgb8',
     '/oak/rgb/image_raw/compressed',
+    '/oak/compressed_video',
 
     #URDF topcis
     '/robot_description',
