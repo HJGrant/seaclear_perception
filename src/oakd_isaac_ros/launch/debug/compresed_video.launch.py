@@ -16,7 +16,13 @@ def generate_launch_description():
 
     # Include another launch file
     include_other_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(oakd_launch)
+        PythonLaunchDescriptionSource(oakd_launch),
+        launch_arguments={
+            'params_file': os.path.join(
+                get_package_share_directory('oakd_isaac_ros'),
+                'config', 'oak_d', 'oakd_rgbd.yaml'
+            )
+        }.items()
     )
 
     # Launch a node

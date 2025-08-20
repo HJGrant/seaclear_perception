@@ -35,7 +35,7 @@ public:
     
     gst_init(nullptr, nullptr);
     std::string pipeline_desc =
-        "appsrc name=mysrc ! videoconvert ! nvvidconv ! nvv4l2h264enc ! h264parse ! appsink name=mysink";
+        "appsrc name=mysrc ! videoconvert ! nvvidconv ! nvv4l2h264enc insert-sps-pps=true ! h264parse ! appsink name=mysink";
     GstElement* pipeline = gst_parse_launch(pipeline_desc.c_str(), nullptr);
     appsrc_ = gst_bin_get_by_name(GST_BIN(pipeline), "mysrc");
     appsink_ = gst_bin_get_by_name(GST_BIN(pipeline), "mysink");

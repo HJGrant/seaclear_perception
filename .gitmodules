@@ -7,3 +7,6 @@
 [submodule "src/isaac_ros_common"]
 	path = src/isaac_ros_common
 	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_common.git
+[submodule "src/foxglove_compressed_video"]
+	path = src/foxglove_compressed_video
+	url = https://github.com/HJGrant/foxglove_compressed_video_stream.git
