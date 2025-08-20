@@ -27,13 +27,13 @@ def generate_launch_description():
 
     # Launch a node
     video_stream_node = Node(
-        package="oakd_isaac_ros",
-        executable="oakd_video_stream_node",
-        name="oakd_video_stream",
+        package="foxglove_compressed_video",
+        executable="foxglove_compressed_video_stream",
+        name="foxglove_compressed_video_node",
         output="screen",
         remappings=[
-            ("/image_raw", "/oak/rgb/image_raw"),
-            ("/compressed_video", "/oak/compressed_video")
+        ("/image_raw", "/oak/rgb/image_raw"),
+        ("/compressed_video", "/oak/compressed_video")
         ]
     )
 
