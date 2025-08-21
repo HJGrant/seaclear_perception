@@ -22,5 +22,3 @@ RUN apt install -y \
   ros-humble-geometry-msgs \
   ros-humble-nav-msgs \
   ros-humble-cv-bridge
-
-RUN apt update && apt-get upgrade -y
