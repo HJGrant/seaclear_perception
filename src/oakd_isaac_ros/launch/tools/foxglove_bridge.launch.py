@@ -82,11 +82,9 @@ MY_TOPIC_LIST = [
 
     #oak-d
     '/oak',
-    '/oak/rgb/image_raw',
     '/oak_rgb/camera_info',
     '/oak/stereo/image_raw',
     '/oak/stereo/camera_info',
-    '/oak/rgb/image_raw_rgb8',
     '/oak/rgb/image_raw/compressed',
     '/oak/compressed_video',
 

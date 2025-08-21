@@ -9,20 +9,26 @@ from launch.actions import ExecuteProcess
 
 def generate_launch_description():
     # Path to the other launch file
-    oakd_launch = os.path.join(
+    oakd_launch_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
         'launch', 'tools', 'camera.launch.py'
     )
 
     # Include another launch file
-    include_other_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(oakd_launch),
+    oakd_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(oakd_launch_file),
         launch_arguments={
             'params_file': os.path.join(
                 get_package_share_directory('oakd_isaac_ros'),
                 'config', 'oak_d', 'oakd_rgbd.yaml'
             )
         }.items()
+    )
+
+    foxglove_bridge = Node(
+        package='foxglove_bridge',
+        executable='foxglove_bridge',
+        name='foxglove_bridge_node'
     )
 
     # Launch a node
@@ -38,6 +44,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        include_other_launch,
-        video_stream_node
+        oakd_launch,
+        foxglove_bridge
     ])

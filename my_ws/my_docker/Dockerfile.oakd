@@ -47,3 +47,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gstreamer1.0-pulseaudio \
   v4l-utils \
   && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ninja-build \
+    libboost-all-dev \
+    openssl \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libgtk-3-dev \
+    libglib2.0-dev \
+    pulseaudio \
+    libasound2-dev \
+    libpulse-dev \
+    libjpeg-turbo8 \
+    libjpeg-turbo8-dev
+
+WORKDIR /home/3rdparty/jsoncpp/
+RUN git clone https://github.com/open-source-parsers/jsoncpp.git . && \
+    mkdir build && \
+    cd build && \
+    cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC_LIBS=ON -DBUILD_SHARED_LIBS=OFF -DARCHIVE_INSTALL_DIR=. -G "Unix Makefiles" .. &&  \
+    make && \
+    make install
+ENV LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
+
+RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
+ENV PATH="/opt/depot_tools:${PATH}"
+
+WORKDIR /home/webrtc_src
+RUN fetch --nohooks webrtc
+WORKDIR /home/webrtc_src
+RUN gclient sync
+
+RUN apt-get install python-is-python3
