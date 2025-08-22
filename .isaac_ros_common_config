@@ -1,0 +1,4 @@
+CONFIG_IMAGE_KEY="ros2_humble.oakd"
+CONFIG_DOCKER_SEARCH_DIRS=($HOME/workspaces/oakd_isaac_ros/my_ws/my_docker $HOME/workspaces/oakd_isaac_ros/src/isaac_ros_common/docker ../lib/src/gxf/docker) 
+CONFIG_CONTAINER_NAME_SUFFIX=seaclear2
+BASE_DOCKER_REGISTRY_NAMES=("nvcr.io/isaac/ros")
