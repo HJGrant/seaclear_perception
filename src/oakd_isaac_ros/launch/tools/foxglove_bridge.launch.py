@@ -80,7 +80,7 @@ def add_foxglove(args: lu.ArgumentContainer) -> list[lut.Action]:
     params = [{
         'send_buffer_limit': int(args.send_buffer_limit),
         'max_qos_depth': 30,
-        'use_compression': False,
+        'use_compression': True,
         'capabilities': ['clientPublish', 'connectionGraph', 'assets'],
     }]
 
