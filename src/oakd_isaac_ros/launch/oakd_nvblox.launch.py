@@ -89,12 +89,6 @@ def generate_launch_description() -> LaunchDescription:
         cli=True)
     actions = args.get_launch_actions()
 
-<<<<<<< HEAD
-    actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
-
-=======
-    #actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
->>>>>>> e4a742c6ff0590d9686478c14c45d2547e8b346d
 
     # Globally set use_sim_time if we're running from bag or sim
     actions.append(
