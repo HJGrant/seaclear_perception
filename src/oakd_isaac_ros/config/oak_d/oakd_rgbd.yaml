@@ -32,7 +32,14 @@
     rgb:
       i_resolution: 1080P
       i_fps: 30.0
+      i_low_bandiwdth_frame_freq: 60
       i_low_bandwidth: true
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 15
+      i_publish_compressed: false
+      i_publish_topic: true
       i_output_isp: true
       i_isp_den: 3
       i_isp_num: 2

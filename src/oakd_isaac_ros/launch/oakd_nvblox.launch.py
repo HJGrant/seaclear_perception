@@ -84,7 +84,7 @@ def generate_launch_description() -> LaunchDescription:
         description='Launch OAK-D driver')
     args.add_arg(
         'use_foxglove_whitelist',
-        False,
+        True,
         description='Disable visualization of bandwidth-heavy topics',
         cli=True)
     actions = args.get_launch_actions()
@@ -162,6 +162,7 @@ def generate_launch_description() -> LaunchDescription:
             ]
         )
     )
+    
     actions.append(
         Node(
             package="tf2_ros",
@@ -220,6 +221,10 @@ def generate_launch_description() -> LaunchDescription:
         lu.component_container(
             NVBLOX_CONTAINER_NAME, condition=UnlessCondition(args.attach_to_container),
             log_level=args.log_level))
+    
+    actions.append(
+        lu.component_container('detection_container', log_level=args.log_level)
+    )
 
     return LaunchDescription(actions)
 

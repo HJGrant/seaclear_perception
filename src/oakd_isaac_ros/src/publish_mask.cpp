@@ -18,9 +18,9 @@ class publish_mask : public rclcpp::Node
 {
 public:
   publish_mask(const rclcpp::NodeOptions & options)
-  : Node("detection_mask_node")
+  : Node("detection_mask_node", options)
   {
-    this->declare_parameter<int>("target_class_id", 3);
+    this->declare_parameter<int>("target_class_id", 0);
     this->declare_parameter<int>("image_width", 640);
     this->declare_parameter<int>("image_height", 640);
 
