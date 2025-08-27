@@ -61,7 +61,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2-dev \
     libpulse-dev \
     libjpeg-turbo8 \
-    libjpeg-turbo8-dev
+    libjpeg-turbo8-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/3rdparty/jsoncpp/
 RUN git clone https://github.com/open-source-parsers/jsoncpp.git . && \
@@ -75,9 +76,6 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
 RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
 ENV PATH="/opt/depot_tools:${PATH}"
 
-WORKDIR /home/webrtc_src
-RUN fetch --nohooks webrtc
-WORKDIR /home/webrtc_src
-RUN gclient sync
-
-RUN apt-get install python-is-python3
+RUN apt update && \
+    apt-get install python-is-python3 && \
+    rm -rf /var/lib/apt/lists/*
