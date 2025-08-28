@@ -10,7 +10,7 @@ from isaac_ros_launch_utils.all_types import (
     LoadComposableNodes
 )
 import isaac_ros_launch_utils as lu
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, launch_description_sources
@@ -216,6 +216,47 @@ def generate_launch_description() -> LaunchDescription:
                 #'camera': camera_mode,
                 'use_foxglove_whitelist': args.use_foxglove_whitelist,
             }))
+
+    # run WebRTC Stream for RGB
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/oak/rgb/image_raw',
+            'output': 'webrtc://@:8554/rgb',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
+
+    # run WebRTC Stream for Object Detection
+
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/mask_overlay',
+            'output': 'webrtc://@:8555/yolo',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
 
     actions.append(
         lu.component_container(

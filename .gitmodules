@@ -10,6 +10,3 @@
 [submodule "src/foxglove_compressed_video"]
 	path = src/foxglove_compressed_video
 	url = https://github.com/HJGrant/foxglove_compressed_video_stream.git
-[submodule "src/webrtc_ros"]
-	path = src/webrtc_ros
-	url = https://github.com/RobotWebTools/webrtc_ros.git

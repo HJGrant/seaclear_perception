@@ -83,17 +83,17 @@ MY_TOPIC_LIST = [
 
     #oak-d
     #'/oak',
-    '/oak/rgb/camera_info',
+    #'/oak/rgb/camera_info',
     #'/oak/stereo/image_raw',
     #'/oak/stereo/camera_info',
-    '/oak/rgb/image_raw/compressed',
-    '/oak/rgb/image_raw_rgb8/nitros',
+    #'/oak/rgb/image_raw/compressed',
+    #'/oak/rgb/image_raw_rgb8/nitros',
     #'/oak/compressed_video',
 
     #YOLOv8
-    '/camera0/detection/mask',
-    '/mask_overlay',
-    '/detections_output',
+    #'/camera0/detection/mask',
+    #'/mask_overlay',
+    #'/detections_output',
 
 
     #URDF topcis

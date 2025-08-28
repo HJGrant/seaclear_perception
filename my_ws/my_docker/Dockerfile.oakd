@@ -6,7 +6,9 @@ FROM ${BASE_IMAGE}
 
 RUN apt-get update && \
     #apt-get install -y ros-humble-isaac-ros-visual-slam && \
-    apt-get install -y ros-humble-isaac-ros-nvblox && \
+    apt-get install -y \
+    ros-humble-isaac-ros-nvblox \
+    ros-humble-isaac-ros-jetson-stats && \
     rosdep update && \
     rosdep install isaac_ros_nvblox \
     && rm -rf /var/lib/apt/lists/*
@@ -29,28 +31,36 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  pkg-config \
-  libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev \
-  gstreamer1.0-tools \
-  gstreamer1.0-plugins-base \
-  gstreamer1.0-plugins-good \
-  gstreamer1.0-plugins-bad \
-  gstreamer1.0-plugins-ugly \
-  gstreamer1.0-libav \
-  gstreamer1.0-plugins-rtp \
-  gstreamer1.0-x \
-  gstreamer1.0-gl \
-  python3-gst-1.0 \
-  libgstrtspserver-1.0-dev \
-  libgstreamer-plugins-bad1.0-dev \
-  gstreamer1.0-tools \
-  gstreamer1.0-alsa \
-  gstreamer1.0-gtk3 \
-  gstreamer1.0-qt5 \
-  gstreamer1.0-pulseaudio \
-  v4l-utils \
-  && rm -rf /var/lib/apt/lists/*
+    pkg-config \
+    libjson-glib-dev \
+    libsoup2.4-dev \
+    gstreamer1.0-nice \
+    libnice10 \
+    dbus \
+    avahi-daemon \
+    libnss-mdns \
+    python-is-python3 \
+    libgstreamer1.0-dev \
+    libgstreamer-plugins-base1.0-dev \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-plugins-rtp \
+    gstreamer1.0-x \
+    gstreamer1.0-gl \
+    python3-gst-1.0 \
+    libgstrtspserver-1.0-dev \
+    libgstreamer-plugins-bad1.0-dev \
+    gstreamer1.0-tools \
+    gstreamer1.0-alsa \
+    gstreamer1.0-gtk3 \
+    gstreamer1.0-qt5 \
+    gstreamer1.0-pulseaudio \
+    v4l-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
@@ -76,17 +86,25 @@ RUN git clone https://github.com/open-source-parsers/jsoncpp.git . && \
     make install
 ENV LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
 
-RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
-ENV PATH="/opt/depot_tools:${PATH}"
+# Start dbus and avahi-daemon automatically on container start (no systemd)
+# Note: source path is relative to this Dockerfile's folder (my_ws/my_docker)
+COPY entrypoint_additions/10-dbus-avahi.sh /usr/local/bin/scripts/entrypoint_additions/10-dbus-avahi.sh
+RUN chmod +x /usr/local/bin/scripts/entrypoint_additions/10-dbus-avahi.sh || true
 
-#WORKDIR /home/webrtc_src
-#RUN fetch --nohooks webrtc
-#WORKDIR /home/webrtc_src
-#RUN gclient sync
+# ---- Dev convenience: auto-wire jetson-inference env at runtime ----
+# Point to expected local install under the bind-mounted workspace (harmless if missing)
+ENV JI_PREFIX=/workspaces/oakd_isaac_ros/my_ws/3rdparty/jetson-inference/install
+ENV CMAKE_PREFIX_PATH=${JI_PREFIX}${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH} \
+    LD_LIBRARY_PATH=${JI_PREFIX}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} \
+    LIBRARY_PATH=${JI_PREFIX}/lib${LIBRARY_PATH:+:$LIBRARY_PATH} \
+    CPATH=${JI_PREFIX}/include${CPATH:+:$CPATH} \
+    PYTHONPATH=${JI_PREFIX}/python${PYTHONPATH:+:$PYTHONPATH}
 
-RUN apt-get update && apt-get install -y python-is-python3 && \
-    rm -rf /var/lib/apt/lists/*
-
-
-
-
+# Auto-source the workspace env script on interactive shells if present
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'JI_SRC=/workspaces/oakd_isaac_ros/my_ws/scripts/source_jetson_inference.sh' \
+    '[ -f "$JI_SRC" ] && source "$JI_SRC" || true' \
+    > /etc/profile.d/jetson_inference.sh \
+    && chmod +x /etc/profile.d/jetson_inference.sh \
+    && printf '\n# Auto-source jetson-inference env if available\n[ -f /workspaces/oakd_isaac_ros/my_ws/scripts/source_jetson_inference.sh ] && source /workspaces/oakd_isaac_ros/my_ws/scripts/source_jetson_inference.sh\n' >> /etc/bash.bashrc

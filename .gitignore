@@ -66,7 +66,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+#lib/
 lib64/
 parts/
 sdist/
@@ -305,7 +305,7 @@ COLCON_IGNORE
 AMENT_IGNORE
 
 #ML files
-*.onnx
+.onnx
 *.plan
 *.model
 
