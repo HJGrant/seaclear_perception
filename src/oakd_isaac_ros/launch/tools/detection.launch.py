@@ -145,11 +145,16 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     confidence_threshold = args.confidence_threshold
     nms_threshold = args.nms_threshold
 
+    #depth mask parameters
+    mask_class_id = args.target_class_id
+
     #namespace = "camera0"
     #input_topic = "camera0/color/image_raw"
     #input_info_topic = "camera0/color/image_raw/camera_info"
-    input_topic='/oak/rgb/image_raw'
-    input_info_topic='/oak/rgb/camera_info'
+    #input_topic='/oak/rgb/image_raw_rgb8'
+    #input_info_topic='/oak/rgb/camera_info'
+    input_topic = args.input_topic_list[0]
+    input_info_topic = args.input_info_topic_list[0]
 
 
     encoder_dir = get_package_share_directory('isaac_ros_dnn_image_encoder')
@@ -164,8 +169,8 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
             'network_image_height': str(network_image_height),
             'image_mean': str(image_mean),
             'image_stddev': str(image_stddev),
-            'attach_to_shared_component_container': 'False',
-            #'component_container_name': 'tensor_rt_container',
+            'attach_to_shared_component_container': 'True',
+            'component_container_name': 'detection_container',
             'dnn_image_encoder_namespace': 'yolov8_encoder',
             'keep_aspect_ratio': 'false',
             'image_input_topic': str(input_topic),
@@ -233,18 +238,30 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         name='depth_mask_publisher',
         package='oakd_isaac_ros',
         plugin='publish_mask',
-        extra_arguments=[{'--ros-args': '', '--log-level': 'debug'}]
+        parameters=[{
+            'target_class_id': int(mask_class_id)
+        }],
+        extra_arguments=[{
+            '--ros-args': '', 
+            '--log-level': 'debug'}]
     )
 
-    detection_node = ComposableNodeContainer(
-        name='tensor_rt_container',
-        package='rclcpp_components',
-        executable='component_container_mt',
-        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher],
-        output='screen',
-        arguments=['--ros-args', '--log-level', 'INFO'],
-        namespace=''
-    )
+    #detection_node = ComposableNodeContainer(
+    #    name='tensor_rt_container',
+    #    package='rclcpp_components',
+    #    executable='component_container_mt',
+    #    composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher],
+    #    output='screen',
+    #    arguments=['--ros-args', '--log-level', 'INFO'],
+    #    namespace=''
+    #)
+
+    detection_node = lu.load_composable_nodes(
+            'detection_container',
+            [
+                tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher
+            ],
+        )
 
     return [yolov8_encoder_launch, detection_node]
 
@@ -265,12 +282,12 @@ def generate_launch_description() -> LaunchDescription:
                  description='List of namespaces for each detection inference pipeline')
     args.add_arg(
         'input_topic_list',
-        '["camera0/color/image_raw"]',
+        '["/oak/rgb/image_raw_rgb8"]',
         description='List of camera image input topics for each detection inference pipeline')
 
     args.add_arg(
         'input_info_topic_list',
-        '["camera0/color/image_raw/camera_info"]',
+        '["/oak/rgb/camera_info"]',
         description='List of camera image info input topics for each detection inference pipeline')
 
     args.add_arg('input_image_width', '1280',
@@ -326,9 +343,12 @@ def generate_launch_description() -> LaunchDescription:
     args.add_arg('run_standalone', 'False',
                  description='Run in a standalone container if True')
     # To avoid fps drops in rosbag replay uncompressed sensor topics, e.g. multi-rs
-    args.add_arg('one_container_per_camera', 'True',
+    args.add_arg('one_container_per_camera', 'False',
                  description='Run per-camera based detection nodes in separate containers if True')
     args.add_arg('log_level', 'info', choices=['debug', 'info', 'warn'], cli=True)
+
+    args.add_arg('target_class_id', '0', 
+                 description="Select the class id which the mask will be created for.")
 
     # Unet Decoder
     args.add_arg('network_output_type', 'sigmoid')

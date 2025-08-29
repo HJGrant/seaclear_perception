@@ -74,19 +74,27 @@ IMAGE_TOPIC_WHITELIST = ["depth", "left/image_resized"]
 
 MY_TOPIC_LIST = [
     #nvblox 
-    '/nvblox_node/tsdf_layer',
+    #'/nvblox_node/tsdf_layer',
     '/nvblox_node/color_layer_marker',
-    '/nvblox_node/color_layer',
-    '/nvblox_node/mesh',
+    '/nvblox_node/dynamic_occupancy_layer',
+    #'/nvblox_node/color_layer',
+    #'/nvblox_node/mesh',
     '/map',
 
     #oak-d
-    '/oak',
-    '/oak_rgb/camera_info',
-    '/oak/stereo/image_raw',
-    '/oak/stereo/camera_info',
-    '/oak/rgb/image_raw/compressed',
-    '/oak/compressed_video',
+    #'/oak',
+    #'/oak/rgb/camera_info',
+    #'/oak/stereo/image_raw',
+    #'/oak/stereo/camera_info',
+    #'/oak/rgb/image_raw/compressed',
+    #'/oak/rgb/image_raw_rgb8/nitros',
+    #'/oak/compressed_video',
+
+    #YOLOv8
+    #'/camera0/detection/mask',
+    #'/mask_overlay',
+    #'/detections_output',
+
 
     #URDF topcis
     '/robot_description',
@@ -158,7 +166,7 @@ def add_foxglove(args: lu.ArgumentContainer) -> list[lut.Action]:
 def generate_launch_description() -> lut.LaunchDescription:
     args = lu.ArgumentContainer()
     args.add_arg('use_foxglove_whitelist')
-    args.add_arg('send_buffer_limit', 10000000)
+    args.add_arg('send_buffer_limit', 50000000)
 
     args.add_opaque_function(add_foxglove)
     return lu.LaunchDescription(args.get_launch_actions())

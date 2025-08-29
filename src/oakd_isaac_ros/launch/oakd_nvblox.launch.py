@@ -10,7 +10,7 @@ from isaac_ros_launch_utils.all_types import (
     LoadComposableNodes
 )
 import isaac_ros_launch_utils as lu
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, launch_description_sources
@@ -84,12 +84,10 @@ def generate_launch_description() -> LaunchDescription:
         description='Launch OAK-D driver')
     args.add_arg(
         'use_foxglove_whitelist',
-        False,
+        True,
         description='Disable visualization of bandwidth-heavy topics',
         cli=True)
     actions = args.get_launch_actions()
-
-    actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
 
 
     # Globally set use_sim_time if we're running from bag or sim
@@ -176,6 +174,7 @@ def generate_launch_description() -> LaunchDescription:
             ]
         )
     )
+    
     actions.append(
         Node(
             package="tf2_ros",
@@ -230,10 +229,67 @@ def generate_launch_description() -> LaunchDescription:
                 'use_foxglove_whitelist': args.use_foxglove_whitelist,
             }))
 
+    # run WebRTC Stream for RGB
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/oak/rgb/image_raw',
+            'output': 'webrtc://@:8554/rgb',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
+
+    # run WebRTC Stream for Object Detection
+
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/mask_overlay',
+            'output': 'webrtc://@:8555/yolo',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
+
+    #actions.append(
+    #IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(
+    #            get_package_share_directory('isaac_ros_jetson_stats'),
+    #            'launch',
+    #            'jtop.launch.py'
+    #        )
+    #    )
+    #    )
+    #)
+
     actions.append(
         lu.component_container(
             NVBLOX_CONTAINER_NAME, condition=UnlessCondition(args.attach_to_container),
             log_level=args.log_level))
+    
+    actions.append(
+        lu.component_container('detection_container', log_level=args.log_level)
+    )
 
     return LaunchDescription(actions)
 
