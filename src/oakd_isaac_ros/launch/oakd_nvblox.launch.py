@@ -111,8 +111,11 @@ def generate_launch_description() -> LaunchDescription:
             launch_arguments={
                 'container_name': args.container_name,
                 'params_file': os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'config', 'oak_d', 'oakd_rgbd.yaml'),
+                # Remap /oak/imu/data -> /imu/data_ned through camera.launch.py
+                'imu_topic_remapped': '/imu/data_ned',
                 },
-        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
+            condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+            ))
 
     actions.append(
         Node(
@@ -250,7 +253,6 @@ def generate_launch_description() -> LaunchDescription:
     )   
 
     # run WebRTC Stream for Object Detection
-
     actions.append(
     IncludeLaunchDescription(
         AnyLaunchDescriptionSource(
@@ -270,17 +272,36 @@ def generate_launch_description() -> LaunchDescription:
         )
     )   
 
-    #actions.append(
-    #IncludeLaunchDescription(
-    #    AnyLaunchDescriptionSource(
-    #        os.path.join(
-    #            get_package_share_directory('isaac_ros_jetson_stats'),
-    #            'launch',
-    #            'jtop.launch.py'
-    #        )
-    #    )
-    #    )
-    #)
+    # run WebRTC Stream for Depth Map Overlay
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/nvblox_node/dynamic_depth_frame_overlay',
+            'output': 'webrtc://@:8556/depth',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    ) 
+
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('isaac_ros_jetson_stats'),
+                'launch',
+                'jtop.launch.py'
+            ))
+        )
+    )
 
     actions.append(
         lu.component_container(
