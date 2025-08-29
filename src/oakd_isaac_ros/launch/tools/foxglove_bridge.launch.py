@@ -123,6 +123,9 @@ MY_TOPIC_LIST = [
     '/bar30/pressure',
     '/bar30/temperature',
 
+    # visualization
+    '/seabed_grid',
+
 ]
 
 def get_topic_whitelist():
