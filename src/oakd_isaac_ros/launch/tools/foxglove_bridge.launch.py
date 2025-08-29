@@ -82,7 +82,8 @@ MY_TOPIC_LIST = [
     '/map',
 
     #oak-d
-    #'/oak',
+    '/imu/data_ned',    #remapped topic from /oak/imu/data 
+    #'/oak/imu/data',
     #'/oak/rgb/camera_info',
     #'/oak/stereo/image_raw',
     #'/oak/stereo/camera_info',

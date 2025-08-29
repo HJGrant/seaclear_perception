@@ -68,6 +68,8 @@ def launch_setup(context, *args, **kwargs):
     rectify_rgb = LaunchConfiguration("rectify_rgb", default="true")
     namespace = LaunchConfiguration("namespace", default="").perform(context)
     name = LaunchConfiguration("name").perform(context)
+    # Allow remapping IMU topic from this launch to a custom target
+    imu_topic_remapped = LaunchConfiguration("imu_topic_remapped", default="imu/data")
 
     # If RealSense compatibility is enabled, we need to override some parameters, topics and node names
     
@@ -96,6 +98,10 @@ def launch_setup(context, *args, **kwargs):
                     namespace=namespace,
                     parameters=[
                         params_file,
+                    ],
+                    # Remap IMU topic if requested; default is no-op (imu/data -> imu/data)
+                    remappings=[
+                        ("/oak/imu/data", imu_topic_remapped),
                     ],
                 )
             ],
