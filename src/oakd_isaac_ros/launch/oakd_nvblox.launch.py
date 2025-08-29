@@ -280,16 +280,16 @@ def generate_launch_description() -> LaunchDescription:
         )
     ) 
 
-    actions.append(
-    IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('isaac_ros_jetson_stats'),
-                'launch',
-                'jtop.launch.py'
-            ))
-        )
-    )
+    #actions.append(
+    #IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(
+    #            get_package_share_directory('isaac_ros_jetson_stats'),
+    #            'launch',
+    #            'jtop.launch.py'
+    #        ))
+    #    )
+    #)
 
     actions.append(
         lu.component_container(

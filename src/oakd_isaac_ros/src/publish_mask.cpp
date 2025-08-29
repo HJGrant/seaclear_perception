@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <geometry_msgs/msg/point.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/opencv.hpp>
 
@@ -23,10 +24,12 @@ public:
     this->declare_parameter<int>("target_class_id", 0);
     this->declare_parameter<int>("image_width", 640);
     this->declare_parameter<int>("image_height", 640);
+  this->declare_parameter<double>("confidence_threshold", 0.5);
 
     target_class_id_ = this->get_parameter("target_class_id").as_int();
     image_width_ = this->get_parameter("image_width").as_int();
     image_height_ = this->get_parameter("image_height").as_int();
+  confidence_threshold_ = this->get_parameter("confidence_threshold").as_double();
 
     detection_sub_ = this->create_subscription<vision_msgs::msg::Detection2DArray>(
       "/detections_output", 10,
@@ -39,6 +42,9 @@ public:
     camera_info_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("/camera0/detection/mask/camera_info", 10);
     overlay_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/mask_overlay", 10);
     mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera0/detection/mask", 10);
+    
+  // publish the target point (pixel center) from the object detection
+  target_pub_ = this->create_publisher<geometry_msgs::msg::Point>("colrov/detected_objects/target", 10);
 
     rgb_sub_.subscribe(this, "/oak/rgb/image_raw_rgb8");
     resized_sub_.subscribe(this, "/yolov8_encoder/resize/image");
@@ -110,15 +116,41 @@ private:
 
     cv::Mat mask = cv::Mat::zeros(image_height_, image_width_, CV_8UC1);
 
+    // track the best (highest confidence) matching detection for publishing the target point
+    double best_score = -1.0;
+    cv::Point2f best_center(0.f, 0.f);
+
     for (const auto& detection : detections_copy->detections) {
       if (detection.results.empty()) continue;
 
-      const auto& result = detection.results[0];
-      if (std::stoi(result.hypothesis.class_id) != target_class_id_) continue;
+      // find the highest-score hypothesis for the target class that meets the threshold
+      double matched_score = -1.0;
+      for (const auto& res : detection.results) {
+        int class_id = -1;
+        try {
+          class_id = std::stoi(res.hypothesis.class_id);
+        } catch (...) {
+          continue;
+        }
+        if (class_id == target_class_id_ && res.hypothesis.score >= confidence_threshold_) {
+          if (res.hypothesis.score > matched_score) {
+            matched_score = res.hypothesis.score;
+          }
+        }
+      }
+
+      if (matched_score < 0.0) {
+        // no hypothesis for target class above threshold
+        continue;
+      }
 
       const auto& bbox = detection.bbox;
+
+      //populate a message to publish the center of the detected bounding box
+      cv::Point2f target_point_;
+      target_point_ = cv::Point2f(bbox.center.position.x, bbox.center.position.y);
       cv::RotatedRect rotated_rect(
-        cv::Point2f(bbox.center.position.x, bbox.center.position.y),
+        target_point_,
         cv::Size2f(bbox.size_x, bbox.size_y), 0
       );
 
@@ -129,6 +161,12 @@ private:
         contour.emplace_back(vertices[i]);
       }
       cv::fillConvexPoly(mask, contour, cv::Scalar(255));
+
+      // update best target for publishing
+      if (matched_score > best_score) {
+        best_score = matched_score;
+        best_center = target_point_;
+      }
     }
 
     cv::Mat overlay;
@@ -158,6 +196,15 @@ private:
     auto overlay_msg = cv_bridge::CvImage(header, "bgr8", overlay).toImageMsg();
     overlay_pub_->publish(*overlay_msg);
 
+    // Publish the best target point if available
+    if (best_score >= 0.0) {
+      geometry_msgs::msg::Point target_msg;
+      target_msg.x = static_cast<double>(best_center.x);
+      target_msg.y = static_cast<double>(best_center.y);
+      target_msg.z = 0.0;
+      target_pub_->publish(target_msg);
+    }
+
     // Now republish the latest depth image and camera info with RGB timestamp
     {
       std::lock_guard<std::mutex> lock(depth_mutex_);
@@ -177,12 +224,14 @@ private:
   int target_class_id_;
   int image_width_;
   int image_height_;
+  double confidence_threshold_;
 
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr overlay_pub_;
   rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::Point>::SharedPtr target_pub_;
 
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr depth_camera_info_sub_;
