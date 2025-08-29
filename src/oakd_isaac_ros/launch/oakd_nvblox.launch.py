@@ -258,6 +258,18 @@ def generate_launch_description() -> LaunchDescription:
         )
     )   
 
+    #actions.append(
+    #IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(
+    #            get_package_share_directory('isaac_ros_jetson_stats'),
+    #            'launch',
+    #            'jtop.launch.py'
+    #        )
+    #    )
+    #    )
+    #)
+
     actions.append(
         lu.component_container(
             NVBLOX_CONTAINER_NAME, condition=UnlessCondition(args.attach_to_container),
