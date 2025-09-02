@@ -112,7 +112,7 @@ def generate_launch_description() -> LaunchDescription:
                 'container_name': args.container_name,
                 'params_file': os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'config', 'oak_d', 'oakd_rgbd.yaml'),
                 # Remap /oak/imu/data -> /imu/data_ned through camera.launch.py
-                'imu_topic_remapped': '/imu/data_ned',
+                'imu_topic_remapped': '/sc2/imu/imu',
                 },
             condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
             ))
@@ -148,7 +148,9 @@ def generate_launch_description() -> LaunchDescription:
                 'num_cameras': args.num_cameras,
                 'container_name': args.container_name,
                 # fixing rosbag replay dropping fps
-                'one_container_per_camera': True
+                'one_container_per_camera': True,
+                'target_class_id' : 3,
+                'confidence_threshold' : 0.6,
             },
             condition=IfCondition(lu.has_substring(args.mode, NvbloxMode.people_detection))))
 
@@ -173,11 +175,20 @@ def generate_launch_description() -> LaunchDescription:
             arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
         )
     )
+
+    actions.append(
+        Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            arguments=["0", "0", "0", "0", "0", "0", "odom", "base_link"],
+        )
+    )
+
     actions.append(
     Node(
         package="tf2_ros",
         executable="static_transform_publisher",
-        arguments=["0", "0", "1.0", "0", "3.14", "1.5708", "odom", "oak-d-base-frame"],
+        arguments=["0", "-0.115", "0.0", "0", "3.14", "0.0", "odom", "oak-d-base-frame"],#arguments=["0", "0", "1.0", "0", "3.14", "1.5708", "odom", "oak-d-base-frame"],
         )
     )
 

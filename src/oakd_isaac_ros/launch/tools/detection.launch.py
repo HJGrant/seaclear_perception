@@ -30,97 +30,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME, \
     PEOPLENET_INPUT_IMAGE_WIDTH, PEOPLENET_INPUT_IMAGE_HEIGHT
 
-"""
-def create_detection_pipeline(args: lu.ArgumentContainer,
-                              namespace: str,
-                              input_topic: str) -> List[Action]:
-
-    # People bbox detection based on Detectnet_v2
-    # ONNX masks pixels within bounding boxes with area & confidence filtering
-    # Ops: Image2Tensor + TRT Node + UNet Decoder
-    #    - Resolution:  network_image_resolution
-
-    # TODO(xyao): add resize if input res != network res
-    people_preprocessing_node = ComposableNode(
-        name='image_to_tensor_node',
-        package='isaac_ros_tensor_proc',
-        plugin='nvidia::isaac_ros::dnn_inference::ImageToTensorNode',
-        namespace=namespace,
-        parameters=[{
-            # model is trained on tensor in range of (0,1), requires pixel * 1. / 255.
-            'scale': True,
-            # First tensor belongs to image
-            'tensor_name': args.input_tensor_names[0],
-            'input_qos': 'SENSOR_DATA',
-        }],
-        remappings=[
-            ('image', input_topic),
-            ('tensor', 'detection/tensor_input'),
-        ]
-    )
-
-    people_tensor_rt_node = ComposableNode(
-        name='people_trt_node',
-        package='isaac_ros_tensor_rt',
-        plugin='nvidia::isaac_ros::dnn_inference::TensorRTNode',
-        namespace=namespace,
-        parameters=[{
-            'engine_file_path': args.engine_file_path,
-            'output_binding_names': args.output_binding_names,
-            'output_tensor_names': args.output_tensor_names,
-            'input_tensor_names': args.input_tensor_names,
-            'input_binding_names': args.input_binding_names,
-            'force_engine_update': args.force_engine_update,
-            'verbose': args.verbose,
-        }],
-        remappings=[
-            ('tensor_pub', 'detection/tensor_input'),
-            ('tensor_sub', 'detection/tensor_output')]
-    )
-
-    people_decoder_node = ComposableNode(
-        name='people_decoder_node',
-        package='isaac_ros_unet',
-        plugin='nvidia::isaac_ros::unet::UNetDecoderNode',
-        namespace=namespace,
-        parameters=[{
-            'network_output_type': args.network_output_type,
-            'color_segmentation_mask_encoding': args.color_segmentation_mask_encoding,
-            # network resolution = output mask resolution
-            'mask_width': args.network_image_width,
-            'mask_height': args.network_image_height,
-            'color_palette': [
-                0x556B2F, 0x800000, 0x008080, 0x000080, 0x9ACD32, 0xFF0000, 0xFF8C00, 0xFFD700,
-                0x00FF00, 0xBA55D3, 0x00FA9A, 0x00FFFF, 0x0000FF, 0xF08080, 0xFF00FF, 0x1E90FF,
-                0xDDA0DD, 0xFF1493, 0x87CEFA, 0xFFDEAD
-            ],
-        }],
-        remappings=[
-            ('tensor_sub', 'detection/tensor_output'),
-            ('unet/raw_segmentation_mask', 'detection/people_mask')])
-
-    if args.one_container_per_camera:
-        detection_node = ComposableNodeContainer(
-            name=args.container_name + '_people_detection',
-            package='rclcpp_components',
-            namespace=namespace,
-            executable='component_container_mt',
-            arguments=['--ros-args', '--log-level', args.log_level],
-            composable_node_descriptions=[
-                people_preprocessing_node, people_tensor_rt_node, people_decoder_node
-            ],
-        )
-    else:
-        detection_node = lu.load_composable_nodes(
-            args.container_name,
-            [
-                people_preprocessing_node, people_tensor_rt_node, people_decoder_node
-            ],
-        )
-    return detection_node
-
-"""
-
 def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
 
     # DNN Image Encoder parameters
@@ -147,6 +56,7 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
 
     #depth mask parameters
     mask_class_id = args.target_class_id
+    #confidence_threshold = arg.confidence_threshold
 
     #namespace = "camera0"
     #input_topic = "camera0/color/image_raw"
@@ -239,7 +149,8 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         package='oakd_isaac_ros',
         plugin='publish_mask',
         parameters=[{
-            'target_class_id': int(mask_class_id)
+            'target_class_id': int(mask_class_id),
+            'confidence_threshold' : confidence_threshold
         }],
         extra_arguments=[{
             '--ros-args': '', 
@@ -294,7 +205,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='Width of the input image.')
     args.add_arg('input_image_height', '720',
                  description='Height of the input image.')
-    args.add_arg('confidence_threshold', '0.5',
+    args.add_arg('confidence_threshold', '0.6',
                  description='Confidence threshold to filter candidate detections during NMS')
     args.add_arg('nms_threshold', '0.45',
                 description='NMS IOU threshold')
