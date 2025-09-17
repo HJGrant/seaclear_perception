@@ -51,7 +51,7 @@ public:
     mask_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/camera0/detection/mask", 10);
     
     // publish the target point from the object detection
-    target_pub_ = this->create_publisher<geometry_msgs::msg::Point>("/colrov/detected_objects/target", 10);
+    target_pub_ = this->create_publisher<geometry_msgs::msg::Point>("/sc2/state_estimation_node/detected_objects/target", 10);
 
     rgb_sub_.subscribe(this, "/oak/rgb/image_raw_rgb8");
     resized_sub_.subscribe(this, "/yolov8_encoder/resize/image");

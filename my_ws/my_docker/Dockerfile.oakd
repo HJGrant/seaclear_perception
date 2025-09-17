@@ -108,3 +108,7 @@ RUN printf '%s\n' \
     > /etc/profile.d/jetson_inference.sh \
     && chmod +x /etc/profile.d/jetson_inference.sh \
     && printf '\n# Auto-source jetson-inference env if available\n[ -f /workspaces/oakd_isaac_ros/my_ws/scripts/source_jetson_inference.sh ] && source /workspaces/oakd_isaac_ros/my_ws/scripts/source_jetson_inference.sh\n' >> /etc/bash.bashrc
+
+RUN pip3 install -U jetson-stats
+
+RUN apt install ros-humble-marine-acoustic-msgs

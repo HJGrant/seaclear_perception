@@ -69,7 +69,7 @@ def launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration("namespace", default="").perform(context)
     name = LaunchConfiguration("name").perform(context)
     # Allow remapping IMU topic from this launch to a custom target
-    imu_topic_remapped = LaunchConfiguration("imu_topic_remapped", default="imu/data")
+    imu_topic_remapped = LaunchConfiguration("imu_topic_remapped", default="sc2/imu/imu")
 
     # If RealSense compatibility is enabled, we need to override some parameters, topics and node names
     

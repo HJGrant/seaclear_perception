@@ -112,7 +112,7 @@ def generate_launch_description() -> LaunchDescription:
                 'container_name': args.container_name,
                 'params_file': os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'config', 'oak_d', 'oakd_rgbd.yaml'),
                 # Remap /oak/imu/data -> /imu/data_ned through camera.launch.py
-                'imu_topic_remapped': '/sc2/imu/imu',
+                'imu_topic_remapped': '/imu/data',
                 },
             condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
             ))
@@ -167,38 +167,6 @@ def generate_launch_description() -> LaunchDescription:
             ]
         )
     )
-    
-    actions.append(
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
-        )
-    )
-
-    actions.append(
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=["0", "0", "0", "0", "0", "0", "odom", "base_link"],
-        )
-    )
-
-    actions.append(
-    Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=["0", "-0.115", "0.0", "0", "3.14", "0.0", "odom", "oak-d-base-frame"],#arguments=["0", "0", "1.0", "0", "3.14", "1.5708", "odom", "oak-d-base-frame"],
-        )
-    )
-
-    actions.append(
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=["0", "0", "0", "0", "0", "0", "oak-d-base-frame", "oak_rgb_camera_optical_frame"],
-        )
-    )
 
     # Nvblox
     actions.append(
@@ -220,17 +188,6 @@ def generate_launch_description() -> LaunchDescription:
             additional_bag_play_args=args.rosbag_args,
             condition=IfCondition(lu.is_valid(args.use_rosbag))))
 
-    # Visualization
-    actions.append(
-        lu.include(
-            'oakd_isaac_ros',
-            'launch/tools/visualization.launch.py',
-            launch_arguments={
-                'mode': args.mode,
-                #'camera': camera_mode,
-                'use_foxglove_whitelist': args.use_foxglove_whitelist,
-            }))
-
     # run WebRTC Stream for RGB
     actions.append(
     IncludeLaunchDescription(
@@ -242,10 +199,10 @@ def generate_launch_description() -> LaunchDescription:
             )
         ),
         launch_arguments={
-            'topic': '/oak/rgb/image_raw',
-            'output': 'webrtc://@:8554/rgb',
-            'output_codec': 'h264',
-            'output_bitrate': '4000000'
+            'topic': '/mask_overlay',
+            'output': 'rtp://192.168.2.94:8550', #'rtp://192.168.2.94:8550',
+            'output_codec': 'h264', #h264
+            'output_bitrate': '400000' #default 4000000
         }.items(),
         condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
         )
@@ -262,8 +219,8 @@ def generate_launch_description() -> LaunchDescription:
             )
         ),
         launch_arguments={
-            'topic': '/mask_overlay',
-            'output': 'webrtc://@:8555/yolo',
+            'topic': '/oak/rgb/image_raw',
+            'output': 'rtp://192.168.2.94:8551',
             'output_codec': 'h264',
             'output_bitrate': '4000000'
         }.items(),
@@ -283,7 +240,7 @@ def generate_launch_description() -> LaunchDescription:
         ),
         launch_arguments={
             'topic': '/nvblox_node/dynamic_depth_frame_overlay',
-            'output': 'webrtc://@:8556/depth',
+            'output': 'rtp://@:8556/depth',
             'output_codec': 'h264',
             'output_bitrate': '4000000'
         }.items(),
@@ -291,14 +248,13 @@ def generate_launch_description() -> LaunchDescription:
         )
     ) 
 
+    # grip point compute service
     #actions.append(
-    #IncludeLaunchDescription(
-    #    AnyLaunchDescriptionSource(
-    #        os.path.join(
-    #            get_package_share_directory('isaac_ros_jetson_stats'),
-    #            'launch',
-    #            'jtop.launch.py'
-    #        ))
+    #    Node(
+    #        package='grip_points',
+    #        executable='service',
+    #        name='grip_points_service',
+    #        output='screen'
     #    )
     #)
 

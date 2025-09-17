@@ -287,6 +287,7 @@ docker run -it --rm \
     ${DOCKER_ARGS[@]} \
     -v $ISAAC_ROS_DEV_DIR:/workspaces/oakd_isaac_ros \
     -v /etc/localtime:/etc/localtime:ro \
+    -e ROS_DOMAIN_ID=8 \
     --name "$CONTAINER_NAME" \
     --runtime nvidia \
     --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \

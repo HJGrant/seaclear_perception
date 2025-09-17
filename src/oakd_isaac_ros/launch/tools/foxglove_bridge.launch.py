@@ -77,15 +77,17 @@ MY_TOPIC_LIST = [
     #'/nvblox_node/tsdf_layer',
     '/nvblox_node/color_layer_marker',
     '/nvblox_node/dynamic_occupancy_layer',
+    '/nvblox_node/dynamic_points',
     #'/nvblox_node/color_layer',
     #'/nvblox_node/mesh',
     '/map',
 
     #oak-d
-    '/imu/data_ned',    #remapped topic from /oak/imu/data 
+    '/sc2/imu/imu',    #remapped topic from /oak/imu/data 
+    '/imu/data',
     #'/oak/imu/data',
     #'/oak/rgb/camera_info',
-    #'/oak/stereo/image_raw',
+    '/oak/stereo/image_raw',
     #'/oak/stereo/camera_info',
     #'/oak/rgb/image_raw/compressed',
     #'/oak/rgb/image_raw_rgb8/nitros',
@@ -100,7 +102,8 @@ MY_TOPIC_LIST = [
     #URDF topcis
     '/robot_description',
     '/joint_states',
-    '/position_rad',
+    #'/position_rad',
+    '/decoupled_position_rad',
     '/command/set_rel_pos_rad',
     '/grapple_percentage',
 
@@ -114,9 +117,11 @@ MY_TOPIC_LIST = [
     #system stat topics
     '/system_stats',
 
-    # torque gauge topics
+    # senso control
     '/torque_gauge',
-    '/torque_nm',
+    '/abs_torque_nm',
+    '/abs_torque_nm_per_joint',
+    '/position_rad',  
 
     # Bar30 Pressure Sensor
     '/bar30/depth',
@@ -127,6 +132,49 @@ MY_TOPIC_LIST = [
     # visualization
     '/seabed_grid',
 
+    #DVL
+    '/waterlinked_dvl_driver/dead_reckoning_report',
+    '/waterlinked_dvl_driver/transition_event',
+    '/waterlinked_dvl_driver/velocity_report'
+
+    # sc2 topics
+    '/sc2/altitude',
+    '/sc2/aruco_pose/pose',
+    '/sc2/dvl/dvl',
+    '/sc2/dvl/odometry',
+    '/sc2/gps/gps',
+    '/sc2/imu/data_ned',
+    '/sc2/imu/imu',
+    '/sc2/odometry_ekf',
+    '/sc2/position_controller_node/console_desireds',
+    '/sc2/position_controller_node/control_errors',
+    '/sc2/position_controller_node/control_signals',
+    '/sc2/position_controller_node/outer/console_signals',
+    '/sc2/position_controller_node/outer/control_signals',
+    '/sc2/position_controller_node/outer/gamepad_signals',
+    '/sc2/pwm_out',
+    '/sc2/set_pose',
+    '/sc2/state_estimation_node/depth',
+    '/sc2/state_estimation_node/detected_objects/target',
+    '/sc2/state_estimation_node/dvl',
+    '/sc2/state_estimation_node/estimated_position',
+    '/sc2/state_estimation_node/estimated_position_exploring',
+    '/sc2/state_estimation_node/estimated_position_visual',
+    '/sc2/state_estimation_node/estimated_state',
+    '/sc2/state_estimation_node/estimated_velocity',
+    '/sc2/thruster_manager/input',
+    '/sc2/velocity_controller_node/console_desireds',
+    '/sc2/velocity_controller_node/control_errors',
+    '/sc2/velocity_controller_node/control_signals',
+    '/sc2/velocity_controller_node/estimated_values_exploring',
+    '/sc2/velocity_controller_node/estimated_values_visual',
+    '/sc2/velocity_controller_node/outer/console_signals',
+    '/sc2/velocity_controller_node/outer/gamepad_signals',
+    '/sc2/wrench_order_enable',
+    '/sc2/wrench_rov',
+    '/sc2/wrench_rov_console',
+    '/sc2/wrench_tortuga_interface',
+    
 ]
 
 def get_topic_whitelist():
@@ -146,7 +194,7 @@ def add_foxglove(args: lu.ArgumentContainer) -> list[lut.Action]:
     params = [{
         'send_buffer_limit': int(args.send_buffer_limit),
         'max_qos_depth': 30,
-        'use_compression': False,
+        'use_compression': True,
         'capabilities': ['clientPublish', 'connectionGraph', 'assets'],
     }]
 

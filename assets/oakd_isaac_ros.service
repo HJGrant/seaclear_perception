@@ -1,0 +1,32 @@
+#copy this file into cp ~/workspaces/oakd_isaac_ros/assets/oakd_isaac_ros.service /etc/systemd/system/oakd_isaac_ros.service
+#run sudo systemctl daemon-reload
+#then sudo systemctl start oakd_isaac_ros.service
+#to enable the service at boot run 
+#sudo systemctl enable oakd_isaac_ros.service
+
+[Unit]
+Description=Run oakd_isaac_ros Container
+After=docker.service
+Requires=docker.service
+
+[Service]
+TimeoutStartSec=30
+Restart=always
+ExecStartPre=-/usr/bin/docker stop nvblox_container
+ExecStartPre=-/usr/bin/docker rm nvblox_container
+#ExecStartPre=-/usr/bin/docker pull hjgrant99/nvblox_dynamics_oakd_jetson_aarch64:latest
+ExecStart=/usr/bin/docker run --name nvblox_container \
+-e ROS_DOMAIN_ID=8 \
+-v /home/itr/workspaces/oakd_isaac_ros/install/share/oakd_isaac_ros/launch/tools/foxglove_bridge.launch.py:/workspaces/oakd_isaac_ros/install/share/oakd_isaac_ros/launch/tools/foxglove_bridge.launch.py \
+-v /home/itr/workspaces/oakd_isaac_ros/install/share/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml:/workspaces/oakd_isaac_ros/install/share/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml \
+--runtime=nvidia \
+--network host \
+hjgrant99/nvblox_dynamics_oakd_jetson_aarch64:latest
+ExecStop=/usr/bin/docker stop nvblox_container
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
+
+

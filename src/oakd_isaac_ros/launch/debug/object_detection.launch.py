@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch_ros.actions import Node
 import os
 from ament_index_python.packages import get_package_share_directory
@@ -61,24 +61,57 @@ def generate_launch_description():
             'one_container_per_camera': 'False',
             'container_name': 'detection_container',
             'verbose' : 'True',
-            'target_class_id' : '0'
+            'target_class_id' : '3'
         }.items()
     )
 
-    foxglove_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(get_package_share_directory('oakd_isaac_ros'), 'launch', 'tools', 'visualization.launch.py')
+    rtp_launch_rgb = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(       
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
         ),
         launch_arguments={
-            'use_foxglove_whitelist' : 'True',
-            'run_foxglove' : 'True'
+            'topic': '/oak/rgb/image_raw',  # <-- stream resized topic
+            'output': 'rtp://192.168.2.94:8550',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
         }.items()
     )
+
+    rtp_launch_yolo = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(       
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/mask_overlay',  # <-- stream resized topic
+            'output': 'rtp://192.168.2.94:8551',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items()
+    )
+
+    #foxglove_launch = IncludeLaunchDescription(
+    #    PythonLaunchDescriptionSource(
+     #       os.path.join(get_package_share_directory('oakd_isaac_ros'), 'launch', 'tools', 'visualization.launch.py')
+      #  ),
+    #    launch_arguments={
+    #        'use_foxglove_whitelist' : 'True',
+    #        'run_foxglove' : 'True'
+    #    }.items()
+    #)
 
     return LaunchDescription([
         oakd_launch,
         image_converter,
         detection_container,
-        detection_include, 
-        foxglove_launch
+        detection_include,
+        rtp_launch_rgb,
+        rtp_launch_yolo
     ])

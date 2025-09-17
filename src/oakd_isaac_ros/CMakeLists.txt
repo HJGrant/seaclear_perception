@@ -34,7 +34,7 @@ ament_target_dependencies(publish_mask_component
   vision_msgs 
   cv_bridge
   message_filters)
-
+  
 rclcpp_components_register_node(
     publish_mask_component
     PLUGIN "publish_mask"
@@ -49,12 +49,43 @@ install(TARGETS publish_mask_component
         RUNTIME DESTINATION bin
 )
 
+add_library(publish_mask_dual_component SHARED src/publish_mask_dual.cpp)
+
+ament_target_dependencies(publish_mask_dual_component 
+  rclcpp_components
+  rclcpp 
+  std_msgs 
+  sensor_msgs 
+  OpenCV 
+  vision_msgs 
+  cv_bridge
+  message_filters)
+  
+rclcpp_components_register_node(
+    publish_mask_dual_component
+    PLUGIN "publish_mask_dual"
+    EXECUTABLE publish_mask_dual
+)
+
+ament_export_targets(export_publish_mask_dual_component)
+install(TARGETS publish_mask_dual_component
+        EXPORT export_publish_mask_dual_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
   scripts/image_converter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/image_resizer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

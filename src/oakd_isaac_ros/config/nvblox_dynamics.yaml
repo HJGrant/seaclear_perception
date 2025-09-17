@@ -19,9 +19,9 @@ nvblox_config:
     - mapping_type: "dynamic"
     - input_qos: "SENSOR_DATA"
     - map_clearing_frame_id: "camera_link"
-    - ayer_streamer_bandwidth_limit_mbps: -1.0 # unlimited
+    - ayer_streamer_bandwidth_limit_mbps: 20.0 # unlimited
     - use_color: true
-    - max_back_projection_distance: 7.0
+    - max_back_projection_distance: 5.0
     - static_mapper:
         #TSDF integrator
         projective_integrator_weighting_mode: "constant"
@@ -56,8 +56,8 @@ nvblox_config:
         esdf_slice_max_height: 0.65
 
 common_config:
-  map_frame: 'map'
-  odom_frame: 'odom'
+  map_frame: 'oak-d-base-frame'
+  odom_frame: 'oak-d-base-frame'
   robot_frame: 'oak-d-base-frame'
 
 extra_topics:
