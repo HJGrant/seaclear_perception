@@ -2,11 +2,7 @@ ARG BASE_IMAGE=ubuntu:22.04
 FROM ${BASE_IMAGE}
 
 #Install extra ROS packages for Isaac Perceptor
-<<<<<<< HEAD
-RUN apt update && apt-get upgrade -y
-=======
 #RUN apt update && apt-get upgrade -y
->>>>>>> grasp_point_detection
 
 RUN apt-get update && \
     #apt-get install -y ros-humble-isaac-ros-visual-slam && \
@@ -24,41 +20,6 @@ RUN apt-get update && \
     apt-get install -y ros-humble-depthai-ros && \
     rm -rf /var/lib/apt/lists/*
 
-<<<<<<< HEAD
-RUN apt install -y \
-  ros-humble-sensor-msgs \
-  ros-humble-std-msgs \
-  ros-humble-geometry-msgs \
-  ros-humble-nav-msgs \
-  ros-humble-cv-bridge \
-  ros-humble-foxglove-msgs
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  pkg-config \
-  libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev \
-  gstreamer1.0-tools \
-  gstreamer1.0-plugins-base \
-  gstreamer1.0-plugins-good \
-  gstreamer1.0-plugins-bad \
-  gstreamer1.0-plugins-ugly \
-  gstreamer1.0-libav \
-  gstreamer1.0-plugins-rtp \
-  gstreamer1.0-x \
-  gstreamer1.0-gl \
-  python3-gst-1.0 \
-  libgstrtspserver-1.0-dev \
-  libgstreamer-plugins-bad1.0-dev \
-  gstreamer1.0-tools \
-  gstreamer1.0-alsa \
-  gstreamer1.0-gtk3 \
-  gstreamer1.0-qt5 \
-  gstreamer1.0-pulseaudio \
-  v4l-utils \
-  && rm -rf /var/lib/apt/lists/*
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-=======
 RUN apt-get update && \
     apt-get install -y \
     ros-humble-sensor-msgs \
@@ -102,7 +63,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
->>>>>>> grasp_point_detection
     git \
     ninja-build \
     libboost-all-dev \
@@ -115,12 +75,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2-dev \
     libpulse-dev \
     libjpeg-turbo8 \
-<<<<<<< HEAD
-    libjpeg-turbo8-dev \
-    && rm -rf /var/lib/apt/lists/*
-=======
     libjpeg-turbo8-dev
->>>>>>> grasp_point_detection
 
 WORKDIR /home/3rdparty/jsoncpp/
 RUN git clone https://github.com/open-source-parsers/jsoncpp.git . && \
@@ -131,14 +86,6 @@ RUN git clone https://github.com/open-source-parsers/jsoncpp.git . && \
     make install
 ENV LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
 
-<<<<<<< HEAD
-RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /opt/depot_tools
-ENV PATH="/opt/depot_tools:${PATH}"
-
-RUN apt update && \
-    apt-get install python-is-python3 && \
-    rm -rf /var/lib/apt/lists/*
-=======
 # Start dbus and avahi-daemon automatically on container start (no systemd)
 # Note: source path is relative to this Dockerfile's folder (my_ws/my_docker)
 COPY entrypoint_additions/10-dbus-avahi.sh /usr/local/bin/scripts/entrypoint_additions/10-dbus-avahi.sh
@@ -165,4 +112,3 @@ RUN printf '%s\n' \
 RUN pip3 install -U jetson-stats
 
 RUN apt install ros-humble-marine-acoustic-msgs
->>>>>>> grasp_point_detection

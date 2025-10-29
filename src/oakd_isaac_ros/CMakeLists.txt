@@ -34,12 +34,7 @@ ament_target_dependencies(publish_mask_component
   vision_msgs 
   cv_bridge
   message_filters)
-<<<<<<< HEAD
-
-
-=======
   
->>>>>>> grasp_point_detection
 rclcpp_components_register_node(
     publish_mask_component
     PLUGIN "publish_mask"

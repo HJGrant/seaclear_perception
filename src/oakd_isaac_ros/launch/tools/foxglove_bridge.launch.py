@@ -74,21 +74,6 @@ IMAGE_TOPIC_WHITELIST = ["depth", "left/image_resized"]
 
 MY_TOPIC_LIST = [
     #nvblox 
-<<<<<<< HEAD
-    '/nvblox_node/tsdf_layer',
-    '/nvblox_node/color_layer_marker',
-    '/nvblox_node/color_layer',
-    '/nvblox_node/mesh',
-    '/map',
-
-    #oak-d
-    '/oak',
-    '/oak_rgb/camera_info',
-    '/oak/stereo/image_raw',
-    '/oak/stereo/camera_info',
-    '/oak/rgb/image_raw/compressed',
-    '/oak/compressed_video',
-=======
     #'/nvblox_node/tsdf_layer',
     '/nvblox_node/color_layer_marker',
     '/nvblox_node/dynamic_occupancy_layer',
@@ -113,17 +98,12 @@ MY_TOPIC_LIST = [
     #'/mask_overlay',
     #'/detections_output',
 
->>>>>>> grasp_point_detection
 
     #URDF topcis
     '/robot_description',
     '/joint_states',
-<<<<<<< HEAD
-    '/position_rad',
-=======
     #'/position_rad',
     '/decoupled_position_rad',
->>>>>>> grasp_point_detection
     '/command/set_rel_pos_rad',
     '/grapple_percentage',
 
@@ -137,17 +117,11 @@ MY_TOPIC_LIST = [
     #system stat topics
     '/system_stats',
 
-<<<<<<< HEAD
-    # torque gauge topics
-    '/torque_gauge',
-    '/torque_nm',
-=======
     # senso control
     '/torque_gauge',
     '/abs_torque_nm',
     '/abs_torque_nm_per_joint',
     '/position_rad',  
->>>>>>> grasp_point_detection
 
     # Bar30 Pressure Sensor
     '/bar30/depth',
@@ -155,8 +129,6 @@ MY_TOPIC_LIST = [
     '/bar30/pressure',
     '/bar30/temperature',
 
-<<<<<<< HEAD
-=======
     # visualization
     '/seabed_grid',
 
@@ -203,7 +175,6 @@ MY_TOPIC_LIST = [
     '/sc2/wrench_rov_console',
     '/sc2/wrench_tortuga_interface',
     
->>>>>>> grasp_point_detection
 ]
 
 def get_topic_whitelist():
