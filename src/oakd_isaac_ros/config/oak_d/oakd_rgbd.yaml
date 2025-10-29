@@ -12,7 +12,7 @@
       i_enable_imu: false
       i_enable_sync: false
     left:
-      i_publish_topic: true
+      i_publish_topic: false
       i_fps: 10.0
       i_resolution: 400P
       i_low_bandiwdth_frame_freq: 30
@@ -21,7 +21,7 @@
       r_iso: 200
       r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
     right:
-      i_publish_topic: true
+      i_publish_topic: false
       i_fps: 10.0
       i_resolution: 400P
       i_low_bandiwdth_frame_freq: 30
@@ -32,6 +32,7 @@
     rgb:
       i_resolution: 1080P
       i_fps: 30.0
+<<<<<<< HEAD
       i_low_bandiwdth_frame_freq: 60
       i_low_bandwidth: true
       i_low_bandwidth_bitrate: 0
@@ -39,6 +40,17 @@
       i_low_bandwidth_profile: 4
       i_low_bandwidth_quality: 35
       i_output_isp: true
+=======
+      i_low_bandiwdth_frame_freq: 30
+      i_low_bandwidth: true
+      i_low_bandwidth_bitrate: 2000000
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 60
+      i_publish_compressed: false
+      i_publish_topic: true
+      i_output_isp: false
+>>>>>>> grasp_point_detection
       i_isp_den: 3
       i_isp_num: 2
     stereo:
@@ -46,23 +58,36 @@
       i_publish_synced_rect_pair: true
       i_low_bandwidth: true
       i_align_depth: true
-      i_stereo_conf_threshold: 180
-      i_lr_check: true
-      i_subpixel: true
-      i_subpixel_fractional_bits: 3
+      i_stereo_conf_threshold: 220
+      i_lr_check: false
+      i_subpixel: false
+      i_subpixel_fractional_bits: 4
       i_enable_temporal_filter: true
-      i_temporal_filter_alpha: 0.1
-      i_temporal_filter_delta: 20
+      i_temporal_filter_alpha: 0.4
+      i_temporal_filter_delta: 60
       i_temporal_filter_persistency: VALID_2_IN_LAST_4
       i_enable_speckle_filter: true
-      i_speckle_filter_speckle_range: 50
-      i_spatial_filter_hole_filling_radius: 2
+      i_speckle_filter_speckle_range: 80
+      i_spatial_filter_hole_filling_radius: 3
       i_spatial_filter_alpha: 0.5
-      i_spatial_filter_delta: 20
-      i_spatial_filter_iterations: 1
+      i_spatial_filter_delta: 30
+      i_spatial_filter_iterations: 2
       i_enable_decimation_filter: true
       i_decimation_filter_decimation_mode: PIXEL_SKIPPING
-      i_decimation_filter_decimation_factor: 1
-
-      
+      i_decimation_filter_decimation_factor: 2
+    imu:
+      i_acc_cov: 0.0
+      i_acc_freq: 200
+      i_batch_report_threshold: 5
+      i_enable_rotation: false
+      i_get_base_device_timestamp: false
+      i_gyro_cov: 0.0
+      i_gyro_freq: 200
+      i_mag_cov: 0.0
+      i_max_batch_reports: 10
+      i_message_type: IMU
+      i_rot_cov: -1.0
+      i_sync_method: LINEAR_INTERPOLATE_ACCEL
+      i_update_ros_base_time_on_ros_msg: false
+        
       

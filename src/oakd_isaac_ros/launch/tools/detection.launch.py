@@ -30,97 +30,6 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME, \
     PEOPLENET_INPUT_IMAGE_WIDTH, PEOPLENET_INPUT_IMAGE_HEIGHT
 
-"""
-def create_detection_pipeline(args: lu.ArgumentContainer,
-                              namespace: str,
-                              input_topic: str) -> List[Action]:
-
-    # People bbox detection based on Detectnet_v2
-    # ONNX masks pixels within bounding boxes with area & confidence filtering
-    # Ops: Image2Tensor + TRT Node + UNet Decoder
-    #    - Resolution:  network_image_resolution
-
-    # TODO(xyao): add resize if input res != network res
-    people_preprocessing_node = ComposableNode(
-        name='image_to_tensor_node',
-        package='isaac_ros_tensor_proc',
-        plugin='nvidia::isaac_ros::dnn_inference::ImageToTensorNode',
-        namespace=namespace,
-        parameters=[{
-            # model is trained on tensor in range of (0,1), requires pixel * 1. / 255.
-            'scale': True,
-            # First tensor belongs to image
-            'tensor_name': args.input_tensor_names[0],
-            'input_qos': 'SENSOR_DATA',
-        }],
-        remappings=[
-            ('image', input_topic),
-            ('tensor', 'detection/tensor_input'),
-        ]
-    )
-
-    people_tensor_rt_node = ComposableNode(
-        name='people_trt_node',
-        package='isaac_ros_tensor_rt',
-        plugin='nvidia::isaac_ros::dnn_inference::TensorRTNode',
-        namespace=namespace,
-        parameters=[{
-            'engine_file_path': args.engine_file_path,
-            'output_binding_names': args.output_binding_names,
-            'output_tensor_names': args.output_tensor_names,
-            'input_tensor_names': args.input_tensor_names,
-            'input_binding_names': args.input_binding_names,
-            'force_engine_update': args.force_engine_update,
-            'verbose': args.verbose,
-        }],
-        remappings=[
-            ('tensor_pub', 'detection/tensor_input'),
-            ('tensor_sub', 'detection/tensor_output')]
-    )
-
-    people_decoder_node = ComposableNode(
-        name='people_decoder_node',
-        package='isaac_ros_unet',
-        plugin='nvidia::isaac_ros::unet::UNetDecoderNode',
-        namespace=namespace,
-        parameters=[{
-            'network_output_type': args.network_output_type,
-            'color_segmentation_mask_encoding': args.color_segmentation_mask_encoding,
-            # network resolution = output mask resolution
-            'mask_width': args.network_image_width,
-            'mask_height': args.network_image_height,
-            'color_palette': [
-                0x556B2F, 0x800000, 0x008080, 0x000080, 0x9ACD32, 0xFF0000, 0xFF8C00, 0xFFD700,
-                0x00FF00, 0xBA55D3, 0x00FA9A, 0x00FFFF, 0x0000FF, 0xF08080, 0xFF00FF, 0x1E90FF,
-                0xDDA0DD, 0xFF1493, 0x87CEFA, 0xFFDEAD
-            ],
-        }],
-        remappings=[
-            ('tensor_sub', 'detection/tensor_output'),
-            ('unet/raw_segmentation_mask', 'detection/people_mask')])
-
-    if args.one_container_per_camera:
-        detection_node = ComposableNodeContainer(
-            name=args.container_name + '_people_detection',
-            package='rclcpp_components',
-            namespace=namespace,
-            executable='component_container_mt',
-            arguments=['--ros-args', '--log-level', args.log_level],
-            composable_node_descriptions=[
-                people_preprocessing_node, people_tensor_rt_node, people_decoder_node
-            ],
-        )
-    else:
-        detection_node = lu.load_composable_nodes(
-            args.container_name,
-            [
-                people_preprocessing_node, people_tensor_rt_node, people_decoder_node
-            ],
-        )
-    return detection_node
-
-"""
-
 def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
 
     # DNN Image Encoder parameters
@@ -145,11 +54,17 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     confidence_threshold = args.confidence_threshold
     nms_threshold = args.nms_threshold
 
+    #depth mask parameters
+    mask_class_id = args.target_class_id
+    #confidence_threshold = arg.confidence_threshold
+
     #namespace = "camera0"
     #input_topic = "camera0/color/image_raw"
     #input_info_topic = "camera0/color/image_raw/camera_info"
-    input_topic='/oak/rgb/image_raw'
-    input_info_topic='/oak/rgb/camera_info'
+    #input_topic='/oak/rgb/image_raw_rgb8'
+    #input_info_topic='/oak/rgb/camera_info'
+    input_topic = args.input_topic_list[0]
+    input_info_topic = args.input_info_topic_list[0]
 
 
     encoder_dir = get_package_share_directory('isaac_ros_dnn_image_encoder')
@@ -164,8 +79,8 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
             'network_image_height': str(network_image_height),
             'image_mean': str(image_mean),
             'image_stddev': str(image_stddev),
-            'attach_to_shared_component_container': 'False',
-            #'component_container_name': 'tensor_rt_container',
+            'attach_to_shared_component_container': 'True',
+            'component_container_name': 'detection_container',
             'dnn_image_encoder_namespace': 'yolov8_encoder',
             'keep_aspect_ratio': 'false',
             'image_input_topic': str(input_topic),
@@ -233,18 +148,31 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         name='depth_mask_publisher',
         package='oakd_isaac_ros',
         plugin='publish_mask',
-        extra_arguments=[{'--ros-args': '', '--log-level': 'debug'}]
+        parameters=[{
+            'target_class_id': int(mask_class_id),
+            'confidence_threshold' : confidence_threshold
+        }],
+        extra_arguments=[{
+            '--ros-args': '', 
+            '--log-level': 'debug'}]
     )
 
-    detection_node = ComposableNodeContainer(
-        name='tensor_rt_container',
-        package='rclcpp_components',
-        executable='component_container_mt',
-        composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher],
-        output='screen',
-        arguments=['--ros-args', '--log-level', 'INFO'],
-        namespace=''
-    )
+    #detection_node = ComposableNodeContainer(
+    #    name='tensor_rt_container',
+    #    package='rclcpp_components',
+    #    executable='component_container_mt',
+    #    composable_node_descriptions=[tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher],
+    #    output='screen',
+    #    arguments=['--ros-args', '--log-level', 'INFO'],
+    #    namespace=''
+    #)
+
+    detection_node = lu.load_composable_nodes(
+            'detection_container',
+            [
+                tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher
+            ],
+        )
 
     return [yolov8_encoder_launch, detection_node]
 
@@ -265,19 +193,19 @@ def generate_launch_description() -> LaunchDescription:
                  description='List of namespaces for each detection inference pipeline')
     args.add_arg(
         'input_topic_list',
-        '["camera0/color/image_raw"]',
+        '["/oak/rgb/image_raw_rgb8"]',
         description='List of camera image input topics for each detection inference pipeline')
 
     args.add_arg(
         'input_info_topic_list',
-        '["camera0/color/image_raw/camera_info"]',
+        '["/oak/rgb/camera_info"]',
         description='List of camera image info input topics for each detection inference pipeline')
 
     args.add_arg('input_image_width', '1280',
                  description='Width of the input image.')
     args.add_arg('input_image_height', '720',
                  description='Height of the input image.')
-    args.add_arg('confidence_threshold', '0.5',
+    args.add_arg('confidence_threshold', '0.6',
                  description='Confidence threshold to filter candidate detections during NMS')
     args.add_arg('nms_threshold', '0.45',
                 description='NMS IOU threshold')
@@ -326,9 +254,12 @@ def generate_launch_description() -> LaunchDescription:
     args.add_arg('run_standalone', 'False',
                  description='Run in a standalone container if True')
     # To avoid fps drops in rosbag replay uncompressed sensor topics, e.g. multi-rs
-    args.add_arg('one_container_per_camera', 'True',
+    args.add_arg('one_container_per_camera', 'False',
                  description='Run per-camera based detection nodes in separate containers if True')
     args.add_arg('log_level', 'info', choices=['debug', 'info', 'warn'], cli=True)
+
+    args.add_arg('target_class_id', '0', 
+                 description="Select the class id which the mask will be created for.")
 
     # Unet Decoder
     args.add_arg('network_output_type', 'sigmoid')

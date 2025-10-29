@@ -8,7 +8,7 @@
 # Compiled Object files
 *.slo
 *.lo
-*.o
+#*.o
 *.obj
 
 # Precompiled Headers
@@ -16,7 +16,7 @@
 *.pch
 
 # Compiled Dynamic libraries
-*.so
+#.so
 *.dylib
 *.dll
 
@@ -66,7 +66,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+#lib/
 lib64/
 parts/
 sdist/
@@ -305,7 +305,7 @@ COLCON_IGNORE
 AMENT_IGNORE
 
 #ML files
-*.onnx
+.onnx
 *.plan
 *.model
 

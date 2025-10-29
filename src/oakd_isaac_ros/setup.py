@@ -52,6 +52,7 @@ setup(
     entry_points={
         'console_scripts': [
             "image_converter = oakd_isaac_ros.image_converter:main",  # Reference src/image_converter.py
+            "image_resizer = oakd_isaac_ros.image_resizer:main",
         ],
     },
 )

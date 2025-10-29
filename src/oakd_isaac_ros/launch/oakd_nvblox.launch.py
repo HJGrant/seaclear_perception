@@ -10,7 +10,7 @@ from isaac_ros_launch_utils.all_types import (
     LoadComposableNodes
 )
 import isaac_ros_launch_utils as lu
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription, launch_description_sources
@@ -84,12 +84,10 @@ def generate_launch_description() -> LaunchDescription:
         description='Launch OAK-D driver')
     args.add_arg(
         'use_foxglove_whitelist',
-        False,
+        True,
         description='Disable visualization of bandwidth-heavy topics',
         cli=True)
     actions = args.get_launch_actions()
-
-    actions.append(DeclareLaunchArgument('use_rosbag', default_value='false', description='Use rosbag instead of live OAK-D camera'))
 
 
     # Globally set use_sim_time if we're running from bag or sim
@@ -113,8 +111,11 @@ def generate_launch_description() -> LaunchDescription:
             launch_arguments={
                 'container_name': args.container_name,
                 'params_file': os.path.join(str(get_package_share_directory('oakd_isaac_ros')),'config', 'oak_d', 'oakd_rgbd.yaml'),
+                # Remap /oak/imu/data -> /imu/data_ned through camera.launch.py
+                'imu_topic_remapped': '/imu/data',
                 },
-        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))))
+            condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+            ))
 
     actions.append(
         Node(
@@ -159,7 +160,9 @@ def generate_launch_description() -> LaunchDescription:
                 'num_cameras': args.num_cameras,
                 'container_name': args.container_name,
                 # fixing rosbag replay dropping fps
-                'one_container_per_camera': True
+                'one_container_per_camera': True,
+                'target_class_id' : 3,
+                'confidence_threshold' : 0.6,
             },
             condition=IfCondition(lu.has_substring(args.mode, NvbloxMode.people_detection))))
 
@@ -174,28 +177,6 @@ def generate_launch_description() -> LaunchDescription:
                 ('/oak/rgb/image_raw', '/oak/rgb/image_raw'),
                 ('/oak/rgb/image_raw_rgb8', '/oak/rgb/image_raw_rgb8')
             ]
-        )
-    )
-    actions.append(
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=["0", "0", "0", "0", "0", "0", "map", "odom"],
-        )
-    )
-    actions.append(
-    Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        arguments=["0", "0", "1.0", "0", "3.14", "1.5708", "odom", "oak-d-base-frame"],
-        )
-    )
-
-    actions.append(
-        Node(
-            package="tf2_ros",
-            executable="static_transform_publisher",
-            arguments=["0", "0", "0", "0", "0", "0", "oak-d-base-frame", "oak_rgb_camera_optical_frame"],
         )
     )
 
@@ -219,21 +200,84 @@ def generate_launch_description() -> LaunchDescription:
             additional_bag_play_args=args.rosbag_args,
             condition=IfCondition(lu.is_valid(args.use_rosbag))))
 
-    # Visualization
+    # run WebRTC Stream for RGB
     actions.append(
-        lu.include(
-            'oakd_isaac_ros',
-            'launch/tools/visualization.launch.py',
-            launch_arguments={
-                'mode': args.mode,
-                #'camera': camera_mode,
-                'use_foxglove_whitelist': args.use_foxglove_whitelist,
-            }))
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/mask_overlay',
+            'output': 'rtp://192.168.2.94:8550', #'rtp://192.168.2.94:8550',
+            'output_codec': 'h264', #h264
+            'output_bitrate': '400000' #default 4000000
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
+
+    # run WebRTC Stream for Object Detection
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/oak/rgb/image_raw',
+            'output': 'rtp://192.168.2.94:8551',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    )   
+
+    # run WebRTC Stream for Depth Map Overlay
+    actions.append(
+    IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_deep_learning'),
+                'launch',
+                'video_output.ros2.launch'
+            )
+        ),
+        launch_arguments={
+            'topic': '/nvblox_node/dynamic_depth_frame_overlay',
+            'output': 'rtp://@:8556/depth',
+            'output_codec': 'h264',
+            'output_bitrate': '4000000'
+        }.items(),
+        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+        )
+    ) 
+
+    # grip point compute service
+    #actions.append(
+    #    Node(
+    #        package='grip_points',
+    #        executable='service',
+    #        name='grip_points_service',
+    #        output='screen'
+    #    )
+    #)
 
     actions.append(
         lu.component_container(
             NVBLOX_CONTAINER_NAME, condition=UnlessCondition(args.attach_to_container),
             log_level=args.log_level))
+    
+    actions.append(
+        lu.component_container('detection_container', log_level=args.log_level)
+    )
 
     return LaunchDescription(actions)
 

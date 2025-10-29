@@ -1,0 +1,31 @@
+#copy this file into cp /mnt/orin_ssd/workspaces/oakd_isaac_ros/assets/ros_bag_record.service /etc/systemd/system/ros_bag_record.service
+#run sudo systemctl daemon-reload
+#then sudo systemctl start ros_bag_record.service
+#to enable the service at boot run 
+#sudo systemctl enable ros_bag_record.service
+
+[Unit]
+Description=Record ROS 2 bag on boot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+# set the user that owns the workspace and has write perms to the bag directory
+User=ubuntu
+WorkingDirectory=/mnt/orin_ssd/workspaces/oakd_isaac_ros
+# pass env if you need a specific domain
+Environment=ROS_DOMAIN_ID=8
+# run via bash -lc so your script can source the ROS setup inside
+ExecStart=/usr/bin/bash -lc '/mnt/orin_ssd/workspaces/oakd_isaac_ros/my_ws/scripts/record_rosbag.sh'
+# let systemd handle stop with SIGTERM; no ExecStop needed
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rosbag_record
+
+[Install]
+WantedBy=multi-user.target
+
+
