@@ -53,13 +53,14 @@ public:
     // publish the target point from the object detection
     target_pub_ = this->create_publisher<geometry_msgs::msg::Point>("/sc2/state_estimation_node/detected_objects/target", 10);
 
-    rgb_sub_.subscribe(this, "/oak/rgb/image_raw_rgb8");
+    rgb_sub_.subscribe(this, "/rgb");//rgb_sub_.subscribe(this, "/oak/rgb/image_raw_rgb8");
     resized_sub_.subscribe(this, "/yolov8_encoder/resize/image");
 
     sync_ = std::make_shared<Sync>(SyncPolicy(10), rgb_sub_, resized_sub_);
     sync_->registerCallback(std::bind(&publish_mask::syncCallback, this, std::placeholders::_1, std::placeholders::_2));
 
     // Subscribe to depth image and camera info (input topics)
+    /*
     depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
       "/oak/stereo/image_raw_depth", 10,
       std::bind(&publish_mask::depthCallback, this, std::placeholders::_1));
@@ -67,10 +68,20 @@ public:
     depth_camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
       "/oak/stereo/camera_info", 10,
       std::bind(&publish_mask::depthCameraInfoCallback, this, std::placeholders::_1));
+    */
+    depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+      "/depth", 10,
+      std::bind(&publish_mask::depthCallback, this, std::placeholders::_1));
+
+    depth_camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+      "/camera_info", 10,
+      std::bind(&publish_mask::depthCameraInfoCallback, this, std::placeholders::_1));
 
     // Publishers for republished depth image and camera info with updated timestamps
-    depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/oak/stereo/image_raw", 10);
-    depth_camera_info_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("/oak/stereo/camera_info", 10);
+    //depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/oak/stereo/image_raw", 10);
+    //depth_camera_info_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("/oak/stereo/camera_info", 10);
+    depth_pub_ = this->create_publisher<sensor_msgs::msg::Image>("/depth", 10);
+    depth_camera_info_pub_ = this->create_publisher<sensor_msgs::msg::CameraInfo>("/camera_info", 10);
   }
 
 private:

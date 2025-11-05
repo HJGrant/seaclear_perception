@@ -5,18 +5,25 @@
     "--gpus", "all", 
     "--network", "host", 
     "--cpus", "16.0",  
-    "--memory", "32g"  
+    "--memory", "32g",
+    "--volume=${localEnv:HOME}/workspaces/oakd_isaac_ros:/oakd_isaac_ros",
+    "--volume=${localEnv:HOME}/.ros/fastdds.xml:/root/.ros/fastdds.xml"
   ],
+
   "postCreateCommand": "echo 'Dev container is ready!'",
-  "remoteUser": "root",
-  "mounts": [
-    "source=/home/${localEnv:USER}/workspaces/oakd_isaac_ros,target=/workspace,type=bind"
-  ],
-  "settings": {
-    "terminal.integrated.defaultProfile.linux": "bash"
-  },
-  "extensions": [
-    "ms-python.python",
-    "ms-vscode.cpptools"
-  ]
+
+  "containerUser": "root",
+  "workspaceFolder": "/oakd_isaac_ros",
+
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-iot.vscode-ros",
+        "ms-python.python",
+        "ms-azuretools.vscode-docker",
+        "twxs.cmake"
+      ]
+    }
+  }
 }
