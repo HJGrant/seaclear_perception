@@ -117,19 +117,6 @@ def generate_launch_description() -> LaunchDescription:
             condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
             ))
 
-    actions.append(
-        Node(
-            package="foxglove_compressed_video",
-            executable="foxglove_compressed_video_stream",
-            name="foxglove_compressed_video_node",
-            output="screen",
-            remappings=[
-            ("/image_raw", "/oak/rgb/image_raw"),
-            ("/compressed_video", "/oak/compressed_video")
-            ]
-        )
-    )
-
     # Run people segmentation if the right flag has been raised
     actions.append(
         lu.include(
@@ -241,24 +228,24 @@ def generate_launch_description() -> LaunchDescription:
     )   
 
     # run WebRTC Stream for Depth Map Overlay
-    actions.append(
-    IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('ros_deep_learning'),
-                'launch',
-                'video_output.ros2.launch'
-            )
-        ),
-        launch_arguments={
-            'topic': '/nvblox_node/dynamic_depth_frame_overlay',
-            'output': 'rtp://@:8556/depth',
-            'output_codec': 'h264',
-            'output_bitrate': '4000000'
-        }.items(),
-        condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
-        )
-    ) 
+    #actions.append(
+    #IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(
+    #            get_package_share_directory('ros_deep_learning'),
+    #            'launch',
+    #            'video_output.ros2.launch'
+    #        )
+    #    ),
+    #    launch_arguments={
+    #        'topic': '/nvblox_node/dynamic_depth_frame_overlay',
+    #        'output': 'rtp://@:8556/depth',
+    #        'output_codec': 'h264',
+    #        'output_bitrate': '4000000'
+    #    }.items(),
+    #    condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
+    #    )
+    #) 
 
     # grip point compute service
     #actions.append(

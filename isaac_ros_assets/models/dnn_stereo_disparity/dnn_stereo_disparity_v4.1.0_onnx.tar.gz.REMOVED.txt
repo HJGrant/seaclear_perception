@@ -1,0 +1,11 @@
+PLACEHOLDER - original file removed during GitLab -> GitHub migration
+(GitHub rejects files over 100 MB).
+
+Original path : isaac_ros_assets/models/dnn_stereo_disparity/dnn_stereo_disparity_v4.1.0_onnx.tar.gz
+Original size : 123.7 MB
+Git blob SHA  : ada6ec5c86d04804d5831129f3d6474841169627
+
+The original is still in the LRZ GitLab repo:
+  https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros
+To restore it from a clone of that repo:
+  git cat-file blob ada6ec5c86d04804d5831129f3d6474841169627 > dnn_stereo_disparity_v4.1.0_onnx.tar.gz

@@ -89,9 +89,23 @@ MY_TOPIC_LIST = [
     #'/oak/rgb/camera_info',
     '/oak/stereo/image_raw',
     #'/oak/stereo/camera_info',
-    #'/oak/rgb/image_raw/compressed',
+    '/oak/rgb/image_raw/compressed',
     #'/oak/rgb/image_raw_rgb8/nitros',
     #'/oak/compressed_video',
+    '/depth',
+    '/disparity',
+    '/oak/left/image_raw',
+    '/oak/right/image_raw',
+    '/oak/right/image_rect',
+    '/oak/left/image_rect',
+    '/oak/right/image_rect_rgb8',
+    '/oak/left/image_rect_rgb8',
+    '/dnn_depth_compressed',
+    '/oak/right/image_raw/compressed',
+    '/oak/left/image_raw/compressed',
+    
+
+
 
     #YOLOv8
     #'/camera0/detection/mask',

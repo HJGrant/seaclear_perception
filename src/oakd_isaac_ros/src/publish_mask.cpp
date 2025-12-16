@@ -61,7 +61,7 @@ public:
 
     // Subscribe to depth image and camera info (input topics)
     depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-      "/oak/stereo/image_raw_depth", 10,
+      "/depth", 10,
       std::bind(&publish_mask::depthCallback, this, std::placeholders::_1));
 
     depth_camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(

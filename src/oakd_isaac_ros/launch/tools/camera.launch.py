@@ -157,7 +157,7 @@ def generate_launch_description():
         DeclareLaunchArgument("cam_yaw", default_value="0.0"),
         DeclareLaunchArgument(
             "params_file",
-            default_value=os.path.join(pacakge_prefix, "config", "oak_d", "oakd_rgbd.yaml"),
+            default_value=os.path.join(pacakge_prefix, "config", "oak_d", "oakd_dnn_depth.yaml"),
         ),
         DeclareLaunchArgument("use_rviz", default_value="false"),
         DeclareLaunchArgument("rsp_use_composition", default_value="true"),

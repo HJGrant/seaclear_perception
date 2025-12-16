@@ -8,6 +8,7 @@ from launch.actions import ExecuteProcess
 from launch_ros.actions import ComposableNodeContainer
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch_ros.descriptions import ComposableNode
 from ament_index_python.packages import get_package_share_directory
 import os
 
@@ -25,28 +26,44 @@ def generate_launch_description():
         launch_arguments={
             'params_file': os.path.join(
                 get_package_share_directory('oakd_isaac_ros'),
-                'config', 'oak_d', 'oakd_rgbd.yaml'
+                'config', 'oak_d', 'oakd_dnn_depth.yaml'
             )
         }.items()
     )
 
-    image_converter = Node(
-            package='oakd_isaac_ros',
-            executable='image_converter.py',
-            name='image_converter_node',
-            output='screen',
-            remappings=[
-                ('/oak/rgb/image_raw', '/oak/rgb/image_raw'),
-                ('/oak/rgb/image_raw_rgb8', '/oak/rgb/image_raw_rgb8')
-            ]
-        )
+    #decoder_node = ComposableNode(
+    #    name='oak_rgb_decoder_node',
+    #    package='isaac_ros_h264_decoder',
+    #    plugin='nvidia::isaac_ros::h264_decoder::DecoderNode',
+    #    remappings=[
+    #        ('image_compressed', '/oak/rgb/image_raw/compressed'),
+    #        ('image_uncompressed', '/oak/rgb/image_raw/uncompressed')
+    #    ]
+    #    )
+
+    image_converter = ComposableNode(
+        name='oak_format_conv_node',
+        package='isaac_ros_image_proc',
+        plugin='nvidia::isaac_ros::image_proc::ImageFormatConverterNode',
+        parameters=[{
+            'image_width': 1280,
+            'image_height': 720,
+            'encoding_desired': 'rgb8'
+        }],
+        remappings=[
+            ('image_raw', '/oak/rgb/image_raw'),
+            ('image', '/oak/rgb/image_raw_rgb8')
+        ]
+    )
 
     detection_container = ComposableNodeContainer(
         name='detection_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container_mt',
-        composable_node_descriptions=[],
+        composable_node_descriptions=[
+            image_converter
+        ],
         output='screen'
     )
 
@@ -74,8 +91,8 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
-            'topic': '/oak/rgb/image_raw',  # <-- stream resized topic
-            'output': 'rtp://192.168.2.94:8550',
+            'topic': '/oak/rgb/image_raw_rgb8',  # <-- stream resized topic
+            'output': 'rtp://192.168.2.94:8551',
             'output_codec': 'h264',
             'output_bitrate': '4000000'
         }.items()
@@ -90,8 +107,8 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
-            'topic': '/mask_overlay',  # <-- stream resized topic
-            'output': 'rtp://192.168.2.94:8551',
+            'topic': '/mask_overlay',
+            'output': 'rtp://192.168.2.94:8550',
             'output_codec': 'h264',
             'output_bitrate': '4000000'
         }.items()
@@ -109,9 +126,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         oakd_launch,
-        image_converter,
         detection_container,
         detection_include,
-        rtp_launch_rgb,
         rtp_launch_yolo
     ])

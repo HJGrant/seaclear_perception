@@ -193,7 +193,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='List of namespaces for each detection inference pipeline')
     args.add_arg(
         'input_topic_list',
-        '["/oak/rgb/image_raw_rgb8"]',
+        '["/oak/rgb/image_raw"]',
         description='List of camera image input topics for each detection inference pipeline')
 
     args.add_arg(
@@ -230,10 +230,10 @@ def generate_launch_description() -> LaunchDescription:
     #             '/isaac_ros_assets/models/yolov8/yolov8s.onnx',
     #             description='Full path to detection model TRT engine')
     args.add_arg('model_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx',
+                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12n.onnx',
                  description='Full path to detection model TRT engine')
     args.add_arg('engine_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan',
+                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12n.plan',
                  description='Full path to detection model TRT engine')
     args.add_arg('input_binding_names', '["images"]',
                  description='List of TRT input tensor binding names')

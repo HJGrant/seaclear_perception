@@ -111,4 +111,8 @@ RUN printf '%s\n' \
 
 RUN pip3 install -U jetson-stats
 
-RUN apt install ros-humble-marine-acoustic-msgs
+RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
+    ros-humble-marine-acoustic-msgs \
+    ros-humble-isaac-ros-ess \
+    ros-humble-isaac-ros-ess-models-install \
+    && rm -rf /var/lib/apt/lists/*
