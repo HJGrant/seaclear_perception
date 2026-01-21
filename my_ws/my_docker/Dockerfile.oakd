@@ -1,6 +1,14 @@
 ARG BASE_IMAGE=ubuntu:22.04
 FROM ${BASE_IMAGE}
 
+# Locate the failing RUN block:
+# RUN sed -i '/isaac\.download\.nvidia\.com/s/^deb /deb [check-valid-until=no] /' /etc/apt/sources.list.d/* && \
+#     apt update && apt-get upgrade -y
+
+# Replace it with the following:
+RUN rm -rf /var/lib/apt/lists/* && \
+    sed -i '/isaac\.download\.nvidia\.com/s/^deb /deb [check-valid-until=no] /' /etc/apt/sources.list.d/* || true && \
+    apt update && apt-get upgrade -y
 #Install extra ROS packages for Isaac Perceptor
 #RUN apt update && apt-get upgrade -y
 

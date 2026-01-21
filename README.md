@@ -79,6 +79,58 @@ Specifying the 'people_detection' mode will enable selective 3D reconstruction o
 Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detect objects by subscribing to `/nvblox_node/color_layer` and '/nvblox_node/dynamic_occupancy_layer', respectively. Diplay these topics in a 3D panel in Foxglove. 
 
 
+## Running OAK-D with Visual SLAM
+
+This launch file starts the OAK-D camera, runs NVBlox (optional), and Isaac ROS Visual SLAM using the same camera topics for proper communication.
+
+### 0. launch container
+```bash
+cd /mnt/nova_ssd/workspaces/oakd_isaac_ros
+src/isaac_ros_common/scripts/run_dev.sh \
+--isaac_ros_dev_dir /mnt/nova_ssd/workspaces/oakd_isaac_ros
+```
+
+
+### 1. Build the workspace
+
+From the root of your workspace:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+colcon build --merge-install
+```
+
+If this is your first build or you updated packages, make sure you build the workspace fully.
+
+2. Source the workspace
+```bash
+source /workspaces/oakd_isaac_ros/install/setup.bash
+```
+
+3. Launch OAK-D + Visual SLAM
+```bash
+ros2 launch oakd_isaac_ros oakd_visual_slam.launch.py
+```
+
+4. Optional arguments
+
+`use_rosbag:=true` – Use a rosbag instead of the live OAK-D camera.
+
+`container_name:=<name>` – Name of the composable container to use.
+
+`log_level:=info` – Set ROS log level.
+
+Example with rosbag playback:
+```bash
+ros2 launch oakd_isaac_ros oakd_visual_slam.launch.py use_rosbag:=true
+```
+
+5. Notes
+
+Ensure the camera topics in the launch file match the OAK-D configuration (RGB and Depth topics).
+
+Both NVBlox and Visual SLAM subscribe to the same camera topics, ensuring proper data flow.
+
 ## Building a Deployment Docker
 If you would like to deploy this pipeline as a 1-click solution, that launches a Docker containter and automatically launches the correct ROS2 launch file, run the following command OUTSIDE of the docker container: 
 

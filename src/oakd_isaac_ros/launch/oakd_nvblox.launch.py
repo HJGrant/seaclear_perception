@@ -117,9 +117,11 @@ def generate_launch_description() -> LaunchDescription:
             condition=UnlessCondition(LaunchConfiguration('use_rosbag'))
             ))
 
+    """
     actions.append(
         Node(
-            package="foxglove_compressed_video",
+            # package="foxglove_compressed_video", # changed on 12.12.2025 for setup
+            package="foxglove_compressed_video_transport",
             executable="foxglove_compressed_video_stream",
             name="foxglove_compressed_video_node",
             output="screen",
@@ -129,6 +131,7 @@ def generate_launch_description() -> LaunchDescription:
             ]
         )
     )
+    """
 
     # Run people segmentation if the right flag has been raised
     actions.append(
