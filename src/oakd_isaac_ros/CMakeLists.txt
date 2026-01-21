@@ -53,7 +53,9 @@ install(TARGETS publish_mask_component
         RUNTIME DESTINATION bin
 )
 
-add_library(publish_mask_dual_component SHARED src/publish_mask_dual.cpp)
+add_library(publish_mask_dual_component SHARED 
+  src/publish_mask_dual.cpp
+)
 
 ament_target_dependencies(publish_mask_dual_component 
   rclcpp_components
@@ -142,6 +144,11 @@ install(PROGRAMS
 
 install(PROGRAMS
   scripts/image_resizer.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(PROGRAMS
+  scripts/foxglove_compressed_video.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
