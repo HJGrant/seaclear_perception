@@ -310,3 +310,20 @@ AMENT_IGNORE
 *.model
 
 # End of https://www.toptal.com/developers/gitignore/api/database,ros2
+
+# local artifacts
+*.deb
+frames_*.pdf
+frames_*.gv
+
+# Large binaries / installers
+*.deb
+
+# Generated graphviz/frames
+frames_*.pdf
+frames_*.gv
+
+# ROS build artifacts (if not already)
+build/
+install/
+log/
