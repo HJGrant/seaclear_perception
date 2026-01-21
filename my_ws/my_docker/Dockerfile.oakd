@@ -115,4 +115,6 @@ RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
     ros-humble-marine-acoustic-msgs \
     ros-humble-isaac-ros-ess \
     ros-humble-isaac-ros-ess-models-install \
+    ros-humble-isaac-ros-h264-encoder \
+    ros-humble-isaac-ros-h264-decoder \
     && rm -rf /var/lib/apt/lists/*

@@ -4,12 +4,12 @@
       i_nn_type: none
       i_tf_base_frame: oak-d_frame
       i_tf_parent_frame: oak-d-base-frame
-      i_pipeline_type: RGBD
+      i_pipeline_type: RGB
       i_enable_sync: false
       i_ip: "192.168.2.97"
     
     pipeline_gen:
-      i_enable_diagnostics: false
+      i_enable_diagnostics: true
       i_enable_imu: false
       i_enable_sync: false
     
@@ -40,7 +40,7 @@
       i_resolution: 1080P
       i_fps: 60.0
       #i_low_bandiwdth_frame_freq: 60
-      #i_low_bandwidth: true
+      i_low_bandwidth: true
       #i_low_bandwidth_bitrate: 0
       #i_low_bandwidth_ffmpeg_encoder: libx264
       #i_low_bandwidth_profile: 4
@@ -57,8 +57,8 @@
       i_synced: false
       i_align_depth: false
 
-      i_left_rect_publish_topic: true
-      i_right_rect_publish_topic: true
+      i_left_rect_publish_topic: false
+      i_right_rect_publish_topic: false
 
       #i_right_rect_add_exposure_offset: false
       #i_right_rect_enable_feature_tracker: false
