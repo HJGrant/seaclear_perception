@@ -81,7 +81,7 @@ def generate_launch_description():
         name="oak_container",
         namespace="",
         package="rclcpp_components",
-        executable="component_container_mt",
+        executable="component_container", # executable="component_container_mt",
         output="screen",
         parameters=[{"use_sim_time": use_sim_time}],
         composable_node_descriptions=[
