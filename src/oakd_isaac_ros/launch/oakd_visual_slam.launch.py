@@ -23,7 +23,7 @@ def generate_launch_description():
         FindPackageShare("oakd_isaac_ros").find("oakd_isaac_ros"),
         "config",
         "oak_d",
-        "oakd_rgbd.yaml",
+        "oakd_stereo_only_30hz_400p.yaml",
     )
     declare_params_file = DeclareLaunchArgument(
         "params_file",
