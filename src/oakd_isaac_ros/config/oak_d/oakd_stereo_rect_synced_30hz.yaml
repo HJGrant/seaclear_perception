@@ -1,0 +1,38 @@
+/oakd_camera:
+  ros__parameters:
+    camera:
+      i_nn_type: none
+      i_tf_base_frame: oak-d_frame
+      i_tf_parent_frame: oak-d-base-frame
+      # C: Same as B, but enable synced rect pair
+      i_pipeline_type: Depth
+
+    pipeline_gen:
+      i_enable_diagnostics: true
+      i_enable_imu: false
+      i_enable_sync: false
+
+    left:
+      i_publish_topic: true
+      i_fps: 30.0
+      i_resolution: 400P
+      i_low_bandwidth: false
+
+    right:
+      i_publish_topic: true
+      i_fps: 30.0
+      i_resolution: 400P
+      i_low_bandwidth: false
+
+    stereo:
+      i_publish_topic: false
+      i_align_depth: false
+      i_low_bandwidth: false
+      i_lr_check: true
+      i_subpixel: false
+
+      i_left_rect_publish_topic: true
+      i_right_rect_publish_topic: true
+
+      # ON: synced rect pair (known crash candidate)
+      i_publish_synced_rect_pair: true

@@ -3,9 +3,10 @@ import os
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 
-from launch_ros.actions import ComposableNodeContainer, Node
+from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
 
@@ -18,13 +19,25 @@ def generate_launch_description():
     )
     use_sim_time = LaunchConfiguration("use_sim_time")
 
-    oakd_params_file = os.path.join(
+    default_oakd_params_file = os.path.join(
         FindPackageShare("oakd_isaac_ros").find("oakd_isaac_ros"),
         "config",
         "oak_d",
         "oakd_rgbd.yaml",
     )
-    print(f"#### OAKD PARAMS_FILE LOCATION: {oakd_params_file} ####")
+    declare_params_file = DeclareLaunchArgument(
+        "params_file",
+        default_value=default_oakd_params_file,
+        description="Path to depthai_ros_driver camera yaml",
+    )
+    params_file = LaunchConfiguration("params_file")
+
+    declare_enable_vslam = DeclareLaunchArgument(
+        "enable_vslam",
+        default_value="true",
+        description="Enable VisualSlamNode and image republish nodes",
+    )
+    enable_vslam = LaunchConfiguration("enable_vslam")
 
     # --- Static TFs (minimal to satisfy cuVSLAM default base_link + stereo) ---
     static_base_to_left_optical = Node(
@@ -54,6 +67,7 @@ def generate_launch_description():
         package="image_transport",
         executable="republish",
         name="left_republish_raw",
+        condition=IfCondition(enable_vslam),
         output="screen",
         arguments=["raw"],
         remappings=[
@@ -67,6 +81,7 @@ def generate_launch_description():
         package="image_transport",
         executable="republish",
         name="right_republish_raw",
+        condition=IfCondition(enable_vslam),
         output="screen",
         arguments=["raw"],
         remappings=[
@@ -89,9 +104,16 @@ def generate_launch_description():
                 package="depthai_ros_driver",
                 plugin="depthai_ros_driver::Camera",
                 name="oakd_camera",
-                parameters=[oakd_params_file],
+                parameters=[params_file],
                 extra_arguments=[{"use_intra_process_comms": True}],
-            ),
+            )
+        ],
+    )
+
+    load_vslam = LoadComposableNodes(
+        condition=IfCondition(enable_vslam),
+        target_container="/oak_container",
+        composable_node_descriptions=[
             ComposableNode(
                 package="isaac_ros_visual_slam",
                 plugin="nvidia::isaac_ros::visual_slam::VisualSlamNode",
@@ -113,10 +135,12 @@ def generate_launch_description():
 
     return LaunchDescription([
         declare_use_sim_time,
+        declare_params_file,
+        declare_enable_vslam,
         static_base_to_left_optical,
         static_left_to_right_optical,
         left_republish,
         right_republish,
         container,
+        load_vslam,
     ])
-
