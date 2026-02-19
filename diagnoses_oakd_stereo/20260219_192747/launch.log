@@ -1,0 +1,22 @@
+[INFO] [launch]: All log files can be found below /root/.ros/log/2026-02-19-19-27-50-481042-ubuntu-125347
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [static_transform_publisher-1]: process started with pid [125559]
+[INFO] [static_transform_publisher-2]: process started with pid [125561]
+[INFO] [republish-3]: process started with pid [125563]
+[INFO] [republish-4]: process started with pid [125565]
+[INFO] [component_container-5]: process started with pid [125570]
+[static_transform_publisher-2] [37;1m2026-02-19 19:27:50.961 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7439: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[static_transform_publisher-1] [WARN] [1771525670.964182248] []: Old-style arguments are deprecated; see --help for new-style arguments
+[static_transform_publisher-2] [WARN] [1771525670.943572706] []: Old-style arguments are deprecated; see --help for new-style arguments
+[republish-4] [37;1m2026-02-19 19:27:50.983 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7439: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[component_container-5] [37;1m2026-02-19 19:27:50.999 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7439: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[static_transform_publisher-1] [37;1m2026-02-19 19:27:51.024 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7439: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[static_transform_publisher-2] [INFO] [1771525671.045217299] [static_left_to_right_optical]: Spinning until stopped - publishing transform
+[static_transform_publisher-2] translation: ('-0.075000', '0.000000', '0.000000')
+[static_transform_publisher-2] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-2] from 'oakd_camera_left_camera_optical_frame' to 'oakd_camera_right_camera_optical_frame'
+[republish-3] [37;1m2026-02-19 19:27:50.975 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastrtps_port7439: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[static_transform_publisher-1] [INFO] [1771525671.292578109] [static_base_to_left_optical]: Spinning until stopped - publishing transform
+[static_transform_publisher-1] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-1] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-1] from 'base_link' to 'oakd_camera_left_camera_optical_frame'
