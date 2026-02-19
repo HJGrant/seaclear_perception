@@ -12,6 +12,14 @@ DURATION_SEC="0"
 LOG_ROOT="${WS_ROOT}/logs/oakd_diag"
 RESTART_DAEMON="true"
 
+if command -v rg >/dev/null 2>&1; then
+  FILTER_I_CMD="rg -i"
+  FILTER_Q_CMD="rg -q"
+else
+  FILTER_I_CMD="grep -Ei"
+  FILTER_Q_CMD="grep -Eq"
+fi
+
 usage() {
   cat <<USAGE
 Usage: $(basename "$0") [options]
@@ -133,7 +141,7 @@ snapshot_now() {
     echo
 
     echo "## ethtool -S ${IFACE} (filtered)"
-    ethtool -S "${IFACE}" 2>/dev/null | rg -i "crc|drop|error|miss|timeout|fifo|frame|carrier|overrun|rx_.*err|tx_.*err" || true
+    ethtool -S "${IFACE}" 2>/dev/null | ${FILTER_I_CMD} "crc|drop|error|miss|timeout|fifo|frame|carrier|overrun|rx_.*err|tx_.*err" || true
     echo
 
     echo "## dmesg tail"
@@ -150,7 +158,7 @@ snapshot_now() {
 watch_driver_errors() {
   local pattern='X_LINK_ERROR|ping was missed|Camera diagnostics error: No Data|double free|bad_alloc|corruption'
   tail -n 0 -F "${RUN_DIR}/launch.log" | while read -r line; do
-    if echo "${line}" | rg -q "${pattern}"; then
+    if echo "${line}" | ${FILTER_Q_CMD} "${pattern}"; then
       echo "[$(date -Iseconds)] trigger: ${line}" >> "${RUN_DIR}/events.log"
       snapshot_now "driver_event"
     fi
@@ -190,7 +198,7 @@ start_bg "bw_right_raw" ros2 topic bw /oakd_camera/right/image_raw
 # system/network monitors
 start_bg "dmesg_follow" dmesg -w
 start_loop "ip_link_stats" 1 ip -s link show "${IFACE}"
-start_loop "ethtool_stats" 1 bash -lc "ethtool -S '${IFACE}' 2>/dev/null | rg -i 'crc|drop|error|miss|timeout|fifo|frame|carrier|overrun|rx_.*err|tx_.*err' || true"
+start_loop "ethtool_stats" 1 bash -lc "ethtool -S '${IFACE}' 2>/dev/null | ${FILTER_I_CMD} 'crc|drop|error|miss|timeout|fifo|frame|carrier|overrun|rx_.*err|tx_.*err' || true"
 
 if command -v docker >/dev/null 2>&1; then
   start_loop "docker_stats" 1 docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.PIDs}}"
