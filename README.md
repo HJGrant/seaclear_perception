@@ -125,6 +125,31 @@ Example with rosbag playback:
 ros2 launch oakd_isaac_ros oakd_visual_slam.launch.py use_rosbag:=true
 ```
 
+### Debug/diagnostic workflow (OAK-D + VSLAM)
+
+Use the staged camera YAMLs in `src/oakd_isaac_ros/config/oak_d/`:
+
+- `oakd_stereo_only_30hz.yaml`
+- `oakd_stereo_rect_30hz.yaml`
+- `oakd_stereo_rect_synced_30hz.yaml`
+- `oakd_rgb_only_30hz.yaml`
+- `oakd_rgb_plus_stereo_30hz.yaml`
+
+Run one-shot diagnostics and log collection:
+
+```bash
+src/oakd_isaac_ros/scripts/diag_oakd_run_and_monitor.sh \
+  --params-file src/oakd_isaac_ros/config/oak_d/oakd_stereo_only_30hz.yaml \
+  --enable-vslam false \
+  --iface eno1 \
+  --duration-sec 600
+```
+
+Detailed notes and troubleshooting playbook:
+
+- `docs/OAKD_VSLAM_DEBUG_NOTES.md`
+- `docs/upstream_issue_template_depthai_ros_driver.md`
+
 5. Notes
 
 Ensure the camera topics in the launch file match the OAK-D configuration (RGB and Depth topics).
