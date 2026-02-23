@@ -11,8 +11,13 @@ if [[ ! -x .venv/bin/python ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1091
-source /opt/ros/humble/setup.bash
+source "$(dirname "$0")/source_ros_env_safe.sh"
 
-.venv/bin/python -m colcon test "$@"
+.venv/bin/python -m colcon test --merge-install "$@"
 .venv/bin/python -m colcon test-result --verbose
+
+# Short-term guard: run package pytest suites explicitly so tests are never silently skipped.
+.venv/bin/python -m pytest -q \
+  src/sc2_visual_servo_controller/test \
+  src/sc2_visual_servo_perception/test \
+  src/sc2_visual_servo_bringup/test
