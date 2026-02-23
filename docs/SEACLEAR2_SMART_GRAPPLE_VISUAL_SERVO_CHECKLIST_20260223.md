@@ -149,6 +149,30 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 - [x] Implemented: bootstrap/build/test scripts
   - `scripts/uv_bootstrap.sh`
   - `scripts/colcon_build_venv.sh`
-  - `scripts/colcon_test_venv.sh`
+- `scripts/colcon_test_venv.sh`
 - [x] Implemented: repository hygiene for `.venv/`, `__pycache__/`, `*.pyc`
 - [ ] Verified in this host: full Humble-based build+test via `/opt/ros/humble/setup.bash`
+
+---
+
+## 8) 2026-02-23 Jetson/Perception checkpoint
+
+- [x] Depth topic validated on Jetson:
+  - `/oak/stereo/image_raw` encoding is `16UC1` (mm scale interpretation in observed run)
+  - observed median around `1609` (about `1.6 m`)
+  - observed max often `65535` (sentinel-like)
+- [!] Jetson `cv_bridge` ABI mismatch risk with NumPy 2.x:
+  - choose one fix path:
+  - pin runtime to `numpy<2` with ROS apt `cv_bridge`
+  - or implement/enable cv_bridge-free raw-buffer depth parsing in observer
+- [DEFERRED] Detection topic mapping and inference pipeline stabilization:
+  - observed `/detections_output` topic type `vision_msgs/msg/Detection2DArray`, but publisher count was `0` in the problematic session
+  - ONNX/TensorRT parse/engine-plan failures were observed in related runs
+  - deferred pending colleague input on authoritative launch/remap/topic conventions
+
+### Deferred closure criteria
+
+- [ ] `ros2 topic info -v <detections_topic>` shows publisher count `> 0` while inference is running
+- [ ] `ros2 topic hz <detections_topic>` is stable (non-zero, sustained)
+- [ ] `target_observer_node` publishes `/sc2/visual_servo/target_obs` from detections (not stub path)
+- [ ] controller publishes `/sc2/visual_servo/cmd_vel_body` from real observer output

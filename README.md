@@ -88,6 +88,8 @@ This launch file starts the OAK-D camera, runs NVBlox (optional), and Isaac ROS 
 cd /mnt/nova_ssd/workspaces/oakd_isaac_ros
 src/isaac_ros_common/scripts/run_dev.sh \
 --isaac_ros_dev_dir /mnt/nova_ssd/workspaces/oakd_isaac_ros
+# or
+./src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir $(pwd)
 ```
 
 
