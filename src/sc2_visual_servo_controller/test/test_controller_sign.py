@@ -1,4 +1,4 @@
-from sc2_visual_servo_controller.controller_math import IBVSConfig, Observation, compute_ibvs_command
+from sc2_visual_servo_controller.ibvs.controller_math import IBVSConfig, Observation, compute_ibvs_command
 
 
 def test_horizontal_error_right_drives_negative_body_y_and_negative_yaw():
