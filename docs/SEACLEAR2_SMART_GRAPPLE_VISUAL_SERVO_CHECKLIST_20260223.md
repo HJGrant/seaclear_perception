@@ -105,3 +105,50 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 - `docs/SC2/20251225_D5_2_Control_Overhaul_SC2.pdf`
 - `docs/implementation_goal/winter school_v3.pdf`
 - `docs/SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`
+
+---
+
+## 7) 2026-02-23 Progress Update (Implemented / Verified / Pending)
+
+### Implemented
+- [x] `A1` VS I/O contract and custom message
+  - `src/sc2_visual_servo_interfaces/msg/TargetObservation.msg`
+- [x] `A2` ROS2 synthetic observation publisher
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`
+- [x] `A3` ROS2 controller node (IBVS baseline + MPPI mode hook)
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`
+  - MPPI core extracted from SC1:
+    - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/mppi_core.py`
+- [x] `A4` one-command launch demo
+  - `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
+  - command: `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py`
+- [x] Perception wrapper for existing YOLO topic
+  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`
+  - input: `/detections_output` (`vision_msgs/Detection2DArray`)
+  - output: `/sc2/visual_servo/target_obs`
+- [x] Logging + vehicle command stub
+  - CSV logger: `src/sc2_visual_servo_controller/sc2_visual_servo_controller/csv_logger_node.py`
+  - MAVLink stub: `src/sc2_visual_servo_controller/sc2_visual_servo_controller/cmd_vel_to_mavlink_stub.py`
+
+### Verified
+- [x] Unit test: conversion
+  - `src/sc2_visual_servo_perception/test/test_conversion.py`
+- [x] Unit test: controller sign
+  - `src/sc2_visual_servo_controller/test/test_controller_sign.py`
+- [x] Integration smoke test: launch + cmd topic alive
+  - `src/sc2_visual_servo_bringup/test/test_mvp_sim_launch.py`
+
+### Pending
+- [ ] SC1 simulator adapter path (alternate to ROS2-only harness)
+- [ ] Hardware command bridge beyond logging stub
+- [ ] MPPI mode validation against bag replay and real detections
+
+### uv dependency management status (2026-02-23)
+- [x] Implemented: `pyproject.toml` with `requires-python = ">=3.10,<3.11"` and `numpy<2`
+- [x] Implemented: `uv.lock` committed
+- [x] Implemented: bootstrap/build/test scripts
+  - `scripts/uv_bootstrap.sh`
+  - `scripts/colcon_build_venv.sh`
+  - `scripts/colcon_test_venv.sh`
+- [x] Implemented: repository hygiene for `.venv/`, `__pycache__/`, `*.pyc`
+- [ ] Verified in this host: full Humble-based build+test via `/opt/ros/humble/setup.bash`
