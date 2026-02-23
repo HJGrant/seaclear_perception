@@ -23,7 +23,9 @@ def test_select_best_detection_filters_class_and_score():
         _make_det('bottle', 0.8),
     ])
 
-    best = select_best_detection(msg, target_class='bottle', min_confidence=0.5)
+    best = select_best_detection(
+        msg, target_class='bottle', min_confidence=0.5, pick_strategy='highest_confidence'
+    )
     assert best is not None
     assert abs(best.bbox.center.position.x - 320.0) < 1e-6
 

@@ -22,11 +22,29 @@ def extract_hypothesis(result) -> Tuple[str, float]:
     return cls_id, score
 
 
-def select_best_detection(detections_msg, target_class: str, min_confidence: float):
-    """Return the best Detection2D matching class and confidence, else None."""
-    best_det = None
-    best_score = -math.inf
+def _class_matches(candidate: str, target_class: str) -> bool:
     target = str(target_class).strip()
+    if not target:
+        return True
+
+    cand = str(candidate).strip()
+    if cand == target:
+        return True
+
+    # Allow numeric string/int equivalence when possible.
+    try:
+        return int(cand) == int(target)
+    except (TypeError, ValueError):
+        return False
+
+
+def select_best_detection(detections_msg, target_class: str, min_confidence: float, pick_strategy: str):
+    """Return best Detection2D according to strategy, class and confidence."""
+    best_det = None
+    best_metric = -math.inf
+    strategy = str(pick_strategy).strip().lower()
+    if strategy not in {'highest_confidence', 'largest_bbox'}:
+        strategy = 'highest_confidence'
 
     for det in detections_msg.detections:
         if not det.results:
@@ -34,11 +52,14 @@ def select_best_detection(detections_msg, target_class: str, min_confidence: flo
         cls_id, score = extract_hypothesis(det.results[0])
         if score < float(min_confidence):
             continue
-        if target and cls_id != target:
+        if not _class_matches(cls_id, target_class):
             continue
-        if score > best_score:
+
+        area = float(det.bbox.size_x) * float(det.bbox.size_y)
+        metric = score if strategy == 'highest_confidence' else area
+        if metric > best_metric:
             best_det = det
-            best_score = score
+            best_metric = metric
 
     return best_det
 
