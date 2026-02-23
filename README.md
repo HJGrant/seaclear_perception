@@ -2,6 +2,63 @@
 
 This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
 
+## Repository structure
+
+This repository is organized as a ROS2 workspace with upstream submodules and SC2-specific packages.
+The main locations you will edit are `src/` (ROS2 packages), `docs/`, and `scripts/`.
+
+```text
+oakd_isaac_ros/
+|-- README.md
+|-- README_quickstart.md
+|-- pyproject.toml / uv.lock             # Python dependency management (uv)
+|-- scripts/                              # Workspace helper scripts (build/test/bag)
+|-- docs/                                 # Specifications, status, and investigation logs
+|   |-- SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md
+|   |-- SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_CHECKLIST_20260223.md
+|   |-- PERCEPTION_TOPIC_MAP.md
+|   L-- PIPELINE_HEALTHCHECK.md
+|-- src/                                  # ROS2 packages (main implementation area)
+|   |-- oakd_isaac_ros/                   # OAK-D + Isaac ROS integration (launch/config/C++ nodes)
+|   |   |-- launch/                       # Main launch files (nvblox, visual_slam, detection)
+|   |   |-- config/                       # Camera and nvblox configuration
+|   |   |-- scripts/                      # Diagnostics and utility scripts
+|   |   L-- src/                          # C++ node implementations (e.g., publish_mask.cpp)
+|   |-- sc2_visual_servo_interfaces/      # SC2 custom interface messages
+|   |   L-- msg/TargetObservation.msg
+|   |-- sc2_visual_servo_perception/      # Detection2DArray -> TargetObservation conversion
+|   |   |-- sc2_visual_servo_perception/
+|   |   |   |-- target_observer_node.py
+|   |   |   L-- conversion.py
+|   |   L-- test/
+|   |-- sc2_visual_servo_controller/      # Visual servo controller nodes
+|   |   |-- sc2_visual_servo_controller/
+|   |   |   |-- visual_servo_controller_node.py
+|   |   |   |-- ibvs/controller_math.py   # IBVS core
+|   |   |   |-- pbvs/mppi_core.py         # MPPI core (PBVS-oriented)
+|   |   |   |-- csv_logger_node.py
+|   |   |   |-- cmd_vel_to_mavlink_stub.py
+|   |   |   L-- target_obs_publisher.py
+|   |   L-- test/
+|   |-- sc2_visual_servo_bringup/         # MVP bringup entrypoint
+|   |   L-- launch/mvp_sim.launch.py
+|   |-- depthai-ros/                      # Luxonis DepthAI ROS (submodule)
+|   |-- isaac_ros_common/                 # Isaac ROS common stack (submodule)
+|   |-- isaac_ros_dnn_inference/          # TensorRT inference stack (submodule)
+|   |-- isaac_ros_nvblox/                 # nvblox stack (submodule)
+|   |-- isaac_ros_visual_slam/            # Visual SLAM stack (submodule)
+|   L-- webrtc_ros/                       # WebRTC stack
+|-- build/                                # colcon build artifacts (do not edit)
+|-- install/                              # colcon install artifacts (do not edit)
+L-- log/                                  # build/test logs (do not edit)
+```
+
+Notes:
+- `src/sc2_visual_servo_*` contains the SC2 Smart Grapple Visual Servo MVP implementation.
+- `src/oakd_isaac_ros` is the OAK-D + Isaac ROS integration layer (detection, mapping, VSLAM integration).
+- `depthai-ros` and `isaac_ros_*` are upstream dependency implementations; most local work here is configuration and launch integration.
+- `build/`, `install/`, and `log/` are auto-generated directories and are typically not edited directly.
+
 ## TODO
 - [ ] Find a way to turn off the static TSDF layer and only compute the dynamic layer
 - [ ] Interface the vision pipeline with the grasp detection pipeline
