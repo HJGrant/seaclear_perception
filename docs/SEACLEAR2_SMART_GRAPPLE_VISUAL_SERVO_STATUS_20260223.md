@@ -282,8 +282,8 @@ A run is considered “easy to experiment” if:
   - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`
 - `sc2_visual_servo_controller` (Phase-1 IBVS + Phase-2 MPPI-ready mode)
   - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`
-  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/controller_math.py`
-  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/mppi_core.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/ibvs/controller_math.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/pbvs/mppi_core.py`
 - Simulation harness and stubs
   - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`
   - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/fake_vehicle_node.py`

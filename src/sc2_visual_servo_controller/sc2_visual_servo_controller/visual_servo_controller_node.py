@@ -7,10 +7,10 @@ from rclpy.node import Node
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from std_msgs.msg import String
 
-from .controller_math import IBVSConfig, Observation, clamp, compute_ibvs_command
+from .ibvs.controller_math import IBVSConfig, Observation, clamp, compute_ibvs_command
 
 try:
-    from .mppi_core import MPPIController, axis_to_index, build_linear_map_from_axes
+    from .pbvs.mppi_core import MPPIController, axis_to_index, build_linear_map_from_axes
     _MPPI_AVAILABLE = True
 except Exception:
     _MPPI_AVAILABLE = False
