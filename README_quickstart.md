@@ -143,8 +143,12 @@ ls -l /tmp/sc2_visual_servo_mvp.csv
 - Workaround for controller validation without detections:
   - run `use_stub_target:=true`, or
   - publish `TargetObservation` manually and verify `/sc2/visual_servo/cmd_vel_body`.
-- Jetson `cv_bridge` caveat:
-  - if `cv_bridge` import/runtime fails with NumPy ABI errors, keep NumPy below 2 (`numpy<2`) for ROS apt `cv_bridge`, or use observer raw-buffer depth parsing path.
+
+## Host vs Container Python note
+
+- NumPy/cv_bridge ABI mismatch was observed when Python/ROS commands were run outside the Humble container.
+- Supported workflow: run ROS2 commands and `cv_bridge`-dependent nodes inside the Humble container.
+- If host-side Python execution is unavoidable, NumPy alignment with host ROS apt packages may be required, but host Python setup is out of scope for this project workflow.
 
 ## Troubleshooting
 
@@ -152,6 +156,5 @@ ls -l /tmp/sc2_visual_servo_mvp.csv
   interpreter mismatch. Recreate venv with Python 3.10 and `--system-site-packages`:
   `rm -rf .venv && ./scripts/uv_bootstrap.sh`
 - `cv_bridge` import errors mentioning NumPy 2:
-  ensure `numpy<2` is locked and re-sync:
-  `uv sync --python .venv/bin/python --group dev`
+  verify you are running inside the Humble container first; host-side Python/cv_bridge mismatch is not part of the supported workflow.
 - Avoid installing `opencv-python` into this venv unless explicitly required; it can conflict with system OpenCV / `cv_bridge` bindings.

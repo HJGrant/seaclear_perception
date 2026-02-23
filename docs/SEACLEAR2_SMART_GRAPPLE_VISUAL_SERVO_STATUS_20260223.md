@@ -343,6 +343,10 @@ Verified:
   - `/oak/stereo/image_raw` encoding is `16UC1`
   - median observed value was around `1609` (interpreted as about `1.6 m` if mm scale)
   - max often reaches `65535` (sentinel-like value)
+- Host vs container Python boundary:
+  - NumPy/cv_bridge ABI mismatch was observed only when Python/ROS commands were run outside the Humble container.
+  - Supported workflow is container-first for ROS2/cv_bridge dependent commands.
+  - Host-side Python environment fixes are informational only and out of scope for the supported project workflow.
 
 Suspected:
 - Detection pipeline instability is tied to ONNX/TensorRT engine build/parse failures seen in prior logs.

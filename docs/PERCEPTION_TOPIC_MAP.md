@@ -15,6 +15,12 @@ ros2 topic hz /oak/stereo/image_raw
 ros2 topic hz /oak/rgb/image_raw
 ```
 
+## Host vs Container Python note
+
+- Supported workflow is to run ROS2 topic inspection and cv_bridge-dependent nodes inside the Humble container.
+- If similar commands are run from host-side Python, NumPy/cv_bridge ABI mismatch may appear depending on host package versions.
+- Host Python package alignment is out of scope for the supported project workflow.
+
 ## Topic map
 
 | Topic | Message type | Producer path | frame_id convention | Approx frequency | Sync status |
