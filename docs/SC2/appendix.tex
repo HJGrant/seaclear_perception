@@ -1,0 +1,76 @@
+\section{Parameter lists}
+% \addcontentsline{toc}{section}{Annex A: Parameter lists}
+
+\subsection{Thrust allocation} \label{appendix:thrustalloc}
+
+\begin{table}[h!]
+\centering
+\caption{Nominal thruster positions and orientation angles (Blue Robotics T500). 
+Note the $90^\circ$ increments in $\psi_z$ around $+\!Z_{\mathrm{ref}}$ (see Figure \ref{fig:thruster_overview}) between consecutive thrusters.}
+\begin{tabular}{c|c|rrr|rrrr}
+\toprule
+Thruster & VESC ID & \multicolumn{3}{c|}{Nominal position $\vec{p}_i$ [m]} &
+\multicolumn{4}{c}{Angles [deg]}\\
+\midrule
+ &  & $p_x$ & $p_y$ & $p_z$ &
+ $\theta_y$ & $\theta_z$ & $\theta_x$ & $\psi_z$ \\
+\midrule
+1 & 16  &  0.23586 & -0.23906 & -0.13283 & -45 & 45 & -180 &  -54 \\
+2 & 140 &  0.23586 &  0.23906 & -0.13283 & -45 & 45 & -180 &   36 \\
+3 & 132 & -0.23586 &  0.23906 & -0.13283 & -45 & 45 & -180 &  126 \\
+4 & 40  & -0.23586 & -0.23906 & -0.13283 & -45 & 45 & -180 &  216 \\
+5 & 32  &  0.23586 & -0.23906 &  0.34903 & -45 & 45 &  -90 &  -54 \\
+6 & 124 &  0.23586 &  0.23906 &  0.34903 & -45 & 45 &  -90 &   36 \\
+7 & 116 & -0.23586 &  0.23906 &  0.34903 & -45 & 45 &  -90 &  126 \\
+8 & 24  & -0.23586 & -0.23906 &  0.34903 & -45 & 45 &  -90 &  216 \\
+\bottomrule
+\end{tabular}
+\label{tab:thruster_pose_nominal_vesc}
+\end{table}
+
+\subsection{Kinematic parameters}
+
+\begin{table}[h!]
+\centering
+\caption{The kinematic parameters of the smart grapple system.}
+\begin{tabularx}{\linewidth}{l r X}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} &  \textbf{Description} \\
+        \midrule
+        $l_1$ & 323.09 mm & the first link of the finger \\
+        $l_2$ & 381.40 mm & the second link of the finger \\
+        $x_0$ & 280 mm & $x$ base position of the finger\\
+        $y_0$ & 0 mm & $y$ base position of the finger\\
+        \bottomrule
+    \end{tabularx}
+\label{tab:grapple_kinematics}
+\end{table}
+
+\newpage
+
+ \subsection{Holistic control approach simulation parameters} \label{appendix:simparameters}
+
+\begin{table}[h!]
+    \centering
+    \caption{List of relevant parameters to the simulation}
+    \label{tab:Parameters}
+    \begin{tabularx}{\linewidth}{l r r X}
+        \toprule
+        \textbf{Parameter} & \textbf{Value} & \textbf{Uncertainty} & \textbf{Description} \\
+         & (Mean) & (Std. Dev.) & \\
+        \midrule
+        $m_{\text{USG}}$ & $210$\,kg & $73$\,kg & Mass of the \gls{usg} ($120$\,kg) + payload sampled from Weibull distribution with $\lambda = 100$ and shape $k = 1.5$ \\
+        $m_{\text{USG,water}}$ & $90$\,kg & $31$\,kg & Apparent mass of \gls{usg} underwater \\
+        $m_{\text{USV}}$ & $1300$\,kg & --- & Mass of SeaCAT (no LARS, full fuel tanks) \\
+        $\vec{\eta}_{\text{USG}}$ & $[120, 120, 120,$ $0, 0, 0]^T$ & --- & \gls{usg} friction coefficients (kg$\cdot$s/m$^2$) \\
+        $\vec{\eta}_{\text{USV}}$ & $[120, 120, 120,$ $0, 0, 0]^T$ & --- & \gls{usv} friction coefficients (kg$\cdot$s/m$^2$) \\
+        $\eta_{l}$ & $300$\,kg/s & --- & Friction coefficient for the winch \\
+        $\alpha$ & $0.1$ & --- & Risk parameter \\
+        $\Delta T$ & $20$\,ms & --- & Simulation discretization time step \\
+        $T_{\Delta}$ & $50$ & --- & Multiplicity factor between simulation timestep and control input steps \\
+        $S_T$ & $120$ & --- & Number of control input timesteps \\
+        $N_{\text{max,iter}}$ & $600$ & --- & Maximum number of iterations \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
