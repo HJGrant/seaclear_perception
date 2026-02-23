@@ -21,7 +21,7 @@ python3 -m pip install depthai
 
 ## Launching nvBlox with the OAK-D PoE
 ## Step 1 
-Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97 ` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected by running: 
+Make sure you have the OAK-D connected, and give your machine a static IP in the same subnet as the camera (for example, `192.168.2.50` with netmask `255.255.255.0`). Verify that the OAK-D is detected by running:
 
 ```bash
 ping 192.168.2.97
@@ -30,7 +30,7 @@ ping 192.168.2.97
 If you are having trouble with the OAK-D then go to troubleshooting. 
 
 ## Step 2
-Clone the repo and it's submodules (DepthAI ROS Driver, Isaac ROS Packages, ...) with the following command: 
+Clone the repo and its submodules (DepthAI ROS Driver, Isaac ROS Packages, ...) with the following command:
 
 ```bash
 mkdir -p ~/workspaces/ && cd ~/workspaces/ && \
@@ -76,7 +76,7 @@ ros2 launch oakd_isaac_ros oakd_nvblox.launch.py mode:='people_detection' use_ro
 Specifying the 'people_detection' mode will enable selective 3D reconstruction of objects in bounding box regions provided by the SeaClear YOLO model. Other mode options include 'static' and 'dynamic'. You can choose to run the pipeline on a pre-recorded rosbag file, or run the pipeline live with the OAK-D camera, by setting 'use_rosbag' to false/true respectively. Set the voxel size of the map by changing the value 'voxel_size'. The default value is 0.05, and reducing this value will increase the resolution of the map, with a decrease in rendering speed. 
 
 ## Step 6
-Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detect objects by subscribing to `/nvblox_node/color_layer` and '/nvblox_node/dynamic_occupancy_layer', respectively. Diplay these topics in a 3D panel in Foxglove. 
+Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detected objects by subscribing to `/nvblox_node/color_layer` and `/nvblox_node/dynamic_occupancy_layer`, respectively. Display these topics in a 3D panel in Foxglove.
 
 
 ## Running OAK-D with Visual SLAM
@@ -157,7 +157,7 @@ Ensure the camera topics in the launch file match the OAK-D configuration (RGB a
 Both NVBlox and Visual SLAM subscribe to the same camera topics, ensuring proper data flow.
 
 ## Building a Deployment Docker
-If you would like to deploy this pipeline as a 1-click solution, that launches a Docker containter and automatically launches the correct ROS2 launch file, run the following command OUTSIDE of the docker container: 
+If you would like to deploy this pipeline as a 1-click solution that launches a Docker container and automatically launches the correct ROS2 launch file, run the following command OUTSIDE of the Docker container:
 
 ```bash
 ~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "x86_64.ros2_humble.oakd" --ros_ws ~/workspaces/oakd_isaac_ros --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd" 
@@ -168,7 +168,7 @@ For Jetson Devices run (not tested):
 ```bash
 ~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "aarch64.ros2_humble.oakd" --ros_ws ~/workspaces/isaac_ros-dev --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd_jetson_aarch64" 
 ```
-Now you should see the image when you run `docker images` and you can then launch the pipeline by runnning: 
+Now you should see the image when you run `docker images` and you can then launch the pipeline by running:
 
 ```bash
 docker run --rm -it --gpus all --network host <my_username>/nvblox_dynamics_oakd 
@@ -185,7 +185,7 @@ docker run --rm -it --runtime=nvidia --network host <my_username>/nvblox_dynamic
 
 ## Troubleshooting
 
-### Cannot Recieve Data from OAK-D
+### Cannot Receive Data from OAK-D
 Check basic functionality of the OAK-D by running ` python -m depthai_viewer `.
 
 If you can't see the OAK-D, follow this [troubleshooting guide.](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide#connected-to-the-same-lan-via-2-interfaces-wifi-ethernet)
