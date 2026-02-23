@@ -189,3 +189,13 @@ docker run --rm -it --runtime=nvidia --network host <my_username>/nvblox_dynamic
 Check basic functionality of the OAK-D by running ` python -m depthai_viewer `.
 
 If you can't see the OAK-D, follow this [troubleshooting guide.](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide#connected-to-the-same-lan-via-2-interfaces-wifi-ethernet)
+
+## SeaClear2 Visual Servo MVP (ROS2)
+
+For the one-command visual-servo simulation MVP (no SLAM dependency), see:
+- `README_quickstart.md`
+
+Main launch command:
+```bash
+ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py
+```

@@ -1,0 +1,24 @@
+[project]
+name = "sc2-visual-servo-deps"
+version = "0.1.0"
+description = "Dependency management for SeaClear2 visual-servo ROS2 workspace"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+  "numpy<2",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.0",
+  "ruff>=0.8",
+  "black>=24.0",
+  "colcon-common-extensions>=0.3",
+]
+# x86_64 dev path: install torch from PyPI CPU/CUDA wheels via uv.
+# Jetson deployment path: use NVIDIA-provided torch wheels outside uv and skip this group.
+mppi = [
+  "torch>=2.2; platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv]
+default-groups = ["dev"]

@@ -269,3 +269,62 @@ A run is considered “easy to experiment” if:
   - MPC: `src/VS_mpc.cpp`
   - Launch: `launch/mppi_vs.launch`
   - Config: `config/mppi_vs.yaml`
+
+---
+
+## 8. Implementation Snapshot (2026-02-23)
+
+### 8.1 Implemented
+- `sc2_visual_servo_interfaces` (custom message contract)
+  - `src/sc2_visual_servo_interfaces/msg/TargetObservation.msg`
+- `sc2_visual_servo_perception` (YOLO `Detection2DArray` -> `TargetObservation`)
+  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`
+  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`
+- `sc2_visual_servo_controller` (Phase-1 IBVS + Phase-2 MPPI-ready mode)
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/controller_math.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/mppi_core.py`
+- Simulation harness and stubs
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/fake_vehicle_node.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/csv_logger_node.py`
+  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/cmd_vel_to_mavlink_stub.py`
+- Bringup launch (one-command MVP)
+  - `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
+- Quickstart
+  - `README_quickstart.md`
+
+### 8.2 Verified (code + test assets)
+- Unit tests
+  - perception conversion: `src/sc2_visual_servo_perception/test/test_conversion.py`
+  - controller sign correctness: `src/sc2_visual_servo_controller/test/test_controller_sign.py`
+- Integration smoke test (launch + topic alive)
+  - `src/sc2_visual_servo_bringup/test/test_mvp_sim_launch.py`
+
+### 8.3 Pending
+- Direct adapter to SC1 simulator (`sc_sim_visualservo`) as an alternative to ROS2-only harness.
+- Hardware BlueROV command transport (stub exists only).
+- Full MPPI tuning against real detections/depth noise profile.
+
+### 8.4 uv Dependency Management (2026-02-23)
+
+Status: **Implemented / Partially verified in current host**
+
+Implemented files:
+- `pyproject.toml`
+- `uv.lock`
+- `scripts/uv_bootstrap.sh`
+- `scripts/colcon_build_venv.sh`
+- `scripts/colcon_test_venv.sh`
+- `.gitignore` updates for `.venv/`, `**/__pycache__/`, `**/*.pyc`, `.pytest_cache/`, `.mypy_cache/`
+
+Canonical command flow:
+1. `source /opt/ros/humble/setup.bash`
+2. `./scripts/uv_bootstrap.sh`
+3. `./scripts/colcon_build_venv.sh --packages-up-to sc2_visual_servo_bringup sc2_visual_servo_controller sc2_visual_servo_perception sc2_visual_servo_interfaces`
+4. `source install/setup.bash`
+5. `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py`
+6. `./scripts/colcon_test_venv.sh --packages-select sc2_visual_servo_perception sc2_visual_servo_controller sc2_visual_servo_bringup`
+
+Pending full verification item:
+- End-to-end script execution in a host that actually provides `/opt/ros/humble/setup.bash` and Humble `colcon` runtime.

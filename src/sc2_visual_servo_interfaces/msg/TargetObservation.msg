@@ -1,0 +1,10 @@
+std_msgs/Header header
+int32 track_id
+float32 u
+float32 v
+float32 w
+float32 h
+float32 depth_m
+float32 confidence
+float32[] keypoints_uv
+string source
