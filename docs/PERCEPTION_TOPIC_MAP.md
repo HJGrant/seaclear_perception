@@ -52,17 +52,31 @@ If `/oak/stereo/image_raw` is missing, either:
 - run the detection pipeline path that includes `publish_mask.cpp` republish, or
 - remap observer `depth_topic` to the available depth topic.
 
-## Jetson observations (2026-02-23)
+## Verified on Jetson (2026-02-23)
 
-Verified:
-- `/oak/stereo/image_raw` reported `sensor_msgs/msg/Image` with `encoding: 16UC1`.
-- Observed depth value distribution included median around `1609` (mm-scale interpretation: about `1.6 m`).
-- Observed max often reached `65535` (sentinel-like value in `16UC1` stream).
+Status: Verified
+Observed:
+- Depth topic: `/oak/stereo/image_raw` (`sensor_msgs/msg/Image`)
+- Encoding: `16UC1`
+- Approx observed statistics: min `633`, median `1609`, max `65535`
 
-Suspected:
-- In one observed session, `/detections_output` existed but had publisher count `0`; subscriber side was present.
-- ONNX/TensorRT startup issues likely explain missing stable detection publisher in that session.
+Interpretation:
+- Depth is interpreted as mm-scale in this session.
+- `65535` behaves as an invalid/sentinel value and must be excluded from ROI depth statistics.
 
-Deferred:
-- Final detection topic mapping/remaps are pending colleague confirmation.
-- Topic names can vary by launch profile and container composition; treat detection topic as `TBD` until confirmed by the team-maintained launch.
+## Provisional detections mapping
+
+Status: Deferred
+Observed:
+- Candidate detections topic in current graph: `/detections_output` (`vision_msgs/msg/Detection2DArray`).
+- In problematic session, `ros2 topic info -v /detections_output` reported publisher count `0` (subscriber present: `tensor_rt_container`).
+
+Operational guidance:
+- Mapping/remap names remain provisional and require colleague confirmation.
+- Do not block controller validation on detections availability; use stub/manual `TargetObservation` or rosbag path.
+
+Colleague-confirmed mapping placeholder:
+- Status: TBD
+- Topic name: `TBD`
+- Message type: `TBD`
+- Remap source (launch path): `TBD`

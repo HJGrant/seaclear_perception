@@ -410,3 +410,121 @@ Deferred:
    - verify `/sc2/visual_servo/target_obs` and `/sc2/visual_servo/cmd_vel_body`.
 4. If TensorRT instability persists:
    - pin to team-approved ONNX/model/engine workflow and document exact environment versions.
+
+---
+
+## 10. Verified Milestones (progress freeze as of 2026-02-23)
+
+### 10.1 Visual Servo MVP stub pipeline (Humble container)
+Status: Verified
+Evidence:
+- Build/test/launch flow is documented in `README_quickstart.md`.
+- End-to-end chain observed:
+  - `target_obs_publisher -> visual_servo_controller_node -> /sc2/visual_servo/cmd_vel_body -> csv_logger_node -> cmd_vel_to_mavlink_stub`
+- Runtime outputs observed:
+  - `/sc2/visual_servo/cmd_vel_body` published by controller.
+  - CSV logger output path: `/tmp/sc2_visual_servo_mvp.csv`.
+  - MAVLink stub logs velocity commands.
+
+### 10.2 Jetson depth topic observation (session date: 2026-02-23)
+Status: Verified
+Evidence:
+- Topic observed: `/oak/stereo/image_raw` with type `sensor_msgs/msg/Image`.
+- Encoding observed: `16UC1`.
+- Observed statistics (approx): min `633`, median `1609`, max `65535`.
+- Interpretation: mm-scale depth; `65535` behaves as invalid/sentinel and must be excluded from ROI depth statistics.
+- Topic names in launch defaults remain provisional pending colleague confirmation.
+
+### 10.3 Host vs container boundary
+Status: Verified
+Evidence:
+- Supported workflow is container-first for ROS2 commands and cv_bridge-dependent nodes.
+- NumPy/cv_bridge ABI mismatch was observed when Python/ROS commands were executed outside the container.
+- Host-side Python environment alignment is out of scope for supported workflow.
+
+## 11. Deferred Items
+
+### 11.1 [DEFERRED] Detection topic mapping and inference stability
+Status: Deferred
+Evidence:
+- Candidate detections topic in current map: `/detections_output` (`vision_msgs/msg/Detection2DArray`).
+- Observed in problematic session:
+  - `ros2 topic info -v /detections_output` showed publisher count `0`.
+  - Subscriber side included `tensor_rt_container`.
+- Action dependency:
+  - colleague confirmation is required for authoritative topic names/remaps and expected output graph.
+
+Operational note:
+- Do not block visual-servo controller validation on detections availability.
+- Use stub/manual `TargetObservation` or rosbag replay path for controller validation until detections mapping is closed.
+
+## 12. Priority Re-evaluation: Pipeline Health Gate
+
+This gate currently blocks trustworthy VSLAM and perception-pipeline validation.
+
+### 12.1 Issue A: Image whiteout / exposure
+Status: In Progress
+Observed symptom:
+- Image stream appears overexposed/whiteout in some runs.
+Hypothesis:
+- Exposure settings are tuned for underwater conditions and are unsuitable for current environment.
+Impact:
+- VSLAM tracking degrades or fails.
+- Detection quality and robustness degrade.
+Planned diagnostics:
+- Check camera AE/exposure parameters from active launch/config.
+- Measure histogram saturation ratio (RGB and stereo streams).
+- Compare RGB and stereo intensity distributions under identical scene/lighting.
+Acceptance criteria:
+- Saturation ratio remains within defined threshold across representative frames.
+- Detection and VSLAM validation runs are no longer dominated by whiteout artifacts.
+
+### 12.2 Issue B: OAK-D bringup instability (intermittent start/drop)
+Status: In Progress
+Observed symptom:
+- Intermittent startup failure or stream drops.
+Hypothesis:
+- Multi-factor cause including resource load, PoE/network bandwidth, ROS/NITROS graph instability, and TF availability issues.
+Impact:
+- Recorded runs cannot be trusted as pipeline validation evidence.
+Planned diagnostics:
+- Topic health checks: `ros2 topic hz` and drop pattern checks.
+- System load checks: `tegrastats`.
+- Kernel/system logs: `dmesg`, `journalctl`.
+- Network checks for PoE path and packet behavior.
+- ROS graph checks for NITROS errors and TF frame availability.
+Acceptance criteria:
+- Bringup succeeds repeatedly without manual recovery in repeated runs.
+- Core image/depth topics stay alive at expected rates without sustained drops.
+- TF graph required by pipeline is present and stable during capture window.
+
+## 13. Next Actions (1–2 weeks)
+
+### Action 1: Confirm detection topic contract with colleague
+Status: Deferred
+Evidence target:
+- Signed-off mapping table: topic names, types, remaps, and authoritative launch path.
+Acceptance criteria:
+- `docs/PERCEPTION_TOPIC_MAP.md` updated with colleague-confirmed mapping (status moved from TBD/Deferred).
+
+### Action 2: Execute pipeline health checks (exposure + stability)
+Status: In Progress
+Evidence target:
+- Collected logs/metrics from `docs/PIPELINE_HEALTHCHECK.md` command set.
+Acceptance criteria:
+- Exposure and stability gates reach "Verified" for at least one reproducible run profile.
+
+### Action 3: Validate detections-to-observer path after gate pass
+Status: TBD
+Evidence target:
+- `ros2 topic info -v <detections_topic>` shows active publisher.
+- `/sc2/visual_servo/target_obs` output seen from observer in non-stub launch.
+Acceptance criteria:
+- Non-stub run produces observer output and controller command output without manual fallback.
+
+### Action 4: Keep controller validation unblocked
+Status: Verified
+Evidence:
+- Stub/manual/rosbag validation path already available and documented in `README_quickstart.md`.
+Acceptance criteria:
+- Controller regression checks continue independent of detection pipeline state.

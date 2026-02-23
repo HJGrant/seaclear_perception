@@ -1,16 +1,16 @@
 # SeaClear2.0 — Smart Grapple Visual Servoing
 ## At-a-glance Implementation Checklist (as of 2026-02-22, prepared for 2026-02-23 sync)
 
-This is a **quick status checklist** (✅/⚠️/❌) intended for weekly progress tracking and "what's blocking MVP?" decisions.
+This is a **quick status checklist** (`DONE`/`PARTIAL`/`NOT_STARTED`) intended for weekly progress tracking and "what's blocking MVP?" decisions.
 It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`).
 
 ### Status legend
-- ✅ **Done** (implemented + runnable in a repeatable way)
-- ⚠️ **Partial / unstable** (exists but fragile, not yet “easy experiment”)
-- 🧪 **Prototype / legacy** (works in old stack or toy setting; needs port/adaptation)
-- 🔁 **Needs integration** (components exist but are not wired end-to-end)
-- 🟡 **Optional for MVP** (valuable but not required for the minimum loop)
-- ❌ **Not started / missing**
+- `DONE`: implemented and runnable in a repeatable way.
+- `PARTIAL`: exists but fragile, not yet an "easy experiment."
+- `PROTOTYPE`: works in legacy stack or toy setting; needs port/adaptation.
+- `INTEGRATION_NEEDED`: components exist but are not wired end-to-end.
+- `OPTIONAL`: valuable but not required for the MVP loop.
+- `NOT_STARTED`: not started or missing.
 
 ---
 
@@ -27,12 +27,12 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 ## 1) MVP readiness gates (one-glance)
 | Gate | What “DONE” means | Current status | Primary blocker / next action |
 |---|---|---:|---|
-| G1. Perception output for VS | ROS2 publishes: bbox (target) + depth-to-target (or proxy) at ≥ ~10 Hz | ⚠️ | YOLO bbox is present in ROS2 stack; VS-consumable message/API not standardized yet (define one topic/message + minimal test publisher). |
-| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | 🧪🔁 | Controller exists in legacy sim (MPPI/VS); needs “ROS2 wrapper” and input adaptation (bbox-based features). |
-| G3. Plant interface | Commands actually move the vehicle in sim and (later) BlueROV | 🧪 | Sim path exists; BlueROV interface & safety gating still to do (rate limits, deadman, mode switching). |
-| G4. Frame conventions | Camera optical frame ↔ body frame mapping is defined & tested (TF sanity) | 🔁 | Need a single “authoritative TF contract” and unit tests (sign conventions kill VS silently). |
-| G5. “One-command demo” | One launch command that brings up **perception + VS + visualization** | ❌ | Compose minimal launch + parameter file + README steps. |
-| G6. Regression harness | Record/replay (rosbag) + plots to verify convergence | ❌ | Add bag + offline evaluation script (bbox trajectory, command saturation, time-to-center). |
+| G1. Perception output for VS | ROS2 publishes: bbox (target) + depth-to-target (or proxy) at ≥ ~10 Hz | PARTIAL | YOLO bbox is present in ROS2 stack; VS-consumable message/API not standardized yet (define one topic/message + minimal test publisher). |
+| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | PROTOTYPE+INTEGRATION_NEEDED | Controller exists in legacy sim (MPPI/VS); needs “ROS2 wrapper” and input adaptation (bbox-based features). |
+| G3. Plant interface | Commands actually move the vehicle in sim and (later) BlueROV | PROTOTYPE | Sim path exists; BlueROV interface & safety gating still to do (rate limits, deadman, mode switching). |
+| G4. Frame conventions | Camera optical frame ↔ body frame mapping is defined & tested (TF sanity) | INTEGRATION_NEEDED | Need a single “authoritative TF contract” and unit tests (sign conventions kill VS silently). |
+| G5. “One-command demo” | One launch command that brings up **perception + VS + visualization** | NOT_STARTED | Compose minimal launch + parameter file + README steps. |
+| G6. Regression harness | Record/replay (rosbag) + plots to verify convergence | NOT_STARTED | Add bag + offline evaluation script (bbox trajectory, command saturation, time-to-center). |
 
 ---
 
@@ -41,29 +41,29 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 ### 2.1 Perception pipeline (what D5.2 expects)
 | Item | Requirement | Status | Notes |
 |---|---|---:|---|
-| P1. Stereo RGBD source | Stereo camera provides RGB + depth (aligned or alignable) | ⚠️ | OAK-D pipeline exists; “stable mode” is constrained (stereo-only baseline is stable; richer modes trigger failures) — treat as *integration risk*. |
-| P2. YOLO detection | YOLOv8 outputs bbox for litter objects | ⚠️ | Implemented in ROS2 workspace (needs confirmation on underwater dataset + runtime). D5.2 expects bbox as the main VS cue. |
-| P3. Depth masking | Use bbox to mask depth map into target vs non-target | ⚠️ | Implemented/partially present; must confirm topic contract and that depth is aligned with RGB. |
-| P4. Voxel/TSDF map (optional for MVP) | TSDF-based voxel reconstruction around target ROI | 🟡 | Valuable later; **not required** for MVP VS loop. D5.2 describes it for geometry/obstacles. |
-| P5. Monitoring | Foxglove/Gstreamer monitoring of RGB+bbox+map | ⚠️ | Present in concept; ensure a "demo panel" exists for debugging. |
+| P1. Stereo RGBD source | Stereo camera provides RGB + depth (aligned or alignable) | PARTIAL | OAK-D pipeline exists; “stable mode” is constrained (stereo-only baseline is stable; richer modes trigger failures) — treat as *integration risk*. |
+| P2. YOLO detection | YOLOv8 outputs bbox for litter objects | PARTIAL | Implemented in ROS2 workspace (needs confirmation on underwater dataset + runtime). D5.2 expects bbox as the main VS cue. |
+| P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | Implemented/partially present; must confirm topic contract and that depth is aligned with RGB. |
+| P4. Voxel/TSDF map (optional for MVP) | TSDF-based voxel reconstruction around target ROI | OPTIONAL | Valuable later; **not required** for MVP VS loop. D5.2 describes it for geometry/obstacles. |
+| P5. Monitoring | Foxglove/Gstreamer monitoring of RGB+bbox+map | PARTIAL | Present in concept; ensure a "demo panel" exists for debugging. |
 
 ### 2.2 Visual servo controller (what winter school proposes)
 | Item | Requirement | Status | Notes |
 |---|---|---:|---|
-| C1. IBVS core | Feature error from image → velocity command (camera-centric) | 🧪🔁 | Planned starting point. |
-| C2. IBVS 2½D variant | Use augmented feature incl. depth log-term for robustness | ❌ | In slides; not yet integrated. |
-| C3. MPC/MPPI with FOV constraint | Constrain bbox center within image bounds (probabilistic margin) | 🧪 | Legacy sim controller is MPPI-style; needs "FOV constraint port" and tests. |
-| C4. PBVS option | Use vSLAM pose (camera frame) when reliable | ⚠️ | Depends on stable vSLAM integration; planned switching policy exists conceptually. |
-| C5. IBVS↔PBVS switching | Switch based on map convergence / tracking loss / uncertainty | ❌ | Not yet implemented as a state/guard. |
-| C6. Command shaping | Saturation, smoothing, deadband, integrator windup guards | 🧪 | Exists in legacy; must be made explicit in ROS2 stack for safety. |
+| C1. IBVS core | Feature error from image → velocity command (camera-centric) | PROTOTYPE+INTEGRATION_NEEDED | Planned starting point. |
+| C2. IBVS 2½D variant | Use augmented feature incl. depth log-term for robustness | NOT_STARTED | In slides; not yet integrated. |
+| C3. MPC/MPPI with FOV constraint | Constrain bbox center within image bounds (probabilistic margin) | PROTOTYPE | Legacy sim controller is MPPI-style; needs "FOV constraint port" and tests. |
+| C4. PBVS option | Use vSLAM pose (camera frame) when reliable | PARTIAL | Depends on stable vSLAM integration; planned switching policy exists conceptually. |
+| C5. IBVS↔PBVS switching | Switch based on map convergence / tracking loss / uncertainty | NOT_STARTED | Not yet implemented as a state/guard. |
+| C6. Command shaping | Saturation, smoothing, deadband, integrator windup guards | PROTOTYPE | Exists in legacy; must be made explicit in ROS2 stack for safety. |
 
 ### 2.3 State machine / transitions (D5.2 integration expectation)
 | Item | Requirement | Status | Notes |
 |---|---|---:|---|
-| S1. Trigger condition | Enter VS after tracking reaches final path point and visibility is sufficient | ❌ | D5.2 states this trigger. |
-| S2. VS termination | Exit VS when desired camera-frame pose achieved → grasping | ❌ | Needs clear termination metric (bbox centered + altitude + (optionally) yaw). |
-| S3. Manual fallback | Manual grasp / joystick override | 🧪 | Present conceptually in system; confirm in current ROS2 stack. |
-| S4. Failure fallback | If visibility bad, position based on last known trash location | ❌ | Must define behavior and operator UI hook. |
+| S1. Trigger condition | Enter VS after tracking reaches final path point and visibility is sufficient | NOT_STARTED | D5.2 states this trigger. |
+| S2. VS termination | Exit VS when desired camera-frame pose achieved → grasping | NOT_STARTED | Needs clear termination metric (bbox centered + altitude + (optionally) yaw). |
+| S3. Manual fallback | Manual grasp / joystick override | PROTOTYPE | Present conceptually in system; confirm in current ROS2 stack. |
+| S4. Failure fallback | If visibility bad, position based on last known trash location | NOT_STARTED | Must define behavior and operator UI hook. |
 
 ---
 
@@ -108,70 +108,97 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 
 ---
 
-## 7) 2026-02-23 Progress Update (Implemented / Verified / Pending)
+## 7) 2026-02-23 Frozen Progress Register
 
-### Implemented
-- [x] `A1` VS I/O contract and custom message
-  - `src/sc2_visual_servo_interfaces/msg/TargetObservation.msg`
-- [x] `A2` ROS2 synthetic observation publisher
-  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`
-- [x] `A3` ROS2 controller node (IBVS baseline + MPPI mode hook)
-  - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`
-  - MPPI core extracted from SC1:
-    - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/mppi_core.py`
-- [x] `A4` one-command launch demo
-  - `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
-  - command: `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py`
-- [x] Perception wrapper for existing YOLO topic
-  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`
-  - input: `/detections_output` (`vision_msgs/Detection2DArray`)
-  - output: `/sc2/visual_servo/target_obs`
-- [x] Logging + vehicle command stub
-  - CSV logger: `src/sc2_visual_servo_controller/sc2_visual_servo_controller/csv_logger_node.py`
-  - MAVLink stub: `src/sc2_visual_servo_controller/sc2_visual_servo_controller/cmd_vel_to_mavlink_stub.py`
+### Item: Visual Servo MVP stub pipeline in Humble container
+Status: Verified
+Evidence:
+- `README_quickstart.md` one-command launch flow is documented.
+- Observed runtime chain: `target_obs_publisher -> visual_servo_controller_node -> /sc2/visual_servo/cmd_vel_body -> csv_logger_node -> cmd_vel_to_mavlink_stub`.
+- Output artifact path: `/tmp/sc2_visual_servo_mvp.csv`.
+Owner: SC2 visual-servo team
 
-### Verified
-- [x] Unit test: conversion
-  - `src/sc2_visual_servo_perception/test/test_conversion.py`
-- [x] Unit test: controller sign
-  - `src/sc2_visual_servo_controller/test/test_controller_sign.py`
-- [x] Integration smoke test: launch + cmd topic alive
-  - `src/sc2_visual_servo_bringup/test/test_mvp_sim_launch.py`
+### Item: ROS2 perception observer path implemented (topic names provisional)
+Status: In Progress
+Evidence:
+- `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`
+- `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` with `use_stub_target` switch.
+- `docs/PERCEPTION_TOPIC_MAP.md` marks detections mapping as provisional.
+Owner: SC2 visual-servo team
 
-### Pending
-- [ ] SC1 simulator adapter path (alternate to ROS2-only harness)
-- [ ] Hardware command bridge beyond logging stub
-- [ ] MPPI mode validation against bag replay and real detections
+### Item: Tests and reproducibility harness
+Status: In Progress
+Evidence:
+- Unit tests: `src/sc2_visual_servo_perception/test/test_conversion.py`, `src/sc2_visual_servo_controller/test/test_controller_sign.py`
+- Integration test: `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`
+- Rosbag scripts: `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`
+Owner: SC2 visual-servo team
 
-### uv dependency management status (2026-02-23)
-- [x] Implemented: `pyproject.toml` with `requires-python = ">=3.10,<3.11"` and `numpy<2`
-- [x] Implemented: `uv.lock` committed
-- [x] Implemented: bootstrap/build/test scripts
-  - `scripts/uv_bootstrap.sh`
-  - `scripts/colcon_build_venv.sh`
-- `scripts/colcon_test_venv.sh`
-- [x] Implemented: repository hygiene for `.venv/`, `__pycache__/`, `*.pyc`
-- [ ] Verified in this host: full Humble-based build+test via `/opt/ros/humble/setup.bash`
+### Item: uv dependency management workflow
+Status: Verified
+Evidence:
+- `pyproject.toml`, `uv.lock`, `scripts/uv_bootstrap.sh`, `scripts/colcon_build_venv.sh`, `scripts/colcon_test_venv.sh`
+- Canonical command sequence is documented in `README_quickstart.md`.
+Owner: SC2 visual-servo team
 
 ---
 
-## 8) 2026-02-23 Jetson/Perception checkpoint
+## 8) 2026-02-23 Jetson and Pipeline Checkpoint
 
-- [x] Depth topic validated on Jetson:
-  - `/oak/stereo/image_raw` encoding is `16UC1` (mm scale interpretation in observed run)
-  - observed median around `1609` (about `1.6 m`)
-  - observed max often `65535` (sentinel-like)
-- [i] Use container for ROS2/perception commands; host Python may have NumPy/cv_bridge mismatch (informational):
-  - supported workflow is to run ROS2 and cv_bridge-dependent nodes in the Humble container
-  - host-side Python environment alignment is out of scope for this project setup
-- [DEFERRED] Detection topic mapping and inference pipeline stabilization:
-  - observed `/detections_output` topic type `vision_msgs/msg/Detection2DArray`, but publisher count was `0` in the problematic session
-  - ONNX/TensorRT parse/engine-plan failures were observed in related runs
-  - deferred pending colleague input on authoritative launch/remap/topic conventions
+### Item: Depth topic validation on Jetson session (2026-02-23)
+Status: Verified
+Evidence:
+- Topic: `/oak/stereo/image_raw` (`sensor_msgs/msg/Image`)
+- Encoding: `16UC1`
+- Observed depth statistics (approx): min `633`, median `1609`, max `65535`
+- Interpretation: mm-scale depth; `65535` acts as invalid/sentinel and is excluded in ROI statistics.
+Owner: SC2 visual-servo team
 
-### Deferred closure criteria
+### Item: Host vs container execution boundary
+Status: Verified
+Evidence:
+- Supported workflow: run ROS2 commands and cv_bridge-dependent nodes inside Humble container.
+- Host-side Python/ROS commands may show NumPy/cv_bridge mismatch and are outside supported workflow.
+Owner: SC2 visual-servo team
 
-- [ ] `ros2 topic info -v <detections_topic>` shows publisher count `> 0` while inference is running
-- [ ] `ros2 topic hz <detections_topic>` is stable (non-zero, sustained)
-- [ ] `target_observer_node` publishes `/sc2/visual_servo/target_obs` from detections (not stub path)
-- [ ] controller publishes `/sc2/visual_servo/cmd_vel_body` from real observer output
+### Item: Detection topic mapping (pending colleague confirmation)
+Status: Deferred
+Evidence:
+- Candidate topic observed: `/detections_output` (`vision_msgs/msg/Detection2DArray`).
+- In problematic session: `ros2 topic info -v /detections_output` showed publisher count `0` with subscriber present (`tensor_rt_container`).
+- Mapping/remap authority is not yet confirmed; topic names remain provisional.
+Owner: Colleague + SC2 visual-servo team
+
+### Item: Exposure control validated
+Status: TBD
+Evidence:
+- Whiteout/overexposure impact is currently documented as a hypothesis requiring dedicated diagnostics.
+Owner: Camera pipeline owner
+
+### Item: OAK-D stability validated
+Status: TBD
+Evidence:
+- Intermittent bringup/drop behavior requires dedicated health checks before using runs as VSLAM/perception validation evidence.
+Owner: Camera pipeline owner
+
+### Deferred closure criteria for detections mapping
+
+### Item: Detection publisher availability
+Status: Deferred
+Evidence:
+- `ros2 topic info -v <detections_topic>` must show publisher count `> 0` during active inference.
+
+### Item: Detection topic rate stability
+Status: Deferred
+Evidence:
+- `ros2 topic hz <detections_topic>` must show sustained non-zero publication rate.
+
+### Item: Observer output from real detections
+Status: Deferred
+Evidence:
+- `target_observer_node` must publish `/sc2/visual_servo/target_obs` without stub source.
+
+### Item: Controller output from observer path
+Status: Deferred
+Evidence:
+- `/sc2/visual_servo/cmd_vel_body` must be driven from real observer output with `use_stub_target:=false`.
