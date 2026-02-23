@@ -8,6 +8,12 @@ Purpose: capture the recent investigation timeline for depth/detection topics an
 - Suspected: likely from logs/symptoms, but not yet fully reproduced under a stable run.
 - Deferred: intentionally parked until colleague input clarifies launch/remap conventions.
 
+## Host vs Container Python note
+
+- NumPy/cv_bridge ABI mismatch was observed when Python/ROS commands were executed outside the Humble container.
+- Supported workflow is to run ROS2 and cv_bridge-dependent commands inside the Humble container.
+- Host-side Python environment alignment may be needed only for non-supported host execution paths.
+
 ## Chronological timeline (approx JST)
 
 - 2026-02-23 09:00-10:30

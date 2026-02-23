@@ -161,10 +161,9 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
   - `/oak/stereo/image_raw` encoding is `16UC1` (mm scale interpretation in observed run)
   - observed median around `1609` (about `1.6 m`)
   - observed max often `65535` (sentinel-like)
-- [!] Jetson `cv_bridge` ABI mismatch risk with NumPy 2.x:
-  - choose one fix path:
-  - pin runtime to `numpy<2` with ROS apt `cv_bridge`
-  - or implement/enable cv_bridge-free raw-buffer depth parsing in observer
+- [i] Use container for ROS2/perception commands; host Python may have NumPy/cv_bridge mismatch (informational):
+  - supported workflow is to run ROS2 and cv_bridge-dependent nodes in the Humble container
+  - host-side Python environment alignment is out of scope for this project setup
 - [DEFERRED] Detection topic mapping and inference pipeline stabilization:
   - observed `/detections_output` topic type `vision_msgs/msg/Detection2DArray`, but publisher count was `0` in the problematic session
   - ONNX/TensorRT parse/engine-plan failures were observed in related runs
