@@ -1,6 +1,7 @@
 # SeaClear2 Visual Servo MVP Quickstart
 
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
+Perception topic map (live OAK-D / bag replay): `docs/PERCEPTION_TOPIC_MAP.md`.
 
 ## 0) uv Bootstrap (recommended first)
 
@@ -74,6 +75,22 @@ This enables `target_observer_node` consuming:
 - `/oak/stereo/image_raw` (depth image)
 and publishing `/sc2/visual_servo/target_obs`.
 
+Inspect available perception topics quickly:
+```bash
+ros2 topic list && ros2 topic info /detections_output && ros2 topic info /oak/stereo/image_raw && ros2 interface show vision_msgs/msg/Detection2DArray
+```
+
+For alternative topic names:
+```bash
+ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
+  use_stub_target:=false \
+  detections_topic:=/detections_output \
+  depth_topic:=/oak/stereo/image_raw \
+  target_class:=bottle \
+  min_confidence:=0.4 \
+  pick_strategy:=highest_confidence
+```
+
 ## 5) MPPI mode (Phase 2 path)
 
 ```bash
@@ -89,6 +106,45 @@ If MPPI dependencies are not available at runtime, node falls back to `ibvs`.
   sc2_visual_servo_controller \
   sc2_visual_servo_bringup
 ```
+
+## 7) Reproducible rosbag workflow (no hardware)
+
+Record perception topics while pipeline is live:
+```bash
+./scripts/record_perception_bag.sh /tmp/sc2_perception_bag 60
+```
+
+Replay the bag:
+```bash
+./scripts/play_perception_bag.sh /tmp/sc2_perception_bag 1.0
+```
+
+In another terminal, run visual-servo with real perception input:
+```bash
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py use_stub_target:=false
+```
+
+Observe outputs:
+```bash
+ros2 topic echo /sc2/visual_servo/target_obs -n 1
+ros2 topic hz /sc2/visual_servo/target_obs
+ros2 topic hz /sc2/visual_servo/cmd_vel_body
+ls -l /tmp/sc2_visual_servo_mvp.csv
+```
+
+## Known Issues / Deferments
+
+- Detection pipeline deferment:
+  - TensorRT/ONNX incompatibilities can prevent a stable detection publisher.
+  - In affected runs, `/detections_output` may exist but still have publisher count `0`.
+  - Detection topic/remap finalization is deferred pending colleague input on current launch conventions.
+- Workaround for controller validation without detections:
+  - run `use_stub_target:=true`, or
+  - publish `TargetObservation` manually and verify `/sc2/visual_servo/cmd_vel_body`.
+- Jetson `cv_bridge` caveat:
+  - if `cv_bridge` import/runtime fails with NumPy ABI errors, keep NumPy below 2 (`numpy<2`) for ROS apt `cv_bridge`, or use observer raw-buffer depth parsing path.
 
 ## Troubleshooting
 

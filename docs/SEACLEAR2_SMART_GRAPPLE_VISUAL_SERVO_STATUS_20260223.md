@@ -328,3 +328,81 @@ Canonical command flow:
 
 Pending full verification item:
 - End-to-end script execution in a host that actually provides `/opt/ros/humble/setup.bash` and Humble `colcon` runtime.
+
+---
+
+## 9. Deferred: Detection topic mapping & inference pipeline
+
+### 9.1 Current observed facts
+
+Verified:
+- uv + venv + colcon workflow was validated in a Humble container.
+- MVP sim pipeline (stub target) runs end-to-end:
+  - `target_obs_publisher -> visual_servo_controller_node -> /sc2/visual_servo/cmd_vel_body -> csv_logger_node -> cmd_vel_to_mavlink_stub`
+- Jetson depth topic observation:
+  - `/oak/stereo/image_raw` encoding is `16UC1`
+  - median observed value was around `1609` (interpreted as about `1.6 m` if mm scale)
+  - max often reaches `65535` (sentinel-like value)
+
+Suspected:
+- Detection pipeline instability is tied to ONNX/TensorRT engine build/parse failures seen in prior logs.
+- In the observed session, `/detections_output` existed as `vision_msgs/msg/Detection2DArray`, but active publisher count was `0` while subscriber side was present.
+
+Deferred:
+- Finalizing `detections_topic` mapping/remaps and stabilizing the TensorRT/ONNX detection path are deferred pending colleague input on existing launch/topic conventions.
+
+### 9.2 Why this is deferred
+
+- Existing launch chains include multiple containers/remaps, and the observed topic visibility did not guarantee an active detector publisher.
+- Resolving this efficiently needs insider knowledge of the current team-maintained topic naming/remap policy and which launch file is authoritative for production detection.
+
+### 9.3 Inputs needed from colleague
+
+- Exact detection output topic name(s) expected in the active Jetson launch profile.
+- Expected detection message type per topic (`vision_msgs/msg/Detection2DArray` or nitros variant).
+- Where remaps are defined (launch file paths and container composition points).
+- Whether current deployment is nitros-only on critical edges and if bridge topics are intentionally disabled.
+- Which ONNX/model + TensorRT engine workflow is considered stable baseline on current Jetson image.
+
+### 9.4 Closure criteria for this deferred item
+
+- `ros2 topic info -v <detections_topic>` shows publisher count `> 0` consistently during runtime.
+- Detection topic rate is stable enough for controller input (target: steady non-zero `ros2 topic hz`).
+- `target_observer_node` publishes `/sc2/visual_servo/target_obs` from real detections (not stub), and controller emits `/sc2/visual_servo/cmd_vel_body`.
+- Reproducible by documented command sequence (live and/or bag replay).
+
+### 9.5 Recent investigation timeline (2026-02-23, approximate)
+
+- `2026-02-23 09:00-10:30` Verified:
+  - uv bootstrap/build/test flow validated in Humble container.
+  - libexec layout issue fixed via post-build shims under `install/lib/<pkg>`.
+  - `set -u` env sourcing hardened (`COLCON_TRACE` / `AMENT_*` defaults + safe source script).
+- `2026-02-23 10:30-11:30` Verified:
+  - Ctrl-C shutdown RCLError removed by switching nodes to `rclpy.try_shutdown()`.
+  - MVP stub launch runs and publishes expected command/log outputs.
+- `2026-02-23 13:00-15:00` Verified:
+  - Perception-side integration landed:
+    - bringup `use_stub_target` switch
+    - configurable `target_observer_node`
+    - depth ROI median extraction, stale detection drop, throttled warnings
+    - rosbag record/play scripts
+    - synthetic integration pytest
+- `2026-02-23 15:00-16:00` Verified:
+  - Jetson depth topic checks confirmed `16UC1` depth behavior and plausible mm-scale values.
+- `2026-02-23 16:00-18:00` Suspected/Deferred:
+  - `/detections_output` had no active publisher in observed session.
+  - ONNX/TensorRT parse/engine-plan failures were observed in related runs.
+  - Topic naming + stable publisher path deferred pending colleague input.
+
+### 9.6 Concrete next steps
+
+1. Run colleague sync focused on detection launch contract:
+   - confirm authoritative launch file and exact detection topic output names/types.
+2. Re-run live pipeline with confirmed remaps and record evidence:
+   - `ros2 topic info -v <detections_topic>`
+   - `ros2 topic hz <detections_topic>`
+3. Validate observer-controller chain without stub:
+   - `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py use_stub_target:=false ...`
+   - verify `/sc2/visual_servo/target_obs` and `/sc2/visual_servo/cmd_vel_body`.
+4. If TensorRT instability persists:
+   - pin to team-approved ONNX/model/engine workflow and document exact environment versions.
