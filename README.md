@@ -149,6 +149,10 @@ src/isaac_ros_common/scripts/run_dev.sh \
 ./src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir $(pwd)
 ```
 
+**If you use WSL**
+you need to run
+`cp .isaac_ros_common-config ~/.isaac_ros_common-config` and launch Docker Desktop beforehand
+
 
 ### 1. Build the workspace
 
