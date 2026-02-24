@@ -13,6 +13,9 @@ fi
 
 source "$(dirname "$0")/source_ros_env_safe.sh"
 
+# Ensure required ROS apt deps for MAVROS rc_override workflow.
+"$(dirname "$0")/ensure_ros_apt_deps.sh"
+
 .venv/bin/python -m colcon build --merge-install "$@"
 
 # Ensure ROS2 launch can resolve Python nodes via package libexec path.
@@ -36,7 +39,9 @@ ensure_libexec sc2_visual_servo_controller target_obs_publisher
 ensure_libexec sc2_visual_servo_controller fake_vehicle_node
 ensure_libexec sc2_visual_servo_controller csv_logger_node
 ensure_libexec sc2_visual_servo_controller cmd_vel_to_mavlink_stub
+ensure_libexec sc2_visual_servo_controller cmd_vel_to_mavros_bridge
 ensure_libexec sc2_visual_servo_perception target_observer_node
+ensure_libexec sc2_visual_servo_synth synthetic_bbox_publisher_node
 
 echo "Verified libexec directories:"
-find "${INSTALL_ROOT}/lib" -maxdepth 2 -type d | grep -E "sc2_visual_servo_(controller|perception|bringup)" || true
+find "${INSTALL_ROOT}/lib" -maxdepth 2 -type d | grep -E "sc2_visual_servo_(controller|perception|bringup|synth)" || true
