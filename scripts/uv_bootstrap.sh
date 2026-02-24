@@ -12,10 +12,16 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 if [[ -f /opt/ros/humble/setup.bash ]]; then
+  # Source ROS env with nounset-safe guards.
   # shellcheck disable=SC1091
-  source /opt/ros/humble/setup.bash
+  source "$(dirname "$0")/source_ros_env_safe.sh"
 else
   echo "Warning: /opt/ros/humble/setup.bash not found in this environment."
+fi
+
+# Ensure required ROS apt deps for MAVROS rc_override workflow.
+if [[ -f /opt/ros/humble/setup.bash ]]; then
+  "$(dirname "$0")/ensure_ros_apt_deps.sh"
 fi
 
 if ! command -v python3.10 >/dev/null 2>&1; then
