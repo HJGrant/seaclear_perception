@@ -181,6 +181,14 @@ docker exec -it -u admin <container> bash
 - Fix: run `./scripts/ensure_ros_apt_deps.sh`, then relaunch.
 - Note for ROS2 Humble CLI: use `ros2 topic echo --once`; `-n` is not supported.
 
+## Deadman and RC override semantics
+
+- `deadman=false` does not necessarily mean "no `/mavros/rc/override` traffic".
+- Current bridge behavior is:
+  - mapped control channels (forward/lateral/vertical/yaw) are driven to neutral PWM on timeout or `deadman=false`
+  - non-mapped channels are published as `CHAN_NOCHANGE` (not overridden)
+- This means a neutral override message can still be visible on `/mavros/rc/override` while actuation commands are effectively inactive.
+
 ## Expected behavior checks
 
 - BBox right of image center: yaw command sign should be right-turn for configured frame/sign convention.
@@ -217,3 +225,11 @@ Reference URLs provided by colleague:
 ## Future TODO
 
 - Closed-loop position control integration (reference parity) should consume `/BlueROV2/pose` (`PoseStamped`) as shown in `docs/reference/blue_rov_position_control/pos_controller.py:159`.
+
+## Done definition (rc_override dependency + CLI compatibility)
+
+- For `mavros_backend:=rc_override`, missing `mavros_msgs` is detected before launch/build in preflight.
+  - If `SC2_SKIP_APT!=1`: install `ros-humble-mavros-msgs` and re-check.
+  - If `SC2_SKIP_APT=1`: fail fast with explicit error and manual install command.
+- In a ready environment, `/mavros/rc/override` publishing is observable (for example via `ros2 topic hz /mavros/rc/override`).
+- QuickCheck commands are ROS2 Humble compatible (`ros2 topic echo --once` only, no `-n` usage).

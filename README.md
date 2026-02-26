@@ -37,11 +37,14 @@ oakd_isaac_ros/
 |   |   |   |-- ibvs/controller_math.py   # IBVS core
 |   |   |   |-- pbvs/mppi_core.py         # MPPI core (PBVS-oriented)
 |   |   |   |-- csv_logger_node.py
+|   |   |   |-- cmd_vel_to_mavros_bridge.py
 |   |   |   |-- cmd_vel_to_mavlink_stub.py
 |   |   |   L-- target_obs_publisher.py
 |   |   L-- test/
 |   |-- sc2_visual_servo_bringup/         # MVP bringup entrypoint
-|   |   L-- launch/mvp_sim.launch.py
+|   |   L-- launch/{mvp_sim,blue_rov_synth_vs}.launch.py
+|   |-- sc2_visual_servo_synth/           # Synthetic Detection2D/TargetObservation generator
+|   |   L-- sc2_visual_servo_synth/synthetic_bbox_publisher_node.py
 |   |-- depthai-ros/                      # Luxonis DepthAI ROS (submodule)
 |   |-- isaac_ros_common/                 # Isaac ROS common stack (submodule)
 |   |-- isaac_ros_dnn_inference/          # TensorRT inference stack (submodule)
@@ -155,6 +158,21 @@ you need to run
 
 
 ### 1. Build the workspace
+install uv
+```
+source /opt/ros/humble/setup.bash
+cd /workspaces/oakd_isaac_ros
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or
+# wget -qO- https://astral.sh/uv/install.sh | sh
+
+export PATH="$HOME/.local/bin:$PATH"
+hash -r
+
+uv --version
+```
+
 
 From the root of your workspace:
 

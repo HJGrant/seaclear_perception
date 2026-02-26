@@ -25,7 +25,8 @@ Notes:
   sc2_visual_servo_bringup \
   sc2_visual_servo_controller \
   sc2_visual_servo_perception \
-  sc2_visual_servo_interfaces
+  sc2_visual_servo_interfaces \
+  sc2_visual_servo_synth
 source install/setup.bash
 ```
 
@@ -133,6 +134,31 @@ ros2 topic hz /sc2/visual_servo/target_obs
 ros2 topic hz /sc2/visual_servo/cmd_vel_body
 ls -l /tmp/sc2_visual_servo_mvp.csv
 ```
+
+## 8) BlueROV MAVROS quickcheck (synthetic detections)
+
+For detector-free actuation validation run:
+
+```bash
+ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py \
+  pattern:=fixed_offsets \
+  controller_mode:=bbox_approach \
+  mavros_backend:=dry_run \
+  deadman:=true
+```
+
+Switch to MAVROS RC override backend:
+
+```bash
+ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py \
+  pattern:=size_ramp \
+  controller_mode:=bbox_approach \
+  mavros_backend:=rc_override \
+  deadman:=true
+```
+
+Detailed runbook:
+- `docs/BLUEROV_MAVROS_QUICKCHECK.md`
 
 ## Known Issues / Deferments
 

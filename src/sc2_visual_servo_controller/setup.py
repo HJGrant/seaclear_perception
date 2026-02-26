@@ -25,6 +25,7 @@ setup(
             'fake_vehicle_node = sc2_visual_servo_controller.fake_vehicle_node:main',
             'csv_logger_node = sc2_visual_servo_controller.csv_logger_node:main',
             'cmd_vel_to_mavlink_stub = sc2_visual_servo_controller.cmd_vel_to_mavlink_stub:main',
+            'cmd_vel_to_mavros_bridge = sc2_visual_servo_controller.cmd_vel_to_mavros_bridge:main',
         ],
     },
 )
