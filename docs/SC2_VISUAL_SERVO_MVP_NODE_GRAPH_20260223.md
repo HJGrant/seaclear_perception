@@ -3,8 +3,10 @@
 > Purpose: make it **one-glance obvious** how the MVP pipeline is wired end-to-end (sensor/detection → controller → command),
 > and what to replace when moving from **stub sim** → **live perception** → **BlueROV**.
 
-## 1) Launch modes (single entry point)
-Launch file: `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
+## 1) Launch modes (entry points)
+Launch files:
+- `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
+- `src/sc2_visual_servo_bringup/launch/blue_rov_synth_vs.launch.py`
 
 - **Mode A (default): stub target → controller → cmd**
   - `use_stub_target:=true` (default)
@@ -12,6 +14,9 @@ Launch file: `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
   - `use_stub_target:=false`
 - **Controller mode**
   - `controller_mode:=ibvs` (default) or `controller_mode:=mppi`
+- **BlueROV synthetic actuation check (detector-free)**
+  - `ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py`
+  - defaults: `controller_mode:=bbox_approach`, `mavros_backend:=rc_override`
 
 ## 2) Node graph (topics and message types)
 
@@ -39,6 +44,17 @@ flowchart LR
   B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
 ```
 
+### 2.3 BlueROV synthetic mode (detector-free)
+```mermaid
+flowchart LR
+  S["synthetic_bbox_publisher_node<br/>(sc2_visual_servo_synth)"] -->|/detections_output<br/>Detection2DArray| P["target_observer_node<br/>(optional when direct=false)"]
+  S -->|/sc2/visual_servo/target_obs<br/>TargetObservation (direct mode)| B["visual_servo_controller_node<br/>(bbox_approach)"]
+  P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| B
+  B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| M["cmd_vel_to_mavros_bridge<br/>(dry_run / rc_override / setpoint_velocity)"]
+  B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
+  B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| D["csv_logger_node"]
+```
+
 ## 3) Data contracts (what flows between nodes)
 
 ### 3.1 `/sc2/visual_servo/target_obs` — `TargetObservation`
@@ -63,7 +79,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 ### 3.3 `/sc2/visual_servo/status` — `std_msgs/String`
 - `NO_TARGET_TIMEOUT` when target is missing beyond timeout
-- `TRACKING_IBVS` or `TRACKING_MPPI`
+- `TRACKING_IBVS`, `TRACKING_BBOX_APPROACH`, or `TRACKING_MPPI`
 
 ## 4) What to replace when moving toward hardware
 
@@ -76,16 +92,16 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
   - detections: `/detections_output` (or remap)
   - depth: `/oak/stereo/image_raw` (or remap)
 
-### 4.2 Replace fake vehicle + MAVLink stub with real BlueROV bridge
-**Current**:
-- `fake_vehicle_node` integrates cmd to a fake pose
-- `cmd_vel_to_mavlink_stub` only logs
+### 4.2 BlueROV bridge status
+**Available now**:
+- `cmd_vel_to_mavros_bridge` supports:
+  - `backend:=dry_run` (log only)
+  - `backend:=rc_override` (publish to `/mavros/rc/override`)
+  - `backend:=setpoint_velocity` (publish to `/mavros/setpoint_velocity/cmd_vel_unstamped`)
+- deadman + timeout + command saturation are implemented.
 
-**Replace with**:
-- `cmd_vel_to_mavros` (new) OR `cmd_vel_to_bluerov_bridge` (new)
-  - consumes `/sc2/visual_servo/cmd_vel_body`
-  - outputs to your chosen stack (MAVROS2 or direct BlueRobotics)
-- keep `csv_logger_node` (useful for debugging)
+**Still pending**:
+- closed-loop validation with vehicle state feedback/pose integration.
 
 ### 4.3 Replace placeholder IBVS with MPPI (same I/F)
 **Switch** using launch arg:
@@ -98,7 +114,7 @@ Note: MPPI requires `torch` at runtime; if unavailable, it falls back to `ibvs`.
 ### 5.1 Build + run (MVP stub)
 1) `source /opt/ros/humble/setup.bash`
 2) `./scripts/uv_bootstrap.sh`
-3) `./scripts/colcon_build_venv.sh --packages-up-to sc2_visual_servo_bringup sc2_visual_servo_controller sc2_visual_servo_perception sc2_visual_servo_interfaces`
+3) `./scripts/colcon_build_venv.sh --packages-up-to sc2_visual_servo_bringup sc2_visual_servo_controller sc2_visual_servo_perception sc2_visual_servo_interfaces sc2_visual_servo_synth`
 4) `source install/setup.bash`
 5) `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py`
 6) Confirm topic publishing:
@@ -119,4 +135,4 @@ Note: MPPI requires `torch` at runtime; if unavailable, it falls back to `ibvs`.
 ## 6) Known MVP caveats (intentional)
 - No SLAM dependency (by design).
 - Depth is bbox-ROI median (no mask yet).
-- No full BlueROV actuation path yet (stub only).
+- BlueROV path is currently open-loop command validation via MAVROS bridge; closed-loop vehicle-state validation is not integrated yet.

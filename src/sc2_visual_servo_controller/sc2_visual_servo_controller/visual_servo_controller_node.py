@@ -7,7 +7,14 @@ from rclpy.node import Node
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from std_msgs.msg import String
 
-from .ibvs.controller_math import IBVSConfig, Observation, clamp, compute_ibvs_command
+from .ibvs.controller_math import (
+    BBoxApproachConfig,
+    IBVSConfig,
+    Observation,
+    clamp,
+    compute_bbox_approach_command,
+    compute_ibvs_command,
+)
 
 try:
     from .pbvs.mppi_core import MPPIController, axis_to_index, build_linear_map_from_axes
@@ -39,11 +46,18 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('k_depth', 0.5)
         self.declare_parameter('k_area', 0.3)
         self.declare_parameter('k_yaw', 0.8)
+        self.declare_parameter('bbox_use_vy', True)
+        self.declare_parameter('bbox_use_vz', True)
+        self.declare_parameter('bbox_stop_area_px', 18000.0)
 
         self.declare_parameter('max_vx', 0.4)
         self.declare_parameter('max_vy', 0.3)
         self.declare_parameter('max_vz', 0.3)
         self.declare_parameter('max_yaw_rate', 0.4)
+        self.declare_parameter('slew_vx', 2.0)
+        self.declare_parameter('slew_vy', 2.0)
+        self.declare_parameter('slew_vz', 2.0)
+        self.declare_parameter('slew_yaw_rate', 2.0)
 
         self.declare_parameter('fx_px', 600.0)
         self.declare_parameter('fy_px', 600.0)
@@ -56,6 +70,9 @@ class VisualServoControllerNode(Node):
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
+        if self._controller_mode not in {'ibvs', 'bbox_approach', 'mppi'}:
+            self.get_logger().warn(f'Unknown controller_mode={self._controller_mode}; falling back to ibvs')
+            self._controller_mode = 'ibvs'
 
         self._cfg = IBVSConfig(
             image_width=float(self.get_parameter('image_width').value),
@@ -75,6 +92,26 @@ class VisualServoControllerNode(Node):
         self._max_vy = float(self.get_parameter('max_vy').value)
         self._max_vz = float(self.get_parameter('max_vz').value)
         self._max_yaw = float(self.get_parameter('max_yaw_rate').value)
+        self._slew_vx = float(self.get_parameter('slew_vx').value)
+        self._slew_vy = float(self.get_parameter('slew_vy').value)
+        self._slew_vz = float(self.get_parameter('slew_vz').value)
+        self._slew_yaw = float(self.get_parameter('slew_yaw_rate').value)
+
+        self._bbox_cfg = BBoxApproachConfig(
+            image_width=float(self.get_parameter('image_width').value),
+            image_height=float(self.get_parameter('image_height').value),
+            target_u=float(self.get_parameter('target_u').value),
+            target_v=float(self.get_parameter('target_v').value),
+            desired_depth_m=float(self.get_parameter('desired_depth_m').value),
+            stop_area_px=float(self.get_parameter('bbox_stop_area_px').value),
+            k_u=float(self.get_parameter('k_u').value),
+            k_v=float(self.get_parameter('k_v').value),
+            k_depth=float(self.get_parameter('k_depth').value),
+            k_area=float(self.get_parameter('k_area').value),
+            k_yaw=float(self.get_parameter('k_yaw').value),
+            use_vy=bool(self.get_parameter('bbox_use_vy').value),
+            use_vz=bool(self.get_parameter('bbox_use_vz').value),
+        )
 
         self._fx = float(self.get_parameter('fx_px').value)
         self._fy = float(self.get_parameter('fy_px').value)
@@ -83,6 +120,8 @@ class VisualServoControllerNode(Node):
 
         self._latest_obs: Optional[TargetObservation] = None
         self._last_obs_time = self.get_clock().now()
+        self._last_tick_time = self.get_clock().now()
+        self._last_cmd = (0.0, 0.0, 0.0, 0.0)
 
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
@@ -158,19 +197,48 @@ class VisualServoControllerNode(Node):
         self._status_pub.publish(msg)
 
     def _publish_cmd(self, vx: float, vy: float, vz: float, yaw: float) -> None:
+        vx = clamp(vx, self._max_vx)
+        vy = clamp(vy, self._max_vy)
+        vz = clamp(vz, self._max_vz)
+        yaw = clamp(yaw, self._max_yaw)
+
         cmd = TwistStamped()
         cmd.header.stamp = self.get_clock().now().to_msg()
         cmd.header.frame_id = self._body_frame_id
-        cmd.twist.linear.x = clamp(vx, self._max_vx)
-        cmd.twist.linear.y = clamp(vy, self._max_vy)
-        cmd.twist.linear.z = clamp(vz, self._max_vz)
-        cmd.twist.angular.z = clamp(yaw, self._max_yaw)
+        cmd.twist.linear.x = vx
+        cmd.twist.linear.y = vy
+        cmd.twist.linear.z = vz
+        cmd.twist.angular.z = yaw
         self._cmd_pub.publish(cmd)
+        self._last_cmd = (vx, vy, vz, yaw)
+
+    @staticmethod
+    def _slew_axis(target: float, prev: float, limit_per_s: float, dt: float) -> float:
+        if limit_per_s <= 0.0 or dt <= 0.0:
+            return target
+        delta_max = limit_per_s * dt
+        delta = target - prev
+        if delta > delta_max:
+            return prev + delta_max
+        if delta < -delta_max:
+            return prev - delta_max
+        return target
+
+    def _publish_cmd_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
+        pvx, pvy, pvz, pyaw = self._last_cmd
+        svx = self._slew_axis(vx, pvx, self._slew_vx, dt)
+        svy = self._slew_axis(vy, pvy, self._slew_vy, dt)
+        svz = self._slew_axis(vz, pvz, self._slew_vz, dt)
+        syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
+        self._publish_cmd(svx, svy, svz, syaw)
 
     def _tick(self) -> None:
         now = self.get_clock().now()
-        dt = (now - self._last_obs_time).nanoseconds * 1e-9
-        if self._latest_obs is None or dt > self._timeout_sec:
+        dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
+        dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
+        self._last_tick_time = now
+
+        if self._latest_obs is None or dt_obs > self._timeout_sec:
             self._publish_cmd(0.0, 0.0, 0.0, 0.0)
             self._publish_status('NO_TARGET_TIMEOUT')
             return
@@ -188,12 +256,18 @@ class VisualServoControllerNode(Node):
             yd = (obs.v - self._cy) / max(1e-3, self._fy) * obs.depth_m
             p_raw = [obs.depth_m, xr, yd]
             mppi_u = self._mppi.step(p_raw)
-            self._publish_cmd(float(mppi_u[0]), float(mppi_u[1]), float(mppi_u[2]), float(mppi_u[3]))
+            self._publish_cmd_with_slew(float(mppi_u[0]), float(mppi_u[1]), float(mppi_u[2]), float(mppi_u[3]), dt_ctrl)
             self._publish_status('TRACKING_MPPI')
             return
 
+        if self._controller_mode == 'bbox_approach':
+            vx, vy, vz, yaw = compute_bbox_approach_command(obs, self._bbox_cfg)
+            self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
+            self._publish_status('TRACKING_BBOX_APPROACH')
+            return
+
         vx, vy, vz, yaw = compute_ibvs_command(obs, self._cfg)
-        self._publish_cmd(vx, vy, vz, yaw)
+        self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
         self._publish_status('TRACKING_IBVS')
 
 

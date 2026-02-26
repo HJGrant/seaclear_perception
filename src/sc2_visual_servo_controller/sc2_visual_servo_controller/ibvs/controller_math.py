@@ -27,6 +27,23 @@ class IBVSConfig:
     k_yaw: float = 0.8
 
 
+@dataclass
+class BBoxApproachConfig:
+    image_width: float = 1280.0
+    image_height: float = 720.0
+    target_u: float = 640.0
+    target_v: float = 360.0
+    desired_depth_m: float = 1.0
+    stop_area_px: float = 18000.0
+    k_u: float = 0.6
+    k_v: float = 0.6
+    k_depth: float = 0.5
+    k_area: float = 0.3
+    k_yaw: float = 0.8
+    use_vy: bool = True
+    use_vz: bool = True
+
+
 def clamp(val: float, lim: float) -> float:
     return max(-lim, min(lim, val))
 
@@ -45,5 +62,26 @@ def compute_ibvs_command(obs: Observation, cfg: IBVSConfig) -> Tuple[float, floa
         area = max(1.0, obs.w * obs.h)
         area_err = (cfg.desired_bbox_area_px - area) / max(1.0, cfg.desired_bbox_area_px)
         vx = cfg.k_area * area_err
+
+    return vx, vy, vz, yaw_rate
+
+
+def compute_bbox_approach_command(
+    obs: Observation,
+    cfg: BBoxApproachConfig,
+) -> Tuple[float, float, float, float]:
+    ex = (obs.u - cfg.target_u) / max(1.0, cfg.image_width)
+    ey = (obs.v - cfg.target_v) / max(1.0, cfg.image_height)
+
+    yaw_rate = -cfg.k_yaw * ex
+    vy = -cfg.k_u * ex if cfg.use_vy else 0.0
+    vz = -cfg.k_v * ey if cfg.use_vz else 0.0
+
+    if math.isfinite(obs.depth_m) and obs.depth_m > 0.0:
+        vx = cfg.k_depth * (obs.depth_m - cfg.desired_depth_m)
+    else:
+        area = max(1.0, obs.w * obs.h)
+        area_err = (cfg.stop_area_px - area) / max(1.0, cfg.stop_area_px)
+        vx = cfg.k_area * max(0.0, area_err)
 
     return vx, vy, vz, yaw_rate

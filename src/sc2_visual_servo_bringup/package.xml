@@ -16,6 +16,7 @@
   <depend>sc2_visual_servo_interfaces</depend>
   <depend>sc2_visual_servo_perception</depend>
   <depend>sc2_visual_servo_controller</depend>
+  <depend>sc2_visual_servo_synth</depend>
 
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
