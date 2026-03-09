@@ -12,6 +12,7 @@
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
   <depend>vision_msgs</depend>
   <depend>cv_bridge</depend>
   <depend>sc2_visual_servo_interfaces</depend>

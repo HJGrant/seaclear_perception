@@ -67,25 +67,33 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 
 ---
 
-## 3) “Shortest path” work plan (organized as checkboxes)
+## 3) Shortest path work plan (integrated status matrix)
 
-### Phase A (Week 1–2): **Make VS loop runnable in simulation**
-- [ ] A1. Define VS I/O contract (ROS2 messages + topic names): `bbox`, `depth/altitude`, `Twist` output.
-- [ ] A2. Make a ROS2 “shim” node that publishes synthetic bbox/depth (for controller bring-up).
-- [ ] A3. Port legacy controller into ROS2 (minimal wrapper) OR re-implement simple IBVS baseline first.
-- [ ] A4. Add a one-command sim demo launch + README (this is the “easy experiment” threshold).
+This section is the current baseline for implementation status and replaces standalone updates in later sections.
 
-### Phase B (Week 3–5): **Wire perception → controller (end-to-end in sim)**
-- [ ] B1. Connect YOLO bbox topic to VS input.
-- [ ] B2. Produce depth-to-target (from stereo depth or DVL proxy) in consistent units.
-- [ ] B3. Add FOV constraint (hard clamp first; probabilistic later).
-- [ ] B4. Add evaluation harness: rosbag + offline plots (error vs time, command saturation, time-to-center).
+### Phase A (Week 1-2): Make VS loop runnable in simulation
+| Item | Current status | Implementation path(s) | Notes |
+|---|---|---|---|
+| A1. Define VS I/O contract (`bbox`, `depth/altitude`, `Twist`) | Verified | `src/sc2_visual_servo_interfaces/msg/TargetObservation.msg`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py` | `TargetObservation` and `/sc2/visual_servo/cmd_vel_body` are standardized. |
+| A2. ROS2 shim publisher for controller bring-up | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`, `src/sc2_visual_servo_synth/sc2_visual_servo_synth/synthetic_bbox_publisher_node.py` | Stub and synthetic detection publishers exist. |
+| A3. ROS2 controller baseline (IBVS first) | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/ibvs/controller_math.py`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py` | `ibvs`, `bbox_approach`, `bbox_grasp` are available; MPPI is optional. |
+| A4. One-command simulation demo + docs | Verified | `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`, `README_quickstart.md` | End-to-end MVP launch path is documented. |
 
-### Phase C (Week 6–8): **Pilot on BlueROV (minimum safe integration)**
-- [ ] C1. Vehicle interface: `Twist` → BlueROV command (MAVROS/bridge) + rate limits + deadman.
-- [ ] C2. TF contract validated on hardware: camera extrinsics, body axes, optical frame.
-- [ ] C3. Safety: abort conditions (lost target N frames, depth invalid, saturation too long).
-- [ ] C4. Operator workflow: start/stop VS, manual override, logging.
+### Phase B (Week 3-4): Wire perception to controller (end-to-end in sim/live)
+| Item | Current status | Implementation path(s) | Notes |
+|---|---|---|---|
+| B1. Connect YOLO bbox topic to VS input | In Progress | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`, `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Wiring exists via `use_stub_target:=false`; detection topic stabilization remains deferred. |
+| B2. Depth-to-target estimation in consistent units | Verified | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`, `src/sc2_visual_servo_perception/sc2_visual_servo_perception/grasp_pose_estimator_node.py` | ROI median and UV-median-neighborhood representative depth are implemented. |
+| B3. FOV constraint (hard/probabilistic) | In Progress | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/pbvs/mppi_core.py` | FOV/risk cost exists in MPPI core; not default path in MVP IBVS mode. |
+| B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py` | Record/replay and integration tests exist; offline convergence plotting is still pending. |
+
+### Phase C (Week 5-6): Pilot on BlueROV (minimum safe integration)
+| Item | Current status | Implementation path(s) | Notes |
+|---|---|---|---|
+| C1. Vehicle interface (`Twist` to BlueROV command) | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/cmd_vel_to_mavros_bridge.py`, `src/sc2_visual_servo_bringup/launch/blue_rov_synth_vs.launch.py` | `rc_override` / `setpoint_velocity` / `dry_run` backends are implemented. |
+| C2. TF contract validated on hardware | Deferred | `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Hardware-validated TF contract is still pending. |
+| C3. Safety guards (timeout/deadman/limits) | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/cmd_vel_to_mavros_bridge.py` | Saturation, slew limit, timeout-to-zero, deadman timeout/neutral are implemented. |
+| C4. Operator workflow (start/stop/manual override/logging) | In Progress | `docs/BLUEROV_MAVROS_QUICKCHECK.md`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/csv_logger_node.py` | Basic runbook and logging exist; full mission-level manual override workflow remains pending. |
 
 ---
 
@@ -98,7 +106,7 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 
 ## 5) How to use this checklist weekly
 - Update **Gate statuses (G1–G6)** first.
-- Then update **Phase A/B/C** checkboxes.
+- Then update **Phase A/B/C** status rows in Section 3.
 - Keep any new blockers in “Known integration risks”.
 
 ## 6) Sources used for this checklist
@@ -202,3 +210,5 @@ Evidence:
 Status: Deferred
 Evidence:
 - `/sc2/visual_servo/cmd_vel_body` must be driven from real observer output with `use_stub_target:=false`.
+
+---

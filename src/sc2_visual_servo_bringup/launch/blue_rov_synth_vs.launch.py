@@ -1,6 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.conditions import UnlessCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -23,6 +23,8 @@ def generate_launch_description():
     deadman_required = LaunchConfiguration('deadman_required')
     timeout_ms = LaunchConfiguration('timeout_ms')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    enable_debug_viz = LaunchConfiguration('enable_debug_viz')
+    debug_markers_topic = LaunchConfiguration('debug_markers_topic')
 
     return LaunchDescription([
         DeclareLaunchArgument('pattern', default_value='fixed_offsets'),
@@ -41,6 +43,8 @@ def generate_launch_description():
         DeclareLaunchArgument('deadman_required', default_value='true'),
         DeclareLaunchArgument('timeout_ms', default_value='600'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('enable_debug_viz', default_value='true'),
+        DeclareLaunchArgument('debug_markers_topic', default_value='/sc2/visual_servo/debug_markers'),
 
         Node(
             package='sc2_visual_servo_synth',
@@ -138,6 +142,26 @@ def generate_launch_description():
                 'max_vy': 0.20,
                 'max_vz': 0.18,
                 'max_yaw_rate': 0.35,
+                'use_sim_time': use_sim_time,
+            }],
+        ),
+
+        Node(
+            package='sc2_visual_servo_controller',
+            executable='visual_servo_debug_viz_node',
+            name='visual_servo_debug_viz_node',
+            condition=IfCondition(enable_debug_viz),
+            output='screen',
+            parameters=[{
+                'target_topic': target_topic,
+                'cmd_topic': cmd_topic,
+                'markers_topic': debug_markers_topic,
+                'body_frame_id': 'base_link',
+                'image_width': 1280.0,
+                'image_height': 720.0,
+                'target_u': 640.0,
+                'target_v': 360.0,
+                'use_grasp_pose': False,
                 'use_sim_time': use_sim_time,
             }],
         ),

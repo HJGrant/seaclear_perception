@@ -118,6 +118,15 @@ ros2 topic echo /sc2/visual_servo/cmd_vel_body --once
 ros2 topic echo /sc2/visual_servo/status --once
 ```
 
+Check visualization markers (bbox + command vector):
+
+```bash
+ros2 topic hz /sc2/visual_servo/debug_markers
+ros2 topic echo /sc2/visual_servo/debug_markers --once
+```
+
+The marker topic is designed for both RViz2 and Foxglove.
+
 Check MAVROS state/output:
 
 ```bash

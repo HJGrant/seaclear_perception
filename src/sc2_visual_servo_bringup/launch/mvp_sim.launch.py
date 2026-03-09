@@ -19,6 +19,22 @@ def generate_launch_description():
     observer_timeout_ms = LaunchConfiguration('observer_timeout_ms')
     use_depth = LaunchConfiguration('use_depth')
     use_sim_time = LaunchConfiguration('use_sim_time')
+    enable_grasp_pose_estimator = LaunchConfiguration('enable_grasp_pose_estimator')
+    grasp_pose_topic = LaunchConfiguration('grasp_pose_topic')
+    grasp_status_topic = LaunchConfiguration('grasp_status_topic')
+    mask_topic = LaunchConfiguration('mask_topic')
+    use_mask_gating = LaunchConfiguration('use_mask_gating')
+    min_valid_points = LaunchConfiguration('min_valid_points')
+    num_nearest_points = LaunchConfiguration('num_nearest_points')
+    max_search_radius_px = LaunchConfiguration('max_search_radius_px')
+    hold_last_valid = LaunchConfiguration('hold_last_valid')
+    max_hold_ms = LaunchConfiguration('max_hold_ms')
+    controller_grasp_timeout_ms = LaunchConfiguration('controller_grasp_timeout_ms')
+    desired_grasp_distance_m = LaunchConfiguration('desired_grasp_distance_m')
+    k_grasp_distance = LaunchConfiguration('k_grasp_distance')
+    require_grasp_pose = LaunchConfiguration('require_grasp_pose')
+    enable_debug_viz = LaunchConfiguration('enable_debug_viz')
+    debug_markers_topic = LaunchConfiguration('debug_markers_topic')
 
     return LaunchDescription([
         DeclareLaunchArgument('use_stub_target', default_value='true'),
@@ -34,6 +50,22 @@ def generate_launch_description():
         DeclareLaunchArgument('observer_timeout_ms', default_value='500'),
         DeclareLaunchArgument('use_depth', default_value='true'),
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('enable_grasp_pose_estimator', default_value='false'),
+        DeclareLaunchArgument('grasp_pose_topic', default_value='/sc2/visual_servo/grasp_pose'),
+        DeclareLaunchArgument('grasp_status_topic', default_value='/sc2/visual_servo/grasp_pose_status'),
+        DeclareLaunchArgument('mask_topic', default_value=''),
+        DeclareLaunchArgument('use_mask_gating', default_value='false'),
+        DeclareLaunchArgument('min_valid_points', default_value='20'),
+        DeclareLaunchArgument('num_nearest_points', default_value='25'),
+        DeclareLaunchArgument('max_search_radius_px', default_value='40.0'),
+        DeclareLaunchArgument('hold_last_valid', default_value='true'),
+        DeclareLaunchArgument('max_hold_ms', default_value='500'),
+        DeclareLaunchArgument('controller_grasp_timeout_ms', default_value='500'),
+        DeclareLaunchArgument('desired_grasp_distance_m', default_value='0.6'),
+        DeclareLaunchArgument('k_grasp_distance', default_value='0.6'),
+        DeclareLaunchArgument('require_grasp_pose', default_value='false'),
+        DeclareLaunchArgument('enable_debug_viz', default_value='true'),
+        DeclareLaunchArgument('debug_markers_topic', default_value='/sc2/visual_servo/debug_markers'),
 
         Node(
             package='sc2_visual_servo_controller',
@@ -72,10 +104,12 @@ def generate_launch_description():
             parameters=[{
                 'controller_mode': controller_mode,
                 'target_topic': '/sc2/visual_servo/target_obs',
+                'grasp_pose_topic': grasp_pose_topic,
                 'cmd_topic': '/sc2/visual_servo/cmd_vel_body',
                 'status_topic': '/sc2/visual_servo/status',
                 'body_frame_id': 'base_link',
                 'timeout_ms': 500,
+                'grasp_timeout_ms': controller_grasp_timeout_ms,
                 'max_vx': 0.35,
                 'max_vy': 0.25,
                 'max_vz': 0.25,
@@ -84,6 +118,36 @@ def generate_launch_description():
                 'image_height': 720.0,
                 'target_u': 640.0,
                 'target_v': 360.0,
+                'k_grasp_distance': k_grasp_distance,
+                'desired_grasp_distance_m': desired_grasp_distance_m,
+                'require_grasp_pose': require_grasp_pose,
+                'use_sim_time': use_sim_time,
+            }],
+        ),
+
+        Node(
+            package='sc2_visual_servo_perception',
+            executable='grasp_pose_estimator_node',
+            name='grasp_pose_estimator_node',
+            condition=IfCondition(enable_grasp_pose_estimator),
+            output='screen',
+            parameters=[{
+                'source_mode': 'bbox_depth_roi',
+                'target_obs_topic': '/sc2/visual_servo/target_obs',
+                'depth_topic': depth_topic,
+                'camera_info_topic': '/oak/stereo/camera_info',
+                'mask_topic': mask_topic,
+                'grasp_pose_topic': grasp_pose_topic,
+                'status_topic': grasp_status_topic,
+                'depth_min_m': 0.2,
+                'depth_max_m': 20.0,
+                'min_valid_points': min_valid_points,
+                'num_nearest_points': num_nearest_points,
+                'max_search_radius_px': max_search_radius_px,
+                'use_uv_median_depth': True,
+                'use_mask_gating': use_mask_gating,
+                'hold_last_valid': hold_last_valid,
+                'max_hold_ms': max_hold_ms,
                 'use_sim_time': use_sim_time,
             }],
         ),
@@ -119,5 +183,26 @@ def generate_launch_description():
             name='cmd_vel_to_mavlink_stub',
             output='screen',
             parameters=[{'cmd_topic': '/sc2/visual_servo/cmd_vel_body', 'use_sim_time': use_sim_time}],
+        ),
+
+        Node(
+            package='sc2_visual_servo_controller',
+            executable='visual_servo_debug_viz_node',
+            name='visual_servo_debug_viz_node',
+            condition=IfCondition(enable_debug_viz),
+            output='screen',
+            parameters=[{
+                'target_topic': '/sc2/visual_servo/target_obs',
+                'cmd_topic': '/sc2/visual_servo/cmd_vel_body',
+                'grasp_pose_topic': grasp_pose_topic,
+                'markers_topic': debug_markers_topic,
+                'body_frame_id': 'base_link',
+                'image_width': 1280.0,
+                'image_height': 720.0,
+                'target_u': 640.0,
+                'target_v': 360.0,
+                'use_grasp_pose': enable_grasp_pose_estimator,
+                'use_sim_time': use_sim_time,
+            }],
         ),
     ])
