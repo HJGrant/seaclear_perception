@@ -99,7 +99,31 @@ ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py controller_mode:=mppi
 ```
 If MPPI dependencies are not available at runtime, node falls back to `ibvs`.
 
-## 6) Run tests (venv + colcon)
+## 6) Optional: bbox + grasp-pose mode (bbox_depth_roi)
+
+Enable grasp-pose estimation from bbox ROI depth and run controller mode `bbox_grasp`:
+
+```bash
+ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
+  use_stub_target:=false \
+  controller_mode:=bbox_grasp \
+  enable_grasp_pose_estimator:=true \
+  depth_topic:=/oak/stereo/image_raw \
+  min_valid_points:=20 \
+  max_search_radius_px:=40.0
+```
+
+Key tuning switches for field validation:
+- `min_valid_points` (minimum valid ROI points)
+- `max_search_radius_px` (N-point search radius near `(u_med, v_med)`)
+- `use_mask_gating` + `mask_topic` (gate ROI by mask image)
+- `hold_last_valid` / `max_hold_ms` (temporary dropout handling)
+- `require_grasp_pose` (controller hard-stop if grasp pose is missing)
+
+Design note and detailed investigation are documented in:
+- `docs/VS_BBOX_GRASP_INTEGRATION_20260225.md`
+
+## 7) Run tests (venv + colcon)
 
 ```bash
 ./scripts/colcon_test_venv.sh --packages-select \
@@ -108,7 +132,7 @@ If MPPI dependencies are not available at runtime, node falls back to `ibvs`.
   sc2_visual_servo_bringup
 ```
 
-## 7) Reproducible rosbag workflow (no hardware)
+## 8) Reproducible rosbag workflow (no hardware)
 
 Record perception topics while pipeline is live:
 ```bash
@@ -129,13 +153,19 @@ ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py use_stub_target:=false
 
 Observe outputs:
 ```bash
-ros2 topic echo /sc2/visual_servo/target_obs -n 1
+ros2 topic echo /sc2/visual_servo/target_obs --once
 ros2 topic hz /sc2/visual_servo/target_obs
 ros2 topic hz /sc2/visual_servo/cmd_vel_body
+ros2 topic hz /sc2/visual_servo/debug_markers
 ls -l /tmp/sc2_visual_servo_mvp.csv
 ```
 
-## 8) BlueROV MAVROS quickcheck (synthetic detections)
+Visualization note:
+- `visual_servo_debug_viz_node` is enabled by default in `mvp_sim.launch.py` and publishes:
+  - `/sc2/visual_servo/debug_markers` (`visualization_msgs/msg/MarkerArray`)
+- This can be viewed in RViz2 or Foxglove.
+
+## 9) BlueROV MAVROS quickcheck (synthetic detections)
 
 For detector-free actuation validation run:
 
@@ -144,7 +174,8 @@ ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py \
   pattern:=fixed_offsets \
   controller_mode:=bbox_approach \
   mavros_backend:=dry_run \
-  deadman:=true
+  deadman:=true \
+  enable_debug_viz:=true
 ```
 
 Switch to MAVROS RC override backend:

@@ -91,3 +91,105 @@ def compute_depth_median(depth_img: np.ndarray, u: float, v: float, w: float, h:
         return float('nan')
 
     return float(np.median(depth_m[valid]))
+
+
+def compute_representative_depth_near_uv_median(
+    depth_img: np.ndarray,
+    u: float,
+    v: float,
+    w: float,
+    h: float,
+    *,
+    min_depth_m: float = 0.2,
+    max_depth_m: float = 20.0,
+    min_valid_points: int = 20,
+    num_nearest_points: int = 25,
+    max_search_radius_px: float = 40.0,
+    use_uv_median_depth: bool = True,
+    mask_img: Optional[np.ndarray] = None,
+    mask_threshold: int = 1,
+) -> Tuple[float, float, float, int]:
+    """Compute representative (u,v,z) from bbox ROI using local median depth near UV median.
+
+    Returns:
+      (u_rep, v_rep, z_rep_m, valid_points_in_roi). NaNs if insufficient valid points.
+    """
+    if depth_img is None:
+        return float('nan'), float('nan'), float('nan'), 0
+
+    img_h, img_w = depth_img.shape[:2]
+    x0 = int(max(0, min(img_w - 1, round(u - 0.5 * w))))
+    y0 = int(max(0, min(img_h - 1, round(v - 0.5 * h))))
+    x1 = int(max(0, min(img_w, round(u + 0.5 * w))))
+    y1 = int(max(0, min(img_h, round(v + 0.5 * h))))
+    if x1 <= x0 or y1 <= y0:
+        return float('nan'), float('nan'), float('nan'), 0
+
+    roi = depth_img[y0:y1, x0:x1]
+    if roi.size == 0:
+        return float('nan'), float('nan'), float('nan'), 0
+
+    if np.issubdtype(roi.dtype, np.integer):
+        depth_m = roi.astype(np.float32) * 1e-3
+    else:
+        depth_m = roi.astype(np.float32)
+
+    valid = np.isfinite(depth_m) & (depth_m > 0.0) & (depth_m >= float(min_depth_m)) & (
+        depth_m <= float(max_depth_m)
+    )
+
+    if mask_img is not None:
+        if mask_img.shape[:2] == depth_img.shape[:2]:
+            mask_roi = mask_img[y0:y1, x0:x1]
+            valid &= mask_roi >= int(mask_threshold)
+
+    if not np.any(valid):
+        return float('nan'), float('nan'), float('nan'), 0
+
+    yy, xx = np.indices((y1 - y0, x1 - x0))
+    u_all = xx.astype(np.float32) + float(x0)
+    v_all = yy.astype(np.float32) + float(y0)
+
+    u_valid = u_all[valid]
+    v_valid = v_all[valid]
+    z_valid = depth_m[valid]
+    valid_count = int(z_valid.size)
+
+    if valid_count < int(min_valid_points):
+        return float('nan'), float('nan'), float('nan'), valid_count
+
+    u_med = float(np.median(u_valid))
+    v_med = float(np.median(v_valid))
+
+    if not use_uv_median_depth:
+        return u_med, v_med, float(np.median(z_valid)), valid_count
+
+    du = u_valid - u_med
+    dv = v_valid - v_med
+    dist2 = du * du + dv * dv
+
+    if max_search_radius_px > 0.0:
+        within = dist2 <= float(max_search_radius_px) ** 2
+    else:
+        within = np.ones_like(dist2, dtype=bool)
+
+    if np.any(within):
+        candidate_idx = np.where(within)[0]
+    else:
+        candidate_idx = np.arange(valid_count, dtype=np.int64)
+
+    if candidate_idx.size == 0:
+        return float('nan'), float('nan'), float('nan'), valid_count
+
+    k = max(1, int(num_nearest_points))
+    if candidate_idx.size > k:
+        d = dist2[candidate_idx]
+        k_small = np.argpartition(d, k - 1)[:k]
+        sel_idx = candidate_idx[k_small]
+    else:
+        sel_idx = candidate_idx
+
+    u_rep = float(np.median(u_valid[sel_idx]))
+    v_rep = float(np.median(v_valid[sel_idx]))
+    z_rep = float(np.median(z_valid[sel_idx]))
+    return u_rep, v_rep, z_rep, valid_count

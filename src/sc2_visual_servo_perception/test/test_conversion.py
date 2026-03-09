@@ -3,7 +3,11 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from sc2_visual_servo_perception.conversion import compute_depth_median, select_best_detection
+from sc2_visual_servo_perception.conversion import (
+    compute_depth_median,
+    compute_representative_depth_near_uv_median,
+    select_best_detection,
+)
 
 
 def _make_det(cls_id: str, score: float, u: float = 320.0, v: float = 240.0):
@@ -41,3 +45,47 @@ def test_compute_depth_median_no_valid_returns_nan():
     depth = np.zeros((4, 4), dtype=np.float32)
     val = compute_depth_median(depth, u=2, v=2, w=2, h=2)
     assert math.isnan(val)
+
+
+def test_representative_depth_uses_uv_median_neighborhood():
+    depth = np.full((11, 11), 5000, dtype=np.uint16)
+    depth[4:7, 4:7] = 1200
+
+    u_rep, v_rep, z_rep, count = compute_representative_depth_near_uv_median(
+        depth,
+        u=5.0,
+        v=5.0,
+        w=11.0,
+        h=11.0,
+        min_depth_m=0.2,
+        max_depth_m=20.0,
+        min_valid_points=10,
+        num_nearest_points=9,
+        max_search_radius_px=3.0,
+        use_uv_median_depth=True,
+    )
+    assert count >= 10
+    assert abs(u_rep - 5.0) <= 1.0
+    assert abs(v_rep - 5.0) <= 1.0
+    assert abs(z_rep - 1.2) < 1e-3
+
+
+def test_representative_depth_respects_min_valid_points():
+    depth = np.zeros((7, 7), dtype=np.uint16)
+    depth[3, 3] = 1000
+
+    _, _, z_rep, count = compute_representative_depth_near_uv_median(
+        depth,
+        u=3.0,
+        v=3.0,
+        w=7.0,
+        h=7.0,
+        min_depth_m=0.2,
+        max_depth_m=20.0,
+        min_valid_points=5,
+        num_nearest_points=3,
+        max_search_radius_px=2.0,
+        use_uv_median_depth=True,
+    )
+    assert count == 1
+    assert math.isnan(z_rep)

@@ -1,6 +1,7 @@
 import math
 from typing import Optional
 
+from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 import rclpy
 from rclpy.node import Node
@@ -24,14 +25,24 @@ except Exception:
 
 
 class VisualServoControllerNode(Node):
+    @staticmethod
+    def _as_bool(value) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+        return bool(value)
+
     def __init__(self):
         super().__init__('visual_servo_controller_node')
 
         self.declare_parameter('target_topic', '/sc2/visual_servo/target_obs')
+        self.declare_parameter('grasp_pose_topic', '/sc2/visual_servo/grasp_pose')
         self.declare_parameter('cmd_topic', '/sc2/visual_servo/cmd_vel_body')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('body_frame_id', 'base_link')
         self.declare_parameter('timeout_ms', 500)
+        self.declare_parameter('grasp_timeout_ms', 500)
         self.declare_parameter('rate_hz', 20.0)
         self.declare_parameter('controller_mode', 'ibvs')
 
@@ -49,6 +60,10 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('bbox_use_vy', True)
         self.declare_parameter('bbox_use_vz', True)
         self.declare_parameter('bbox_stop_area_px', 18000.0)
+        self.declare_parameter('k_grasp_distance', 0.6)
+        self.declare_parameter('desired_grasp_distance_m', 0.6)
+        self.declare_parameter('grasp_distance_mode', 'z')
+        self.declare_parameter('require_grasp_pose', False)
 
         self.declare_parameter('max_vx', 0.4)
         self.declare_parameter('max_vy', 0.3)
@@ -65,12 +80,14 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('cy_px', 360.0)
 
         self._target_topic = str(self.get_parameter('target_topic').value)
+        self._grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
+        self._grasp_timeout_sec = float(self.get_parameter('grasp_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
-        if self._controller_mode not in {'ibvs', 'bbox_approach', 'mppi'}:
+        if self._controller_mode not in {'ibvs', 'bbox_approach', 'bbox_grasp', 'mppi'}:
             self.get_logger().warn(f'Unknown controller_mode={self._controller_mode}; falling back to ibvs')
             self._controller_mode = 'ibvs'
 
@@ -109,23 +126,33 @@ class VisualServoControllerNode(Node):
             k_depth=float(self.get_parameter('k_depth').value),
             k_area=float(self.get_parameter('k_area').value),
             k_yaw=float(self.get_parameter('k_yaw').value),
-            use_vy=bool(self.get_parameter('bbox_use_vy').value),
-            use_vz=bool(self.get_parameter('bbox_use_vz').value),
+            use_vy=self._as_bool(self.get_parameter('bbox_use_vy').value),
+            use_vz=self._as_bool(self.get_parameter('bbox_use_vz').value),
         )
 
         self._fx = float(self.get_parameter('fx_px').value)
         self._fy = float(self.get_parameter('fy_px').value)
         self._cx = float(self.get_parameter('cx_px').value)
         self._cy = float(self.get_parameter('cy_px').value)
+        self._k_grasp_dist = float(self.get_parameter('k_grasp_distance').value)
+        self._desired_grasp_dist = float(self.get_parameter('desired_grasp_distance_m').value)
+        self._grasp_dist_mode = str(self.get_parameter('grasp_distance_mode').value).strip().lower()
+        if self._grasp_dist_mode not in {'z', 'euclidean'}:
+            self.get_logger().warn(f'Invalid grasp_distance_mode={self._grasp_dist_mode}, using z')
+            self._grasp_dist_mode = 'z'
+        self._require_grasp_pose = self._as_bool(self.get_parameter('require_grasp_pose').value)
 
         self._latest_obs: Optional[TargetObservation] = None
+        self._latest_grasp: Optional[PoseStamped] = None
         self._last_obs_time = self.get_clock().now()
+        self._last_grasp_time = self.get_clock().now()
         self._last_tick_time = self.get_clock().now()
         self._last_cmd = (0.0, 0.0, 0.0, 0.0)
 
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self.create_subscription(TargetObservation, self._target_topic, self._obs_cb, 10)
+        self.create_subscription(PoseStamped, self._grasp_pose_topic, self._grasp_cb, 10)
 
         self._mppi = self._build_mppi_if_enabled()
         rate_hz = float(self.get_parameter('rate_hz').value)
@@ -191,6 +218,10 @@ class VisualServoControllerNode(Node):
         self._latest_obs = msg
         self._last_obs_time = self.get_clock().now()
 
+    def _grasp_cb(self, msg: PoseStamped) -> None:
+        self._latest_grasp = msg
+        self._last_grasp_time = self.get_clock().now()
+
     def _publish_status(self, text: str) -> None:
         msg = String()
         msg.data = text
@@ -235,6 +266,7 @@ class VisualServoControllerNode(Node):
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
+        dt_grasp = (now - self._last_grasp_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
 
@@ -264,6 +296,32 @@ class VisualServoControllerNode(Node):
             vx, vy, vz, yaw = compute_bbox_approach_command(obs, self._bbox_cfg)
             self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
             self._publish_status('TRACKING_BBOX_APPROACH')
+            return
+
+        if self._controller_mode == 'bbox_grasp':
+            # Keep bbox centering behavior for lateral/vertical/yaw channels.
+            vx, vy, vz, yaw = compute_bbox_approach_command(obs, self._bbox_cfg)
+
+            has_grasp = self._latest_grasp is not None and dt_grasp <= self._grasp_timeout_sec
+            if has_grasp:
+                gp = self._latest_grasp.pose.position
+                if self._grasp_dist_mode == 'euclidean':
+                    grasp_dist = math.sqrt(gp.x * gp.x + gp.y * gp.y + gp.z * gp.z)
+                else:
+                    grasp_dist = gp.z
+                vx = self._k_grasp_dist * (grasp_dist - self._desired_grasp_dist)
+                self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
+                self._publish_status('TRACKING_BBOX_GRASP')
+                return
+
+            if self._require_grasp_pose:
+                self._publish_cmd_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+                self._publish_status('NO_GRASP_TIMEOUT')
+                return
+
+            # Fallback: keep legacy bbox-only approach when grasp estimate is missing.
+            self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
+            self._publish_status('TRACKING_BBOX_GRASP_FALLBACK')
             return
 
         vx, vy, vz, yaw = compute_ibvs_command(obs, self._cfg)
