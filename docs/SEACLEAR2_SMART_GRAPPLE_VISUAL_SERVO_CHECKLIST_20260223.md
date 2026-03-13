@@ -1,8 +1,12 @@
 # SeaClear2.0 — Smart Grapple Visual Servoing
 ## At-a-glance Implementation Checklist (as of 2026-02-22, prepared for 2026-02-23 sync)
 
-This is a **quick status checklist** (`DONE`/`PARTIAL`/`NOT_STARTED`) intended for weekly progress tracking and "what's blocking MVP?" decisions.
-It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`).
+Scope: active status tracker for the visual-servo MVP and controller integration work.
+Source of truth: use this file for weekly progress and blocker tracking.
+Last updated: 2026-03-13
+Supersedes: routine updates previously added to `SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`, now archived under `docs/archive/2026Q1/`.
+
+This is the primary status checklist (`DONE`/`PARTIAL`/`NOT_STARTED`) for weekly progress tracking and "what's blocking MVP?" decisions.
 
 ### Status legend
 - `DONE`: implemented and runnable in a repeatable way.
@@ -27,12 +31,12 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 ## 1) MVP readiness gates (one-glance)
 | Gate | What “DONE” means | Current status | Primary blocker / next action |
 |---|---|---:|---|
-| G1. Perception output for VS | ROS2 publishes: bbox (target) + depth-to-target (or proxy) at ≥ ~10 Hz | PARTIAL | YOLO bbox is present in ROS2 stack; VS-consumable message/API not standardized yet (define one topic/message + minimal test publisher). |
-| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | PROTOTYPE+INTEGRATION_NEEDED | Controller exists in legacy sim (MPPI/VS); needs “ROS2 wrapper” and input adaptation (bbox-based features). |
-| G3. Plant interface | Commands actually move the vehicle in sim and (later) BlueROV | PROTOTYPE | Sim path exists; BlueROV interface & safety gating still to do (rate limits, deadman, mode switching). |
-| G4. Frame conventions | Camera optical frame ↔ body frame mapping is defined & tested (TF sanity) | INTEGRATION_NEEDED | Need a single “authoritative TF contract” and unit tests (sign conventions kill VS silently). |
-| G5. “One-command demo” | One launch command that brings up **perception + VS + visualization** | NOT_STARTED | Compose minimal launch + parameter file + README steps. |
-| G6. Regression harness | Record/replay (rosbag) + plots to verify convergence | NOT_STARTED | Add bag + offline evaluation script (bbox trajectory, command saturation, time-to-center). |
+| G1. Perception output for VS | ROS2 publishes: bbox (target) + depth-to-target (or proxy) at ≥ ~10 Hz | IN_PROGRESS | `TargetObservation` is standardized and observer wiring exists; remaining blocker is stable real detection-topic/inference bringup. |
+| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | VERIFIED | ROS2 controller node supports `ibvs`, `bbox_approach`, `bbox_grasp`, and optional `mppi` fallback. |
+| G3. Plant interface | Commands actually move the vehicle in sim and (later) BlueROV | IN_PROGRESS | Sim and MAVROS bridge paths exist; remaining work is hardware validation and operator workflow hardening. |
+| G4. Frame conventions | Camera optical frame ↔ body frame mapping is defined & tested (TF sanity) | IN_PROGRESS | Topic/frame contract is documented, but hardware-validated TF/sign checks are still pending. |
+| G5. “One-command demo” | One launch command that brings up **perception + VS + visualization** | VERIFIED | `mvp_sim.launch.py` and `blue_rov_synth_vs.launch.py` bring up end-to-end graphs with optional debug markers. |
+| G6. Regression harness | Record/replay (rosbag) + plots to verify convergence | IN_PROGRESS | Bag record/play and explicit pytest integration checks exist; offline convergence plotting is still pending. |
 
 ---
 
@@ -43,19 +47,19 @@ It complements the deeper status memo (`SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STA
 |---|---|---:|---|
 | P1. Stereo RGBD source | Stereo camera provides RGB + depth (aligned or alignable) | PARTIAL | OAK-D pipeline exists; “stable mode” is constrained (stereo-only baseline is stable; richer modes trigger failures) — treat as *integration risk*. |
 | P2. YOLO detection | YOLOv8 outputs bbox for litter objects | PARTIAL | Implemented in ROS2 workspace (needs confirmation on underwater dataset + runtime). D5.2 expects bbox as the main VS cue. |
-| P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | Implemented/partially present; must confirm topic contract and that depth is aligned with RGB. |
+| P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | VS path currently uses bbox-ROI depth statistics; mask-based gating exists for grasp-pose estimation but is not the default observer path. |
 | P4. Voxel/TSDF map (optional for MVP) | TSDF-based voxel reconstruction around target ROI | OPTIONAL | Valuable later; **not required** for MVP VS loop. D5.2 describes it for geometry/obstacles. |
 | P5. Monitoring | Foxglove/Gstreamer monitoring of RGB+bbox+map | PARTIAL | Present in concept; ensure a "demo panel" exists for debugging. |
 
 ### 2.2 Visual servo controller (what winter school proposes)
 | Item | Requirement | Status | Notes |
 |---|---|---:|---|
-| C1. IBVS core | Feature error from image → velocity command (camera-centric) | PROTOTYPE+INTEGRATION_NEEDED | Planned starting point. |
+| C1. IBVS core | Feature error from image → velocity command (camera-centric) | VERIFIED | Implemented in ROS2 controller node and used as the default MVP mode. |
 | C2. IBVS 2½D variant | Use augmented feature incl. depth log-term for robustness | NOT_STARTED | In slides; not yet integrated. |
-| C3. MPC/MPPI with FOV constraint | Constrain bbox center within image bounds (probabilistic margin) | PROTOTYPE | Legacy sim controller is MPPI-style; needs "FOV constraint port" and tests. |
+| C3. MPC/MPPI with FOV constraint | Constrain bbox center within image bounds (probabilistic margin) | PROTOTYPE | MPPI core contains FOV/risk-cost utilities, but the shipped ROS2 configuration uses `risk_mode=none` and does not enable probabilistic constraints by default. |
 | C4. PBVS option | Use vSLAM pose (camera frame) when reliable | PARTIAL | Depends on stable vSLAM integration; planned switching policy exists conceptually. |
 | C5. IBVS↔PBVS switching | Switch based on map convergence / tracking loss / uncertainty | NOT_STARTED | Not yet implemented as a state/guard. |
-| C6. Command shaping | Saturation, smoothing, deadband, integrator windup guards | PROTOTYPE | Exists in legacy; must be made explicit in ROS2 stack for safety. |
+| C6. Command shaping | Saturation, smoothing, deadband, integrator windup guards | VERIFIED | Saturation, timeout-to-zero, and slew-rate limiting are implemented in the ROS2 stack; integral control is not used in the current MVP controller. |
 
 ### 2.3 State machine / transitions (D5.2 integration expectation)
 | Item | Requirement | Status | Notes |
@@ -85,7 +89,7 @@ This section is the current baseline for implementation status and replaces stan
 | B1. Connect YOLO bbox topic to VS input | In Progress | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`, `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Wiring exists via `use_stub_target:=false`; detection topic stabilization remains deferred. |
 | B2. Depth-to-target estimation in consistent units | Verified | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`, `src/sc2_visual_servo_perception/sc2_visual_servo_perception/grasp_pose_estimator_node.py` | ROI median and UV-median-neighborhood representative depth are implemented. |
 | B3. FOV constraint (hard/probabilistic) | In Progress | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/pbvs/mppi_core.py` | FOV/risk cost exists in MPPI core; not default path in MVP IBVS mode. |
-| B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py` | Record/replay and integration tests exist; offline convergence plotting is still pending. |
+| B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py` | Record/replay and perception-side integration tests exist; offline convergence plotting is still pending. |
 
 ### Phase C (Week 5-6): Pilot on BlueROV (minimum safe integration)
 | Item | Current status | Implementation path(s) | Notes |
@@ -111,8 +115,8 @@ This section is the current baseline for implementation status and replaces stan
 
 ## 6) Sources used for this checklist
 - `docs/SC2/20251225_D5_2_Control_Overhaul_SC2.pdf`
-- `docs/implementation_goal/winter school_v3.pdf`
-- `docs/SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`
+- `docs/reference/implementation_goal/winter school_v3.pdf`
+- `docs/archive/2026Q1/SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md`
 
 ---
 
@@ -138,7 +142,7 @@ Owner: SC2 visual-servo team
 Status: In Progress
 Evidence:
 - Unit tests: `src/sc2_visual_servo_perception/test/test_conversion.py`, `src/sc2_visual_servo_controller/test/test_controller_sign.py`
-- Integration test: `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`
+- Integration tests: `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py`
 - Rosbag scripts: `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`
 Owner: SC2 visual-servo team
 

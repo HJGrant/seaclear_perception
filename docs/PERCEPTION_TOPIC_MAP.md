@@ -1,5 +1,10 @@
 # SC2 Visual Servo Perception Topic Map
 
+Scope: active topic contract for `target_observer_node` and related perception inputs.
+Source of truth: use this file when wiring detections, depth, or bag replay into the MVP pipeline.
+Last updated: 2026-03-13
+Supersedes: topic snippets previously spread across status/debug notes.
+
 This map documents the practical perception topics used by visual-servo MVP (`use_stub_target:=false`).
 
 ## How to inspect on your system

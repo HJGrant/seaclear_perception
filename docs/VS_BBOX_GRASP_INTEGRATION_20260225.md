@@ -1,5 +1,10 @@
 # Visual Servo BBox+Grasp Integration (2026-02-25)
 
+Scope: active design note for bbox+depth ROI to grasp-pose integration in the MVP stack.
+Source of truth: use this file for current grasp-pose input assumptions, tunable parameters, and integration boundaries.
+Last updated: 2026-03-13
+Supersedes: exploratory implementation notes previously mixed into status/debug documents.
+
 ## Scope
 
 This note records:
@@ -119,10 +124,12 @@ ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
 
 - Conversion unit tests:
   - `src/sc2_visual_servo_perception/test/test_conversion.py`
+- Target observer integration test:
+  - `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`
 - Grasp estimator integration test:
   - `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py`
 - Explicit pytest execution list updated:
-  - `scripts/colcon_test_venv.sh`
+  - `scripts/colcon_test_venv.sh` runs controller-sign, conversion, target-observer, and grasp-estimator checks after `colcon test`
 
 ## Future Filter Note (not implemented in this change)
 

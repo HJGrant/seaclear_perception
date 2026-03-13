@@ -1,6 +1,10 @@
 # SeaClear2.0 — Smart Grapple Visual Servoing
 ## Status & Gap Analysis (as of 2026-02-22, prepared for 2026-02-23 sync)
 
+Archive note: this memo is preserved for historical context only.
+Current source of truth for progress tracking is `docs/SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_CHECKLIST_20260223.md`.
+Some internal path references in this file reflect the repository layout at the time it was written.
+
 **Scope of this document**: consolidate what is implemented vs. what is described/planned, across:
 - **D5.2 “Report on Smart Grapple Software Framework”** (`20251225_D5_2_Control_Overhaul_SC2.pdf`)
 - **Winter school slides** (`winter school_v3.pdf`)
@@ -64,10 +68,10 @@ This section lists concrete code assets and their maturity.
 - Includes static TF publishers and image_transport republish nodes.
 
 5) **Systematic debug + test matrix**
-- `docs/status/PROJECT_STATUS_OAKD_VSLAM.md`
-- `docs/status/TEST_MATRIX.md`
-- `docs/worklogs/WORKLOG_20260223.md`
-- `docs/OAKD_VSLAM_DEBUG_NOTES.md` with a parameter-integrity audit and staged YAMLs.
+- `docs/oakd-vslam/PROJECT_STATUS_OAKD_VSLAM.md`
+- `docs/oakd-vslam/TEST_MATRIX.md`
+- `docs/oakd-vslam/WORKLOG_20260223.md`
+- `docs/oakd-vslam/OAKD_VSLAM_DEBUG_NOTES.md` with a parameter-integrity audit and staged YAMLs.
 
 #### 2.1.2 What is *not* implemented here yet (relative to visual servoing)
 - **No ROS2 visual-servo controller node** (no node that outputs `cmd_vel` / `Twist` or equivalent from detections/depth).
@@ -510,7 +514,7 @@ Acceptance criteria:
 ### Action 2: Execute pipeline health checks (exposure + stability)
 Status: In Progress
 Evidence target:
-- Collected logs/metrics from `docs/PIPELINE_HEALTHCHECK.md` command set.
+- Collected logs/metrics from `docs/oakd-vslam/PIPELINE_HEALTHCHECK.md` command set.
 Acceptance criteria:
 - Exposure and stability gates reach "Verified" for at least one reproducible run profile.
 
