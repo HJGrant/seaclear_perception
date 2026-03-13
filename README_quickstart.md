@@ -104,15 +104,15 @@ ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py controller_mode:=mppi
 ```
 If MPPI dependencies are not available at runtime, node falls back to `ibvs`.
 
-## 6) Optional: bbox + grasp-pose mode (bbox_depth_roi)
+## 6) Optional: bbox + target-point mode (bbox_depth_roi)
 
-Enable grasp-pose estimation from bbox ROI depth and run controller mode `bbox_grasp`:
+Enable target-point estimation from bbox ROI depth and run controller mode `bbox_target_point`:
 
 ```bash
 ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
   use_stub_target:=false \
-  controller_mode:=bbox_grasp \
-  enable_grasp_pose_estimator:=true \
+  controller_mode:=bbox_target_point \
+  enable_target_point_estimator:=true \
   depth_topic:=/oak/stereo/image_raw \
   min_valid_points:=20 \
   max_search_radius_px:=40.0
@@ -123,10 +123,10 @@ Key tuning switches for field validation:
 - `max_search_radius_px` (N-point search radius near `(u_med, v_med)`)
 - `use_mask_gating` + `mask_topic` (gate ROI by mask image)
 - `hold_last_valid` / `max_hold_ms` (temporary dropout handling)
-- `require_grasp_pose` (controller hard-stop if grasp pose is missing)
+- `require_target_point` (controller hard-stop if target point is missing)
 
 Design note and detailed investigation are documented in:
-- `docs/VS_BBOX_GRASP_INTEGRATION_20260225.md`
+- `docs/VS_BBOX_TARGET_POINT_INTEGRATION_20260225.md`
 
 ## 7) Run tests (venv + colcon)
 

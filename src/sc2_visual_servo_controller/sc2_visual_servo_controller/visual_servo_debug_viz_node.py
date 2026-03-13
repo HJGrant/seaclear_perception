@@ -16,8 +16,10 @@ class VisualServoDebugVizNode(Node):
 
         self.declare_parameter('target_topic', '/sc2/visual_servo/target_obs')
         self.declare_parameter('cmd_topic', '/sc2/visual_servo/cmd_vel_body')
-        self.declare_parameter('grasp_pose_topic', '/sc2/visual_servo/grasp_pose')
+        self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
+        self.declare_parameter('grasp_pose_topic', '')
         self.declare_parameter('markers_topic', '/sc2/visual_servo/debug_markers')
+        self.declare_parameter('use_target_point', True)
         self.declare_parameter('use_grasp_pose', True)
 
         self.declare_parameter('image_width', 1280.0)
@@ -35,9 +37,20 @@ class VisualServoDebugVizNode(Node):
 
         self._target_topic = str(self.get_parameter('target_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
-        self._grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
+        self._target_point_topic = str(self.get_parameter('target_point_topic').value)
+        legacy_grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
         self._markers_topic = str(self.get_parameter('markers_topic').value)
-        self._use_grasp_pose = self._as_bool(self.get_parameter('use_grasp_pose').value)
+        self._use_target_point = self._as_bool(self.get_parameter('use_target_point').value)
+        if self._as_bool(self.get_parameter('use_grasp_pose').value) != self._use_target_point:
+            self.get_logger().warn(
+                'Parameter use_grasp_pose is deprecated; use use_target_point instead.'
+            )
+            self._use_target_point = self._as_bool(self.get_parameter('use_grasp_pose').value)
+        if legacy_grasp_pose_topic:
+            self.get_logger().warn(
+                'Parameter grasp_pose_topic is deprecated; use target_point_topic instead.'
+            )
+            self._target_point_topic = legacy_grasp_pose_topic
 
         self._img_w = float(self.get_parameter('image_width').value)
         self._img_h = float(self.get_parameter('image_height').value)
@@ -53,16 +66,16 @@ class VisualServoDebugVizNode(Node):
 
         self._latest_target: Optional[TargetObservation] = None
         self._latest_cmd: Optional[TwistStamped] = None
-        self._latest_grasp: Optional[PoseStamped] = None
+        self._latest_target_point: Optional[PoseStamped] = None
         self._last_target_time = self.get_clock().now()
         self._last_cmd_time = self.get_clock().now()
-        self._last_grasp_time = self.get_clock().now()
+        self._last_target_point_time = self.get_clock().now()
 
         self._pub = self.create_publisher(MarkerArray, self._markers_topic, 10)
         self.create_subscription(TargetObservation, self._target_topic, self._target_cb, 20)
         self.create_subscription(TwistStamped, self._cmd_topic, self._cmd_cb, 20)
-        if self._use_grasp_pose:
-            self.create_subscription(PoseStamped, self._grasp_pose_topic, self._grasp_cb, 20)
+        if self._use_target_point:
+            self.create_subscription(PoseStamped, self._target_point_topic, self._target_point_cb, 20)
 
         hz = max(1e-3, float(self.get_parameter('update_hz').value))
         self.create_timer(1.0 / hz, self._tick)
@@ -88,9 +101,9 @@ class VisualServoDebugVizNode(Node):
         self._latest_cmd = msg
         self._last_cmd_time = self.get_clock().now()
 
-    def _grasp_cb(self, msg: PoseStamped) -> None:
-        self._latest_grasp = msg
-        self._last_grasp_time = self.get_clock().now()
+    def _target_point_cb(self, msg: PoseStamped) -> None:
+        self._latest_target_point = msg
+        self._last_target_point_time = self.get_clock().now()
 
     def _is_fresh(self, last_time) -> bool:
         return (self.get_clock().now() - last_time).nanoseconds * 1e-9 <= self._timeout_sec
@@ -206,15 +219,15 @@ class VisualServoDebugVizNode(Node):
             )
             markers.markers.append(target_text)
 
-        if self._use_grasp_pose and self._latest_grasp is not None and self._is_fresh(self._last_grasp_time):
-            gp = self._latest_grasp
-            grasp_sphere = self._mk_base_marker(gp.header.frame_id, 'vs_grasp', 20, Marker.SPHERE)
-            grasp_sphere.pose.position = gp.pose.position
-            grasp_sphere.scale.x = 0.06
-            grasp_sphere.scale.y = 0.06
-            grasp_sphere.scale.z = 0.06
-            self._set_rgba(grasp_sphere, 1.0, 0.5, 0.1, 0.95)
-            markers.markers.append(grasp_sphere)
+        if self._use_target_point and self._latest_target_point is not None and self._is_fresh(self._last_target_point_time):
+            tp = self._latest_target_point
+            target_point_sphere = self._mk_base_marker(tp.header.frame_id, 'vs_target_point', 20, Marker.SPHERE)
+            target_point_sphere.pose.position = tp.pose.position
+            target_point_sphere.scale.x = 0.06
+            target_point_sphere.scale.y = 0.06
+            target_point_sphere.scale.z = 0.06
+            self._set_rgba(target_point_sphere, 1.0, 0.5, 0.1, 0.95)
+            markers.markers.append(target_point_sphere)
 
         if markers.markers:
             self._pub.publish(markers)

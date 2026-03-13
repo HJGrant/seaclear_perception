@@ -33,4 +33,4 @@ export PYTHONPATH="$PWD/install/lib/python3.10/site-packages:${PYTHONPATH:-}"
   src/sc2_visual_servo_controller/test/test_controller_sign.py \
   src/sc2_visual_servo_perception/test/test_conversion.py \
   src/sc2_visual_servo_perception/test/test_target_observer_integration.py \
-  src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py
+  src/sc2_visual_servo_perception/test/test_target_point_estimator_integration.py

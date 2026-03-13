@@ -20,7 +20,8 @@ setup(
     entry_points={
         'console_scripts': [
             'target_observer_node = sc2_visual_servo_perception.target_observer_node:main',
-            'grasp_pose_estimator_node = sc2_visual_servo_perception.grasp_pose_estimator_node:main',
+            'target_point_estimator_node = sc2_visual_servo_perception.target_point_estimator_node:main',
+            'grasp_pose_estimator_node = sc2_visual_servo_perception.target_point_estimator_node:main',
         ],
     },
 )
