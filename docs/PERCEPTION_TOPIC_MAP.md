@@ -30,7 +30,7 @@ ros2 topic hz /oak/rgb/image_raw
 
 | Topic | Message type | Producer path | frame_id convention | Approx frequency | Sync status |
 |---|---|---|---|---|---|
-| `/detections_output` | `vision_msgs/msg/Detection2DArray` | `src/oakd_isaac_ros/launch/tools/detection.launch.py` (YOLOv8 decoder) | Usually RGB optical frame (`oak_rgb_camera_optical_frame` or equivalent) | Typically lower than camera FPS; model-dependent (often ~5-30 Hz) | Not guaranteed hard-sync with depth by itself |
+| `/detections_output` | `vision_msgs/msg/Detection2DArray` | `src/oakd_isaac_ros/launch/tools/detection.launch.py` (detector decode path in current tree) | Usually RGB optical frame (`oak_rgb_camera_optical_frame` or equivalent) | Typically lower than camera FPS; model-dependent (often ~5-30 Hz) | Not guaranteed hard-sync with depth by itself |
 | `/oak/rgb/image_raw` | `sensor_msgs/msg/Image` | OAK-D camera pipeline (`launch/tools/camera.launch.py`) | RGB camera optical frame | Commonly ~30 Hz with current configs | Camera-native timestamp |
 | `/oak/rgb/image_raw_rgb8` | `sensor_msgs/msg/Image` | `src/oakd_isaac_ros/scripts/image_converter.py` | Same as RGB frame | Typically same as `/oak/rgb/image_raw` | Derived from RGB |
 | `/oak/rgb/camera_info` | `sensor_msgs/msg/CameraInfo` | OAK-D camera pipeline | RGB camera frame | Matches RGB image stream | Camera-native timestamp |
@@ -79,6 +79,12 @@ Observed:
 Operational guidance:
 - Mapping/remap names remain provisional and require colleague confirmation.
 - Do not block controller validation on detections availability; use stub/manual `TargetObservation` or rosbag path.
+- Also verify that the configured detection model files exist:
+  - `ls -lah /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear`
+  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx`
+  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan`
+- Team guidance indicates that the production detector is a teammate-maintained underwater model path rather than a generic off-the-shelf detector package.
+- A colleague pointed to `src/oakd_isaac_ros/launch/debug/object_detection.launch.py` as a possible reference path, but that file is not present in the current tree; treat the exact detection launch entry point as pending confirmation.
 
 Colleague-confirmed mapping placeholder:
 - Status: TBD

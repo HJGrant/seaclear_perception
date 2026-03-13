@@ -79,6 +79,18 @@ echo "Sourcing workspace install/setup.bash..." | tee -a "$LOGDIR/phase.log"
 source "$ROOT/scripts/source_workspace_env_safe.sh" install/setup.bash > >(tee -a "$LOGDIR/phase.log") 2>&1
 echo "Workspace environment sourced." | tee -a "$LOGDIR/phase.log"
 
+if [[ "$PROFILE" == "jetson_live" ]]; then
+  {
+    echo "=== model files ==="
+    ls -lah /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear 2>/dev/null || true
+    file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx 2>/dev/null || true
+    file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan 2>/dev/null || true
+    echo
+    echo "=== detection package hints from workspace ==="
+    find /workspaces/oakd_isaac_ros/src/oakd_isaac_ros/launch -maxdepth 2 -type f | sort | grep -E 'detection|object' || true
+  } | tee "$LOGDIR/perception_preflight.log"
+fi
+
 case "$PROFILE" in
   no_hw)
     LAUNCH_ARGS=(

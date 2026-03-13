@@ -215,3 +215,34 @@ Attach:
 - launch command,
 - exact commit hashes,
 - snapshot logs from `logs/oakd_diag/<run>/snapshots/`.
+
+## 10) Historical repository-local modifications to keep in mind
+
+These are not necessarily the root cause of the current detector / TensorRT failures, but they are repo-local deviations from `main` that should be remembered during future debugging.
+
+### 10.1 `oakd_nvblox.launch.py`: Foxglove compressed video block is commented out
+
+- File: `src/oakd_isaac_ros/launch/oakd_nvblox.launch.py:119`
+- Current state:
+  - The block that launches the Foxglove compressed video streaming node is wrapped in a triple-quoted comment.
+  - The commented block also shows a package-name substitution from `foxglove_compressed_video` to `foxglove_compressed_video_transport`.
+- Practical effect:
+  - `oakd_nvblox.launch.py` no longer starts that compressed-video helper.
+  - Foxglove users may still see standard image topics, but should not assume that the dedicated compressed-video stream is active.
+  - If a future debugging session expects `/oak/compressed_video` or related transport behavior, first confirm whether this commented block is intentional or should be restored.
+- Scope note:
+  - This change is outside the visual-servo MVP core path, but it can affect monitoring workflows and performance assumptions during OAK-D bringup.
+
+### 10.2 `Dockerfile.oakd`: apt update workaround was added
+
+- File: `my_ws/my_docker/Dockerfile.oakd:10`
+- Current state:
+  - The original plain `apt update && apt-get upgrade -y` step was replaced with:
+    - `rm -rf /var/lib/apt/lists/*`
+    - a `sed` command targeting `isaac.download.nvidia.com`
+    - `apt update && apt-get upgrade -y`
+  - The older line remains as a comment.
+- Practical effect:
+  - Container builds are no longer using the exact same apt bootstrap sequence as `main`.
+  - This workaround may be necessary for a specific mirror/index condition, but it also means image reproducibility differs from upstream assumptions.
+  - When debugging package availability issues, do not assume the container image matches a stock Isaac ROS dev image.
