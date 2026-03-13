@@ -208,7 +208,7 @@ For each run, record:
 ## 9) Upstream issue preparation
 
 If C (or a smaller diff) reproduces `double free`/`bad_alloc`, use:
-- `docs/upstream_issue_template_depthai_ros_driver.md`
+- `docs/oakd-vslam/upstream_issue_template_depthai_ros_driver.md`
 
 Attach:
 - minimal YAML,

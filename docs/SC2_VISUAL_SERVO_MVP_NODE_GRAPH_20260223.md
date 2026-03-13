@@ -1,5 +1,10 @@
 # SeaClear2 Smart Grapple — Visual Servo MVP (ROS2) Node Graph & I/F Map
 
+Scope: active architecture map for the current ROS 2 MVP pipeline.
+Source of truth: use this file for node/topic/interface relationships across launch modes.
+Last updated: 2026-03-13
+Supersedes: older ad hoc node-flow descriptions in status memos.
+
 > Purpose: make it **one-glance obvious** how the MVP pipeline is wired end-to-end (sensor/detection → controller → command),
 > and what to replace when moving from **stub sim** → **live perception** → **BlueROV**.
 
@@ -13,7 +18,7 @@ Launch files:
 - **Mode B: YOLO+Depth input → controller → cmd**
   - `use_stub_target:=false`
 - **Controller mode**
-  - `controller_mode:=ibvs` (default) or `controller_mode:=mppi`
+  - `controller_mode:=ibvs` (default), `bbox_approach`, `bbox_grasp`, or `mppi`
 - **BlueROV synthetic actuation check (detector-free)**
   - `ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py`
   - defaults: `controller_mode:=bbox_approach`, `mavros_backend:=rc_override`
@@ -28,8 +33,11 @@ flowchart LR
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| D["csv_logger_node<br/>(sc2_visual_servo_controller)"]
   A -->|/sc2/visual_servo/target_obs<br/>TargetObservation| D
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| E["cmd_vel_to_mavlink_stub<br/>(sc2_visual_servo_controller)"]
+  A -->|/sc2/visual_servo/target_obs<br/>TargetObservation| V["visual_servo_debug_viz_node<br/>(optional)"]
+  B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| V
   B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
   C -->|/sc2/visual_servo/fake_pose<br/>PoseStamped| G["/sc2/visual_servo/fake_pose"]
+  V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| H["/sc2/visual_servo/debug_markers"]
 ```
 
 ### 2.2 Perception-input mode (YOLO+Depth)
@@ -37,11 +45,18 @@ flowchart LR
 flowchart LR
   Y["/detections_output<br/>vision_msgs/Detection2DArray"] --> P["target_observer_node<br/>(sc2_visual_servo_perception)"]
   Z["/oak/stereo/image_raw<br/>sensor_msgs/Image"] --> P
+  Z --> G["grasp_pose_estimator_node<br/>(optional)"]
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| B["visual_servo_controller_node<br/>(sc2_visual_servo_controller)"]
+  P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| G
+  G -->|/sc2/visual_servo/grasp_pose<br/>PoseStamped| B
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| E["cmd_vel_to_mavlink_stub"]
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| D["csv_logger_node"]
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| D
+  P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| V["visual_servo_debug_viz_node<br/>(optional)"]
+  B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| V
+  G -->|/sc2/visual_servo/grasp_pose<br/>PoseStamped| V
   B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
+  V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| M["/sc2/visual_servo/debug_markers"]
 ```
 
 ### 2.3 BlueROV synthetic mode (detector-free)
@@ -53,6 +68,9 @@ flowchart LR
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| M["cmd_vel_to_mavros_bridge<br/>(dry_run / rc_override / setpoint_velocity)"]
   B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| D["csv_logger_node"]
+  S -->|/sc2/visual_servo/target_obs or /detections_output| V["visual_servo_debug_viz_node<br/>(optional)"]
+  B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| V
+  V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| G["/sc2/visual_servo/debug_markers"]
 ```
 
 ## 3) Data contracts (what flows between nodes)
@@ -79,7 +97,16 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 ### 3.3 `/sc2/visual_servo/status` — `std_msgs/String`
 - `NO_TARGET_TIMEOUT` when target is missing beyond timeout
-- `TRACKING_IBVS`, `TRACKING_BBOX_APPROACH`, or `TRACKING_MPPI`
+- `TRACKING_IBVS`, `TRACKING_BBOX_APPROACH`, `TRACKING_BBOX_GRASP`, `TRACKING_BBOX_GRASP_FALLBACK`, or `TRACKING_MPPI`
+- `NO_GRASP_TIMEOUT` when `bbox_grasp` requires grasp pose and no fresh grasp pose is available
+
+### 3.4 `/sc2/visual_servo/grasp_pose` — `geometry_msgs/PoseStamped`
+- Published only when `enable_grasp_pose_estimator:=true`
+- Camera-frame representative target point derived from bbox ROI depth statistics
+
+### 3.5 `/sc2/visual_servo/debug_markers` — `visualization_msgs/MarkerArray`
+- Published when `enable_debug_viz:=true`
+- Contains bbox panel marker, command vector marker, and optional grasp-point marker
 
 ## 4) What to replace when moving toward hardware
 
@@ -88,6 +115,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 **Replace with**:
 - `target_observer_node` (already implemented)
+- `grasp_pose_estimator_node` (optional, for `bbox_grasp`)
 - Provide correct topic names:
   - detections: `/detections_output` (or remap)
   - depth: `/oak/stereo/image_raw` (or remap)
@@ -107,7 +135,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 **Switch** using launch arg:
 - `controller_mode:=mppi`
 
-Note: MPPI requires `torch` at runtime; if unavailable, it falls back to `ibvs`.
+Note: MPPI requires `torch` and a finite depth estimate at runtime; otherwise the controller falls back to `ibvs`. The current default MPPI config does not enable risk/FOV penalty terms.
 
 ## 5) Verification protocol (what you must run to claim “works”)
 
@@ -131,8 +159,9 @@ Note: MPPI requires `torch` at runtime; if unavailable, it falls back to `ibvs`.
 ### 5.3 Tests (required to claim PR is clean)
 - Run:
   - `./scripts/colcon_test_venv.sh --packages-select sc2_visual_servo_perception sc2_visual_servo_controller sc2_visual_servo_bringup`
+- Current forced pytest subset covers controller sign checks plus `target_observer` and `grasp_pose_estimator` integration tests.
 
 ## 6) Known MVP caveats (intentional)
 - No SLAM dependency (by design).
-- Depth is bbox-ROI median (no mask yet).
+- Default observer depth is bbox-ROI median; grasp-pose estimation adds UV-median-neighborhood depth and optional mask gating.
 - BlueROV path is currently open-loop command validation via MAVROS bridge; closed-loop vehicle-state validation is not integrated yet.

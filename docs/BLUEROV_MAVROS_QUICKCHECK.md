@@ -1,5 +1,10 @@
 # BlueROV MAVROS Quickcheck (Synthetic Visual Servo)
 
+Scope: active runbook for synthetic visual-servo actuation checks through MAVROS/MAVLink.
+Source of truth: use this file for BlueROV rc_override and dry-run validation steps.
+Last updated: 2026-03-13
+Supersedes: scattered MAVROS quick-test notes in status and README drafts.
+
 ## Purpose
 
 Validate the end-to-end actuation path before stabilizing the real detector:
@@ -7,6 +12,7 @@ Validate the end-to-end actuation path before stabilizing the real detector:
 `synthetic bbox -> visual servo (bbox_approach) -> MAVROS/MAVLink -> vehicle command output`
 
 This flow is detector-free and does not depend on SLAM or `/BlueROV2/pose` feedback.
+The launch also starts `visual_servo_debug_viz_node` by default, which publishes `MarkerArray` on `/sc2/visual_servo/debug_markers` for quick visual inspection in RViz/Foxglove.
 
 Update note (what changed / why):
 - Added MAVROS dependency preflight via `scripts/ensure_ros_apt_deps.sh` to prevent silent rc_override fallback when `mavros_msgs` is missing.

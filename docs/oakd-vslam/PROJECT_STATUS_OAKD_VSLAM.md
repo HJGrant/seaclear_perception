@@ -75,4 +75,4 @@ src/oakd_isaac_ros/scripts/diag_oakd_run_and_monitor.sh \
 ```
 
 ## Artifacts
-- See `docs/attachments/` for zipped diagnosis logs and reference snapshots.
+- See `docs/oakd-vslam/attachments/` for zipped diagnosis logs and reference snapshots.

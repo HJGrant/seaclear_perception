@@ -1,5 +1,10 @@
 # SeaClear2 Visual Servo MVP Quickstart
 
+Scope: primary run/build/test entry point for the current visual-servo MVP workflow.
+Source of truth: use this file for reproducible commands; deeper design details live under `docs/`.
+Last updated: 2026-03-13
+Supersedes: duplicated command blocks in older status/debug notes.
+
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
 Perception topic map (live OAK-D / bag replay): `docs/PERCEPTION_TOPIC_MAP.md`.
 

@@ -14,10 +14,16 @@ oakd_isaac_ros/
 |-- pyproject.toml / uv.lock             # Python dependency management (uv)
 |-- scripts/                              # Workspace helper scripts (build/test/bag)
 |-- docs/                                 # Specifications, status, and investigation logs
-|   |-- SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_STATUS_20260223.md
 |   |-- SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_CHECKLIST_20260223.md
+|   |-- SC2_VISUAL_SERVO_MVP_NODE_GRAPH_20260223.md
 |   |-- PERCEPTION_TOPIC_MAP.md
-|   L-- PIPELINE_HEALTHCHECK.md
+|   |-- VS_BBOX_GRASP_INTEGRATION_20260225.md
+|   |-- archive/2026Q1/                   # Frozen historical notes no longer used for routine updates
+|   |-- oakd-vslam/                       # Lower-priority OAK-D/VSLAM debug and diagnostics
+|   |   |-- PROJECT_STATUS_OAKD_VSLAM.md
+|   |   |-- PIPELINE_HEALTHCHECK.md
+|   |   L-- OAKD_VSLAM_DEBUG_NOTES.md
+|   L-- reference/
 |-- src/                                  # ROS2 packages (main implementation area)
 |   |-- oakd_isaac_ros/                   # OAK-D + Isaac ROS integration (launch/config/C++ nodes)
 |   |   |-- launch/                       # Main launch files (nvblox, visual_slam, detection)
@@ -228,8 +234,8 @@ src/oakd_isaac_ros/scripts/diag_oakd_run_and_monitor.sh \
 
 Detailed notes and troubleshooting playbook:
 
-- `docs/OAKD_VSLAM_DEBUG_NOTES.md`
-- `docs/upstream_issue_template_depthai_ros_driver.md`
+- `docs/oakd-vslam/OAKD_VSLAM_DEBUG_NOTES.md`
+- `docs/oakd-vslam/upstream_issue_template_depthai_ros_driver.md`
 
 5. Notes
 
