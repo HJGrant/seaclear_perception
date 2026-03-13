@@ -1,0 +1,74 @@
+/oakd_camera:
+  ros__parameters:
+    camera:
+      i_nn_type: none
+      i_tf_base_frame: oak-d_frame
+      i_tf_parent_frame: oak-d-base-frame
+      i_pipeline_type: RGBD #Stereo #
+      i_enable_sync: true #false
+    nn:
+      i_nn_config_path: "" #depthai_ros_driver/mobilenet
+    pipeline_gen:
+      i_enable_diagnostics: true
+      i_enable_imu: false
+      i_enable_sync: false
+      i_enable_rgbd: false #true
+    left:
+      i_publish_topic: true
+      i_fps: 30.0
+      i_resolution: 400P
+      i_low_bandiwdth_frame_freq: 30
+      i_low_bandwidth: false
+      r_exposure: 10000
+      r_iso: 200
+      r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
+    right:
+      i_publish_topic: true
+      i_fps: 30.0
+      i_resolution: 400P
+      i_low_bandiwdth_frame_freq: 30
+      i_low_bandwidth: false
+      r_exposure: 10000
+      r_iso: 200
+      r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
+    rgb:
+      i_resolution: 1080P
+      i_fps: 30.0
+      i_low_bandiwdth_frame_freq: 60
+      i_low_bandwidth: true
+      i_low_bandwidth_bitrate: 0
+      i_low_bandwidth_ffmpeg_encoder: libx264
+      i_low_bandwidth_profile: 4
+      i_low_bandwidth_quality: 35
+      i_output_isp: true
+      i_isp_den: 3
+      i_isp_num: 2
+      i_enable: false # 
+    stereo:
+      i_publish_topic: true
+      i_publish_synced_rect_pair: false #true
+      i_low_bandwidth: false
+      i_align_depth: false #true
+      i_stereo_conf_threshold: 100
+      i_lr_check: true
+      i_subpixel: false #true
+      i_subpixel_fractional_bits: 3
+      i_enable_temporal_filter: true
+      i_temporal_filter_alpha: 0.1
+      i_temporal_filter_delta: 20
+      i_temporal_filter_persistency: VALID_2_IN_LAST_4
+      i_enable_speckle_filter: true
+      i_speckle_filter_speckle_range: 50
+      i_spatial_filter_hole_filling_radius: 2
+      i_spatial_filter_alpha: 0.5
+      i_spatial_filter_delta: 20
+      i_spatial_filter_iterations: 1
+      i_enable_decimation_filter: true
+      i_decimation_filter_decimation_mode: PIXEL_SKIPPING
+      i_decimation_filter_decimation_factor: 1
+      i_publish_left_rect: false #true
+      i_publish_right_rect: false #true
+      i_rectify: true
+      i_publish_depth: false
+      
+      

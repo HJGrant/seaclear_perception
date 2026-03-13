@@ -1,18 +1,16 @@
-/oakd_camera:
+/oak:
   ros__parameters:
     camera:
       i_nn_type: none
       i_tf_base_frame: oak-d_frame
       i_tf_parent_frame: oak-d-base-frame
-      i_pipeline_type: Stereo #RGBD #
-      i_enable_sync: true #false
+      i_pipeline_type: RGBD
     nn:
-      i_nn_config_path: "" #depthai_ros_driver/mobilenet
+      i_nn_config_path: depthai_ros_driver/mobilenet
     pipeline_gen:
-      i_enable_diagnostics: true
+      i_enable_diagnostics: false
       i_enable_imu: false
       i_enable_sync: false
-      i_enable_rgbd: false #true
     left:
       i_publish_topic: false
       i_fps: 10.0
@@ -45,7 +43,6 @@
       i_output_isp: false
       i_isp_den: 3
       i_isp_num: 2
-      i_enable: false # 
     stereo:
       i_publish_topic: true
       i_publish_synced_rect_pair: true
