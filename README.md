@@ -17,7 +17,7 @@ oakd_isaac_ros/
 |   |-- SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_CHECKLIST_20260223.md
 |   |-- SC2_VISUAL_SERVO_MVP_NODE_GRAPH_20260223.md
 |   |-- PERCEPTION_TOPIC_MAP.md
-|   |-- VS_BBOX_GRASP_INTEGRATION_20260225.md
+|   |-- VS_BBOX_TARGET_POINT_INTEGRATION_20260225.md
 |   |-- archive/2026Q1/                   # Frozen historical notes no longer used for routine updates
 |   |-- oakd-vslam/                       # Lower-priority OAK-D/VSLAM debug and diagnostics
 |   |   |-- PROJECT_STATUS_OAKD_VSLAM.md
