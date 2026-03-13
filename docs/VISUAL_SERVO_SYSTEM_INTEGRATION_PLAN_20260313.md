@@ -219,7 +219,7 @@ Conclusion:
 - Perception and controller pieces already exist in the repo.
 - The missing step is launch-level integration and a clear top-level workflow.
 
-## 8) Proposed `oakd_system.launch.py` design
+## 8) `oakd_system.launch.py` design and current implementation
 
 ### 8.1 Design principles
 
@@ -233,7 +233,7 @@ Conclusion:
   - `/sc2/visual_servo/cmd_vel_body`
 - Optional subsystems are controlled by launch arguments rather than separate ad hoc launch files.
 
-### 8.2 Proposed node set
+### 8.2 Implemented node set
 
 Always-on core:
 - camera include: `launch/tools/camera.launch.py`
@@ -249,18 +249,13 @@ Optional:
 - `launch/tools/nvblox.launch.py`
 - MAVROS bridge node
 - Foxglove bridge include
-- rosbag playback instead of live camera
 
-### 8.3 Recommended launch arguments
+### 8.3 Implemented launch arguments
 
 Perception side:
-- `use_rosbag`
-- `rosbag`
 - `run_oakd`
 - `enable_detection`
 - `enable_nvblox`
-- `mode`
-- `voxel_size`
 
 Visual-servo side:
 - `enable_visual_servo`
@@ -271,13 +266,13 @@ Visual-servo side:
 - `enable_target_point_estimator`
 - `use_mask_gating`
 - `mask_topic`
-- `cmd_backend`
+- `enable_mavros_bridge`
+- `mavros_backend`
 
 Visualization/logging:
 - `enable_debug_viz`
-- `enable_csv_logger`
 - `csv_path`
-- `run_foxglove`
+- `enable_visualization`
 
 ### 8.4 First integration target
 
@@ -304,17 +299,21 @@ Rationale:
 - nvblox is useful for keeping parity with the D5.2 perception pipeline,
 - the controller should not be blocked on TSDF availability.
 
-## 9) Recommended integration sequence
+## 9) Current implementation status
 
-1. Create `src/oakd_isaac_ros/launch/oakd_system.launch.py`.
-2. Reuse the current perception producers unchanged:
+Implemented:
+1. `src/oakd_isaac_ros/launch/oakd_system.launch.py` exists.
+2. It reuses the current perception producers unchanged:
    - `/detections_output`
    - `/oak/stereo/image_raw`
    - `/oak/stereo/camera_info`
    - optional `/camera0/detection/mask`
-3. Instantiate visual-servo nodes from the SC2 packages inside the new launch.
-4. Keep `enable_nvblox:=false` as an allowed path for controller bring-up.
-5. After the launch is working, promote it as the primary workflow in `README.md`.
+3. It instantiates the SC2 visual-servo nodes inside the new launch.
+4. `enable_nvblox:=false` is supported for controller bring-up without TSDF.
+
+Still pending:
+1. Colcon build and runtime verification in a ROS 2 Humble environment.
+2. Promote `oakd_system.launch.py` as the primary README workflow after runtime validation.
 
 ## 10) Non-goals for this phase
 

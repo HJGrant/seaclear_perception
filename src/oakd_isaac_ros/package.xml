@@ -28,6 +28,12 @@
   <depend>geometry_msgs</depend>
   <depend>message_filters</depend>
   <depend>foxglove_msgs</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>sc2_visual_servo_interfaces</exec_depend>
+  <exec_depend>sc2_visual_servo_perception</exec_depend>
+  <exec_depend>sc2_visual_servo_controller</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
