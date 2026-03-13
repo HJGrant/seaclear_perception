@@ -1,7 +1,7 @@
-# Visual Servo BBox+Grasp Integration (2026-02-25)
+# Visual Servo BBox+Target-Point Integration (2026-02-25)
 
-Scope: active design note for bbox+depth ROI to grasp-pose integration in the MVP stack.
-Source of truth: use this file for current grasp-pose input assumptions, tunable parameters, and integration boundaries.
+Scope: active design note for bbox+depth ROI to target-point integration in the MVP stack.
+Source of truth: use this file for current target-point input assumptions, tunable parameters, and integration boundaries.
 Last updated: 2026-03-13
 Supersedes: exploratory implementation notes previously mixed into status/debug documents.
 
@@ -9,7 +9,7 @@ Supersedes: exploratory implementation notes previously mixed into status/debug 
 
 This note records:
 - investigation findings for bbox/depth/mask wiring in this repository
-- implementation added for visual-servo grasp-pose input
+- implementation added for visual-servo target-point input
 - compatibility constraints and tunable parameters for field validation
 
 ## Investigation Summary
@@ -33,17 +33,22 @@ This note records:
 - `src/isaac_ros_nvblox/nvblox_ros/nvblox_core/nvblox/src/semantics/mask_from_detections.cu`
 
 However, the current OAK-D launch path relies on `publish_mask.cpp` mask topic wiring.
-For this reason, grasp-pose estimation is implemented with a robust bbox+depth ROI path (`bbox_depth_roi`) as the primary source mode.
+For this reason, target-point estimation is implemented with a robust bbox+depth ROI path (`bbox_depth_roi`) as the primary source mode.
+
+Important naming clarification:
+- The D5.2 "grasp pose" / gripping-points logic belongs to the final smart-grapple grasping stage.
+- The node described here does not produce that final grasp pose.
+- It produces a camera-frame representative target point for visual-servo approach control.
 
 ## Implemented Components
 
-### 1) Grasp pose estimation node (new)
+### 1) Target-point estimation node (new)
 
 - File:
-  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/grasp_pose_estimator_node.py`
+  - `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_point_estimator_node.py`
 - Role:
   - Input: `TargetObservation` + depth + camera_info (+ optional mask)
-  - Output: `/sc2/visual_servo/grasp_pose` (`geometry_msgs/PoseStamped`)
+  - Output: `/sc2/visual_servo/target_point` (`geometry_msgs/PoseStamped`)
 - Source mode:
   - `bbox_depth_roi` (implemented and default)
   - `nvblox_dynamic_points` (reserved for future; currently falls back to `bbox_depth_roi` with warning)
@@ -67,27 +72,27 @@ For this reason, grasp-pose estimation is implemented with a robust bbox+depth R
 - File:
   - `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py`
 - New mode:
-  - `controller_mode:=bbox_grasp`
+  - `controller_mode:=bbox_target_point`
 - Behavior:
   - Keep bbox centering behavior for `vy/vz/yaw`.
-  - Use grasp-pose distance for `vx` approach control.
-  - On missing grasp pose:
+  - Use target-point distance for `vx` approach control.
+  - On missing target point:
     - fallback to bbox-only behavior, or
-    - stop if `require_grasp_pose:=true`.
+    - stop if `require_target_point:=true`.
 
 ### 4) Launch integration (extended, backward-compatible)
 
 - File:
   - `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`
 - Added flags:
-  - `enable_grasp_pose_estimator` (default `false`)
-  - `grasp_pose_topic`, `grasp_status_topic`
+  - `enable_target_point_estimator` (default `false`)
+  - `target_point_topic`, `target_point_status_topic`
   - `min_valid_points`, `num_nearest_points`, `max_search_radius_px`
   - `use_mask_gating`, `mask_topic`
   - `hold_last_valid`, `max_hold_ms`
-  - `controller_grasp_timeout_ms`, `k_grasp_distance`, `desired_grasp_distance_m`, `require_grasp_pose`
+  - `controller_target_point_timeout_ms`, `k_target_distance`, `desired_target_distance_m`, `require_target_point`
 
-Default behavior remains unchanged when `enable_grasp_pose_estimator:=false`.
+Default behavior remains unchanged when `enable_target_point_estimator:=false`.
 
 ## Field-Tuning Parameters (On/Off and Safety)
 
@@ -104,8 +109,8 @@ Default behavior remains unchanged when `enable_grasp_pose_estimator:=false`.
   - `hold_last_valid`
   - `max_hold_ms`
 - Controller safety:
-  - `require_grasp_pose`
-  - `controller_grasp_timeout_ms`
+  - `require_target_point`
+  - `controller_target_point_timeout_ms`
   - existing velocity saturation/slew parameters
 
 ## Quick Run
@@ -113,8 +118,8 @@ Default behavior remains unchanged when `enable_grasp_pose_estimator:=false`.
 ```bash
 ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
   use_stub_target:=false \
-  controller_mode:=bbox_grasp \
-  enable_grasp_pose_estimator:=true \
+  controller_mode:=bbox_target_point \
+  enable_target_point_estimator:=true \
   depth_topic:=/oak/stereo/image_raw \
   min_valid_points:=20 \
   max_search_radius_px:=40.0
@@ -126,10 +131,10 @@ ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py \
   - `src/sc2_visual_servo_perception/test/test_conversion.py`
 - Target observer integration test:
   - `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`
-- Grasp estimator integration test:
-  - `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py`
+- Target-point estimator integration test:
+  - `src/sc2_visual_servo_perception/test/test_target_point_estimator_integration.py`
 - Explicit pytest execution list updated:
-  - `scripts/colcon_test_venv.sh` runs controller-sign, conversion, target-observer, and grasp-estimator checks after `colcon test`
+  - `scripts/colcon_test_venv.sh` runs controller-sign, conversion, target-observer, and target-point-estimator checks after `colcon test`
 
 ## Future Filter Note (not implemented in this change)
 

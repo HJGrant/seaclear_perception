@@ -10,12 +10,12 @@ from sc2_visual_servo_interfaces.msg import TargetObservation
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 
-from sc2_visual_servo_perception.grasp_pose_estimator_node import GraspPoseEstimatorNode
+from sc2_visual_servo_perception.target_point_estimator_node import TargetPointEstimatorNode
 
 
 class SyntheticInputs(Node):
     def __init__(self):
-        super().__init__('synthetic_grasp_pose_inputs')
+        super().__init__('synthetic_target_point_inputs')
         self._obs_pub = self.create_publisher(TargetObservation, '/test/grasp/target_obs', 10)
         self._depth_pub = self.create_publisher(Image, '/test/grasp/depth', 10)
         self._cam_pub = self.create_publisher(CameraInfo, '/test/grasp/camera_info', 10)
@@ -66,7 +66,7 @@ class SyntheticInputs(Node):
         self._obs_pub.publish(self._target_obs_msg())
 
 
-def test_grasp_pose_estimator_publishes_pose_from_bbox_depth_roi():
+def test_target_point_estimator_publishes_pose_from_bbox_depth_roi():
     rclpy.init()
     executor = MultiThreadedExecutor(num_threads=4)
 
@@ -75,7 +75,7 @@ def test_grasp_pose_estimator_publishes_pose_from_bbox_depth_roi():
         Parameter('target_obs_topic', value='/test/grasp/target_obs'),
         Parameter('depth_topic', value='/test/grasp/depth'),
         Parameter('camera_info_topic', value='/test/grasp/camera_info'),
-        Parameter('grasp_pose_topic', value='/test/grasp/pose'),
+        Parameter('target_point_topic', value='/test/target_point/pose'),
         Parameter('min_valid_points', value=10),
         Parameter('num_nearest_points', value=25),
         Parameter('max_search_radius_px', value=20.0),
@@ -83,17 +83,17 @@ def test_grasp_pose_estimator_publishes_pose_from_bbox_depth_roi():
         Parameter('hold_last_valid', value=False),
     ]
 
-    estimator = GraspPoseEstimatorNode(parameter_overrides=params)
+    estimator = TargetPointEstimatorNode(parameter_overrides=params)
 
     inputs = SyntheticInputs()
-    sink = Node('grasp_pose_sink')
+    sink = Node('target_point_sink')
 
     received = []
 
     def _pose_cb(msg):
         received.append(msg)
 
-    sink.create_subscription(PoseStamped, '/test/grasp/pose', _pose_cb, 10)
+    sink.create_subscription(PoseStamped, '/test/target_point/pose', _pose_cb, 10)
 
     executor.add_node(estimator)
     executor.add_node(inputs)

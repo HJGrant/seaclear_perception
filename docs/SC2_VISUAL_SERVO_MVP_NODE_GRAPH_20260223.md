@@ -18,7 +18,7 @@ Launch files:
 - **Mode B: YOLO+Depth input → controller → cmd**
   - `use_stub_target:=false`
 - **Controller mode**
-  - `controller_mode:=ibvs` (default), `bbox_approach`, `bbox_grasp`, or `mppi`
+  - `controller_mode:=ibvs` (default), `bbox_approach`, `bbox_target_point`, or `mppi`
 - **BlueROV synthetic actuation check (detector-free)**
   - `ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py`
   - defaults: `controller_mode:=bbox_approach`, `mavros_backend:=rc_override`
@@ -45,16 +45,16 @@ flowchart LR
 flowchart LR
   Y["/detections_output<br/>vision_msgs/Detection2DArray"] --> P["target_observer_node<br/>(sc2_visual_servo_perception)"]
   Z["/oak/stereo/image_raw<br/>sensor_msgs/Image"] --> P
-  Z --> G["grasp_pose_estimator_node<br/>(optional)"]
+  Z --> G["target_point_estimator_node<br/>(enabled only for bbox_target_point mode)"]
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| B["visual_servo_controller_node<br/>(sc2_visual_servo_controller)"]
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| G
-  G -->|/sc2/visual_servo/grasp_pose<br/>PoseStamped| B
+  G -->|/sc2/visual_servo/target_point<br/>PoseStamped| B
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| E["cmd_vel_to_mavlink_stub"]
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| D["csv_logger_node"]
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| D
   P -->|/sc2/visual_servo/target_obs<br/>TargetObservation| V["visual_servo_debug_viz_node<br/>(optional)"]
   B -->|/sc2/visual_servo/cmd_vel_body<br/>TwistStamped| V
-  G -->|/sc2/visual_servo/grasp_pose<br/>PoseStamped| V
+  G -->|/sc2/visual_servo/target_point<br/>PoseStamped| V
   B -->|/sc2/visual_servo/status<br/>String| F["/sc2/visual_servo/status"]
   V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| M["/sc2/visual_servo/debug_markers"]
 ```
@@ -97,16 +97,17 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 ### 3.3 `/sc2/visual_servo/status` — `std_msgs/String`
 - `NO_TARGET_TIMEOUT` when target is missing beyond timeout
-- `TRACKING_IBVS`, `TRACKING_BBOX_APPROACH`, `TRACKING_BBOX_GRASP`, `TRACKING_BBOX_GRASP_FALLBACK`, or `TRACKING_MPPI`
-- `NO_GRASP_TIMEOUT` when `bbox_grasp` requires grasp pose and no fresh grasp pose is available
+- `TRACKING_IBVS`, `TRACKING_BBOX_APPROACH`, `TRACKING_BBOX_TARGET_POINT`, `TRACKING_BBOX_TARGET_POINT_FALLBACK`, or `TRACKING_MPPI`
+- `NO_TARGET_POINT_TIMEOUT` when `bbox_target_point` requires a fresh target point and none is available
 
-### 3.4 `/sc2/visual_servo/grasp_pose` — `geometry_msgs/PoseStamped`
-- Published only when `enable_grasp_pose_estimator:=true`
+### 3.4 `/sc2/visual_servo/target_point` — `geometry_msgs/PoseStamped`
+- Published only when `enable_target_point_estimator:=true`
 - Camera-frame representative target point derived from bbox ROI depth statistics
+- This is a visual-servo target point, not the final smart-grapple grasp pose from D5.2 Section 5.4
 
 ### 3.5 `/sc2/visual_servo/debug_markers` — `visualization_msgs/MarkerArray`
 - Published when `enable_debug_viz:=true`
-- Contains bbox panel marker, command vector marker, and optional grasp-point marker
+- Contains bbox panel marker, command vector marker, and optional target-point marker
 
 ## 4) What to replace when moving toward hardware
 
@@ -115,7 +116,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 **Replace with**:
 - `target_observer_node` (already implemented)
-- `grasp_pose_estimator_node` (optional, for `bbox_grasp`)
+- `target_point_estimator_node` (enabled only when `controller_mode:=bbox_target_point` needs ROI-derived target depth)
 - Provide correct topic names:
   - detections: `/detections_output` (or remap)
   - depth: `/oak/stereo/image_raw` (or remap)
@@ -159,9 +160,9 @@ Note: MPPI requires `torch` and a finite depth estimate at runtime; otherwise th
 ### 5.3 Tests (required to claim PR is clean)
 - Run:
   - `./scripts/colcon_test_venv.sh --packages-select sc2_visual_servo_perception sc2_visual_servo_controller sc2_visual_servo_bringup`
-- Current forced pytest subset covers controller sign checks plus `target_observer` and `grasp_pose_estimator` integration tests.
+- Current forced pytest subset covers controller sign checks plus `target_observer` and `target_point_estimator` integration tests.
 
 ## 6) Known MVP caveats (intentional)
 - No SLAM dependency (by design).
-- Default observer depth is bbox-ROI median; grasp-pose estimation adds UV-median-neighborhood depth and optional mask gating.
+- Default observer depth is bbox-ROI median; target-point estimation adds UV-median-neighborhood depth and optional mask gating.
 - BlueROV path is currently open-loop command validation via MAVROS bridge; closed-loop vehicle-state validation is not integrated yet.

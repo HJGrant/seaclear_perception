@@ -161,7 +161,7 @@ def generate_launch_description():
                 'image_height': 720.0,
                 'target_u': 640.0,
                 'target_v': 360.0,
-                'use_grasp_pose': False,
+                'use_target_point': False,
                 'use_sim_time': use_sim_time,
             }],
         ),

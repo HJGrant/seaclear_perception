@@ -13,17 +13,18 @@ from std_msgs.msg import String
 from .conversion import compute_representative_depth_near_uv_median
 
 
-class GraspPoseEstimatorNode(Node):
+class TargetPointEstimatorNode(Node):
     def __init__(self, *, parameter_overrides=None):
-        super().__init__('grasp_pose_estimator_node', parameter_overrides=parameter_overrides)
+        super().__init__('target_point_estimator_node', parameter_overrides=parameter_overrides)
 
         self.declare_parameter('source_mode', 'bbox_depth_roi')
         self.declare_parameter('target_obs_topic', '/sc2/visual_servo/target_obs')
         self.declare_parameter('depth_topic', '/oak/stereo/image_raw')
         self.declare_parameter('camera_info_topic', '/oak/stereo/camera_info')
         self.declare_parameter('mask_topic', '')
-        self.declare_parameter('grasp_pose_topic', '/sc2/visual_servo/grasp_pose')
-        self.declare_parameter('status_topic', '/sc2/visual_servo/grasp_pose_status')
+        self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
+        self.declare_parameter('grasp_pose_topic', '')
+        self.declare_parameter('status_topic', '/sc2/visual_servo/target_point_status')
 
         self.declare_parameter('max_obs_age_ms', 300.0)
         self.declare_parameter('depth_min_m', 0.2)
@@ -57,8 +58,14 @@ class GraspPoseEstimatorNode(Node):
         self._depth_topic = str(self.get_parameter('depth_topic').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._mask_topic = str(self.get_parameter('mask_topic').value)
-        self._grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
+        self._target_point_topic = str(self.get_parameter('target_point_topic').value)
+        legacy_grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
+        if legacy_grasp_pose_topic:
+            self.get_logger().warn(
+                'Parameter grasp_pose_topic is deprecated; use target_point_topic instead.'
+            )
+            self._target_point_topic = legacy_grasp_pose_topic
 
         self._max_obs_age_ms = float(self.get_parameter('max_obs_age_ms').value)
         self._depth_min_m = float(self.get_parameter('depth_min_m').value)
@@ -88,7 +95,7 @@ class GraspPoseEstimatorNode(Node):
         self._last_valid_pose_time = self.get_clock().now()
         self._warn_timestamps: Dict[str, float] = {}
 
-        self._grasp_pub = self.create_publisher(PoseStamped, self._grasp_pose_topic, 10)
+        self._target_point_pub = self.create_publisher(PoseStamped, self._target_point_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
 
         self.create_subscription(TargetObservation, self._target_obs_topic, self._target_obs_cb, 20)
@@ -98,10 +105,10 @@ class GraspPoseEstimatorNode(Node):
             self.create_subscription(Image, self._mask_topic, self._mask_cb, 20)
 
         self.get_logger().info(
-            'grasp_pose_estimator_node: '
+            'target_point_estimator_node: '
             f'mode={self._source_mode}, target_obs={self._target_obs_topic}, depth={self._depth_topic}, '
             f'camera_info={self._camera_info_topic}, mask={self._mask_topic if self._use_mask_gating else "<disabled>"}, '
-            f'out={self._grasp_pose_topic}'
+            f'out={self._target_point_topic}'
         )
 
     @staticmethod
@@ -210,28 +217,28 @@ class GraspPoseEstimatorNode(Node):
                     held.header.stamp = msg.header.stamp
                     held.header.frame_id = self._last_valid_pose.header.frame_id
                     held.pose = self._last_valid_pose.pose
-                    self._grasp_pub.publish(held)
+                    self._target_point_pub.publish(held)
                     self._publish_status('HOLD_LAST_VALID')
                     return
 
             self._warn_throttle(
-                'grasp_invalid',
+                'target_point_invalid',
                 f'No valid representative depth (valid_points={valid_count}, min_required={self._min_valid_points})',
             )
-            self._publish_status('NO_VALID_GRASP_POINT')
+            self._publish_status('NO_VALID_TARGET_POINT')
             return
 
         frame_id = self._frame_id_from_cam or msg.header.frame_id or self._default_frame_id
         pose = self._build_pose(msg.header.stamp, frame_id, u_rep, v_rep, z_rep)
-        self._grasp_pub.publish(pose)
+        self._target_point_pub.publish(pose)
         self._last_valid_pose = pose
         self._last_valid_pose_time = self.get_clock().now()
-        self._publish_status('TRACKING_GRASP_POSE')
+        self._publish_status('TRACKING_TARGET_POINT')
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = GraspPoseEstimatorNode()
+    node = TargetPointEstimatorNode()
     try:
         rclpy.spin(node)
     finally:

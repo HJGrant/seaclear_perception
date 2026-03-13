@@ -32,7 +32,7 @@ This is the primary status checklist (`DONE`/`PARTIAL`/`NOT_STARTED`) for weekly
 | Gate | What “DONE” means | Current status | Primary blocker / next action |
 |---|---|---:|---|
 | G1. Perception output for VS | ROS2 publishes: bbox (target) + depth-to-target (or proxy) at ≥ ~10 Hz | IN_PROGRESS | `TargetObservation` is standardized and observer wiring exists; remaining blocker is stable real detection-topic/inference bringup. |
-| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | VERIFIED | ROS2 controller node supports `ibvs`, `bbox_approach`, `bbox_grasp`, and optional `mppi` fallback. |
+| G2. Servo controller runnable | A node consumes (bbox, depth/altitude) and outputs body-frame `Twist` at control rate | VERIFIED | ROS2 controller node supports `ibvs`, `bbox_approach`, `bbox_target_point`, and optional `mppi` fallback. |
 | G3. Plant interface | Commands actually move the vehicle in sim and (later) BlueROV | IN_PROGRESS | Sim and MAVROS bridge paths exist; remaining work is hardware validation and operator workflow hardening. |
 | G4. Frame conventions | Camera optical frame ↔ body frame mapping is defined & tested (TF sanity) | IN_PROGRESS | Topic/frame contract is documented, but hardware-validated TF/sign checks are still pending. |
 | G5. “One-command demo” | One launch command that brings up **perception + VS + visualization** | VERIFIED | `mvp_sim.launch.py` and `blue_rov_synth_vs.launch.py` bring up end-to-end graphs with optional debug markers. |
@@ -47,7 +47,7 @@ This is the primary status checklist (`DONE`/`PARTIAL`/`NOT_STARTED`) for weekly
 |---|---|---:|---|
 | P1. Stereo RGBD source | Stereo camera provides RGB + depth (aligned or alignable) | PARTIAL | OAK-D pipeline exists; “stable mode” is constrained (stereo-only baseline is stable; richer modes trigger failures) — treat as *integration risk*. |
 | P2. YOLO detection | YOLOv8 outputs bbox for litter objects | PARTIAL | Implemented in ROS2 workspace (needs confirmation on underwater dataset + runtime). D5.2 expects bbox as the main VS cue. |
-| P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | VS path currently uses bbox-ROI depth statistics; mask-based gating exists for grasp-pose estimation but is not the default observer path. |
+| P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | VS path currently uses bbox-ROI depth statistics; mask-based gating exists for target-point estimation but is not the default observer path. |
 | P4. Voxel/TSDF map (optional for MVP) | TSDF-based voxel reconstruction around target ROI | OPTIONAL | Valuable later; **not required** for MVP VS loop. D5.2 describes it for geometry/obstacles. |
 | P5. Monitoring | Foxglove/Gstreamer monitoring of RGB+bbox+map | PARTIAL | Present in concept; ensure a "demo panel" exists for debugging. |
 
@@ -80,16 +80,16 @@ This section is the current baseline for implementation status and replaces stan
 |---|---|---|---|
 | A1. Define VS I/O contract (`bbox`, `depth/altitude`, `Twist`) | Verified | `src/sc2_visual_servo_interfaces/msg/TargetObservation.msg`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py` | `TargetObservation` and `/sc2/visual_servo/cmd_vel_body` are standardized. |
 | A2. ROS2 shim publisher for controller bring-up | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/target_obs_publisher.py`, `src/sc2_visual_servo_synth/sc2_visual_servo_synth/synthetic_bbox_publisher_node.py` | Stub and synthetic detection publishers exist. |
-| A3. ROS2 controller baseline (IBVS first) | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/ibvs/controller_math.py`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py` | `ibvs`, `bbox_approach`, `bbox_grasp` are available; MPPI is optional. |
+| A3. ROS2 controller baseline (IBVS first) | Verified | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/ibvs/controller_math.py`, `src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node.py` | `ibvs`, `bbox_approach`, `bbox_target_point` are available; MPPI is optional. |
 | A4. One-command simulation demo + docs | Verified | `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py`, `README_quickstart.md` | End-to-end MVP launch path is documented. |
 
 ### Phase B (Week 3-4): Wire perception to controller (end-to-end in sim/live)
 | Item | Current status | Implementation path(s) | Notes |
 |---|---|---|---|
 | B1. Connect YOLO bbox topic to VS input | In Progress | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`, `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Wiring exists via `use_stub_target:=false`; detection topic stabilization remains deferred. |
-| B2. Depth-to-target estimation in consistent units | Verified | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`, `src/sc2_visual_servo_perception/sc2_visual_servo_perception/grasp_pose_estimator_node.py` | ROI median and UV-median-neighborhood representative depth are implemented. |
+| B2. Depth-to-target estimation in consistent units | Verified | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`, `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_point_estimator_node.py` | ROI median and UV-median-neighborhood representative depth are implemented. |
 | B3. FOV constraint (hard/probabilistic) | In Progress | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/pbvs/mppi_core.py` | FOV/risk cost exists in MPPI core; not default path in MVP IBVS mode. |
-| B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py` | Record/replay and perception-side integration tests exist; offline convergence plotting is still pending. |
+| B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_target_point_estimator_integration.py` | Record/replay and perception-side integration tests exist; offline convergence plotting is still pending. |
 
 ### Phase C (Week 5-6): Pilot on BlueROV (minimum safe integration)
 | Item | Current status | Implementation path(s) | Notes |
@@ -142,7 +142,7 @@ Owner: SC2 visual-servo team
 Status: In Progress
 Evidence:
 - Unit tests: `src/sc2_visual_servo_perception/test/test_conversion.py`, `src/sc2_visual_servo_controller/test/test_controller_sign.py`
-- Integration tests: `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_grasp_pose_estimator_integration.py`
+- Integration tests: `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_target_point_estimator_integration.py`
 - Rosbag scripts: `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`
 Owner: SC2 visual-servo team
 
