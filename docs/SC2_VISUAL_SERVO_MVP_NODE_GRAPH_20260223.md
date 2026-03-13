@@ -23,7 +23,20 @@ Launch files:
   - `ros2 launch sc2_visual_servo_bringup blue_rov_synth_vs.launch.py`
   - defaults: `controller_mode:=bbox_approach`, `mavros_backend:=rc_override`
 
-## 2) Node graph (topics and message types)
+## 2) Controller mode summary
+
+| `controller_mode` | Required inputs | Main control law | Fallback behavior | Typical use |
+|---|---|---|---|---|
+| `ibvs` | `TargetObservation` | Image-based proportional servo using bbox center error and depth or bbox area proxy | None beyond global target timeout -> zero command | Default MVP mode; simplest end-to-end validation |
+| `bbox_approach` | `TargetObservation` | Keep bbox centered with `vy/vz/yaw`; use depth or bbox area proxy for `vx` approach | Global target timeout -> zero command | Detector-only approach tests and BlueROV synthetic validation |
+| `bbox_target_point` | `TargetObservation` and, when enabled, `/sc2/visual_servo/target_point` from `target_point_estimator_node` | Keep bbox centered with `vy/vz/yaw`; use ROI-derived target-point distance for `vx` | If target point is stale or missing: either stop (`require_target_point:=true`) or fall back to bbox-only approach | Visual-servo approach with bbox ROI depth representative point |
+| `mppi` | `TargetObservation` with finite `depth_m` and MPPI runtime dependencies | MPPI/PBVS-style optimization from reconstructed relative target position | If MPPI runtime is unavailable or depth is not finite, controller falls back to `ibvs` | Phase-2 controller experiments |
+
+Notes:
+- `bbox_target_point` is the current name for the old `bbox_grasp` mode. `bbox_grasp` is still accepted as a deprecated alias in code.
+- `target_point_estimator_node` does not estimate the final smart-grapple grasp pose from D5.2 Section 5.4. It estimates a camera-frame representative target point for approach control.
+
+## 3) Node graph (topics and message types)
 
 ### 2.1 Default (stub) mode
 ```mermaid
@@ -73,7 +86,7 @@ flowchart LR
   V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| G["/sc2/visual_servo/debug_markers"]
 ```
 
-## 3) Data contracts (what flows between nodes)
+## 4) Data contracts (what flows between nodes)
 
 ### 3.1 `/sc2/visual_servo/target_obs` — `TargetObservation`
 Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
@@ -109,7 +122,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 - Published when `enable_debug_viz:=true`
 - Contains bbox panel marker, command vector marker, and optional target-point marker
 
-## 4) What to replace when moving toward hardware
+## 5) What to replace when moving toward hardware
 
 ### 4.1 Replace stub target with real perception
 **Current**: `target_obs_publisher` produces scripted TargetObservation.
@@ -138,7 +151,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 
 Note: MPPI requires `torch` and a finite depth estimate at runtime; otherwise the controller falls back to `ibvs`. The current default MPPI config does not enable risk/FOV penalty terms.
 
-## 5) Verification protocol (what you must run to claim “works”)
+## 6) Verification protocol (what you must run to claim “works”)
 
 ### 5.1 Build + run (MVP stub)
 1) `source /opt/ros/humble/setup.bash`
@@ -162,7 +175,7 @@ Note: MPPI requires `torch` and a finite depth estimate at runtime; otherwise th
   - `./scripts/colcon_test_venv.sh --packages-select sc2_visual_servo_perception sc2_visual_servo_controller sc2_visual_servo_bringup`
 - Current forced pytest subset covers controller sign checks plus `target_observer` and `target_point_estimator` integration tests.
 
-## 6) Known MVP caveats (intentional)
+## 7) Known MVP caveats (intentional)
 - No SLAM dependency (by design).
 - Default observer depth is bbox-ROI median; target-point estimation adds UV-median-neighborhood depth and optional mask gating.
 - BlueROV path is currently open-loop command validation via MAVROS bridge; closed-loop vehicle-state validation is not integrated yet.
