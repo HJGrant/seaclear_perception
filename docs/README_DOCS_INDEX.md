@@ -11,7 +11,8 @@ Supersedes: ad hoc document placement at `docs/`, `docs/status/`, and `docs/work
 - `SEACLEAR2_SMART_GRAPPLE_VISUAL_SERVO_CHECKLIST_20260223.md` — Primary status tracker and weekly implementation checklist.
 - `SC2_VISUAL_SERVO_MVP_NODE_GRAPH_20260223.md` — Current ROS 2 node graph and topic contracts for the MVP pipeline.
 - `PERCEPTION_TOPIC_MAP.md` — Current perception topic contract and live/bag inspection notes.
-- `VS_BBOX_GRASP_INTEGRATION_20260225.md` — Current bbox+depth ROI and grasp-pose integration design notes.
+- `VS_BBOX_TARGET_POINT_INTEGRATION_20260225.md` — Current bbox+depth ROI and target-point integration design notes.
+- `VISUAL_SERVO_SYSTEM_INTEGRATION_PLAN_20260313.md` — Mapping and design plan for integrating `oakd_nvblox.launch.py` with the visual-servo stack under a new `oakd_system.launch.py`.
 - `BLUEROV_MAVROS_QUICKCHECK.md` — Current BlueROV synthetic actuation test runbook.
 
 ## Reference documents
