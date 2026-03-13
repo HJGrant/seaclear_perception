@@ -104,7 +104,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('max_search_radius_px', default_value='40.0'),
         DeclareLaunchArgument('use_mask_gating', default_value='false'),
         DeclareLaunchArgument('hold_last_valid', default_value='true'),
-        DeclareLaunchArgument('max_hold_ms', default_value='500'),
+        DeclareLaunchArgument('max_hold_ms', default_value='500.0'),
         DeclareLaunchArgument('controller_target_point_timeout_ms', default_value='500'),
         DeclareLaunchArgument('desired_target_distance_m', default_value='0.6'),
         DeclareLaunchArgument('k_target_distance', default_value='0.6'),
