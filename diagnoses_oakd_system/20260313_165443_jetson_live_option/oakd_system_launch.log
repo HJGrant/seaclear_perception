@@ -1,0 +1,688 @@
+[INFO] [launch]: All log files can be found below /home/admin/.ros/log/2026-03-13-16-54-58-825966-ubuntu-2638496
+[INFO] [launch]: Default logging verbosity is set to INFO
+#### OAKD PARAMS_FILE LOCATION: /workspaces/oakd_isaac_ros/install/share/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml #######
+##### Setting Camera to nvBLOX!! #####
+Remappings: [('camera_0/depth/image', '/oak/stereo/image_raw'), ('camera_0/depth/camera_info', '/oak/stereo/camera_info'), ('camera_0/color/image', '/oak/rgb/image_raw_rgb8'), ('camera_0/color/camera_info', '/oak/rgb/camera_info'), ('camera_0/mask/image', '/camera0/detection/mask_resized'), ('camera_0/mask/camera_info', '/camera0/detection/mask_resized/camera_info')]
+[INFO] [launch.user]: Adding nodes [ /nvblox_node ] to container nvblox_container.
+[INFO] [launch.user]: Starting nvblox with the 'oakd' camera in 'people_detection' mode.
+[INFO] [component_container-1]: process started with pid [2638877]
+[INFO] [component_container_mt-2]: process started with pid [2638879]
+[INFO] [component_container_mt-3]: process started with pid [2638881]
+[INFO] [image_converter.py-4]: process started with pid [2638883]
+[INFO] [static_transform_publisher-5]: process started with pid [2638886]
+[INFO] [static_transform_publisher-6]: process started with pid [2638888]
+[INFO] [static_transform_publisher-7]: process started with pid [2638895]
+[INFO] [foxglove_bridge-8]: process started with pid [2638944]
+[INFO] [target_observer_node-9]: process started with pid [2638980]
+[INFO] [target_point_estimator_node-10]: process started with pid [2638983]
+[INFO] [visual_servo_controller_node-11]: process started with pid [2638985]
+[INFO] [csv_logger_node-12]: process started with pid [2638989]
+[INFO] [visual_servo_debug_viz_node-13]: process started with pid [2639000]
+[static_transform_publisher-5] [WARN] [1773417299.140285974] []: Old-style arguments are deprecated; see --help for new-style arguments
+[static_transform_publisher-5] [INFO] [1773417299.186228164] [static_transform_publisher_Fyk3u4sHkLLbADLi]: Spinning until stopped - publishing transform
+[static_transform_publisher-5] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-5] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-5] from 'map' to 'odom'
+[static_transform_publisher-6] [WARN] [1773417299.139950940] []: Old-style arguments are deprecated; see --help for new-style arguments
+[static_transform_publisher-6] [INFO] [1773417299.188995061] [static_transform_publisher_mOcXgg5gn6Agr0Ww]: Spinning until stopped - publishing transform
+[static_transform_publisher-6] translation: ('0.000000', '0.000000', '1.000000')
+[static_transform_publisher-6] rotation: ('0.000563', '0.707105', '-0.707108', '0.000563')
+[static_transform_publisher-6] from 'odom' to 'oak-d-base-frame'
+[static_transform_publisher-7] [WARN] [1773417299.164757299] []: Old-style arguments are deprecated; see --help for new-style arguments
+[static_transform_publisher-7] [INFO] [1773417299.201280962] [static_transform_publisher_Pneufd3WTA3cGkHx]: Spinning until stopped - publishing transform
+[static_transform_publisher-7] translation: ('0.000000', '0.000000', '0.000000')
+[static_transform_publisher-7] rotation: ('0.000000', '0.000000', '0.000000', '1.000000')
+[static_transform_publisher-7] from 'oak-d-base-frame' to 'oak_rgb_camera_optical_frame'
+[component_container-1] [INFO] [1773417299.282906414] [oak_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libdepthai_ros_driver.so
+[component_container_mt-2] [INFO] [1773417299.302923415] [dnn_image_encoder_container]: Load Library: /opt/ros/humble/lib/libresize_node.so
+[component_container_mt-3] [INFO] [1773417299.310704050] [tensor_rt_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libtensor_rt_node.so
+[component_container_mt-3] [INFO] [1773417299.414078025] [tensor_rt_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::TensorRTNode>
+[component_container_mt-3] [INFO] [1773417299.415886187] [tensor_rt_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::TensorRTNode>
+[component_container_mt-2] [INFO] [1773417299.494339628] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ResizeNode>
+[component_container_mt-2] [INFO] [1773417299.494471402] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ResizeNode>
+[component_container-1] [INFO] [1773417299.522059634] [oak_container]: Found class: rclcpp_components::NodeFactoryTemplate<depthai_ros_driver::Camera>
+[component_container-1] [INFO] [1773417299.523669974] [oak_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<depthai_ros_driver::Camera>
+[component_container-1] [INFO] [1773417299.554512519] [oak_container]: Load Library: /opt/ros/humble/lib/librectify.so
+[component_container_mt-3] [INFO] [1773417299.554832289] [tensor_rt]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-3] [INFO] [1773417299.555299417] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/std/libgxf_std.so
+[component_container_mt-3] [INFO] [1773417299.556782048] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_gxf_helpers.so
+[component_container-1] [INFO] [1773417299.557120282] [oak_container]: Found class: rclcpp_components::NodeFactoryTemplate<image_proc::RectifyNode>
+[component_container-1] [INFO] [1773417299.557204473] [oak_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<image_proc::RectifyNode>
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/oak' in container '/oak_container'
+[component_container_mt-3] [INFO] [1773417299.591449743] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_sight.so
+[component_container_mt-3] [INFO] [1773417299.601760702] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_atlas.so
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/rectify_color_node' in container '/oak_container'
+[component_container_mt-3] [33m2026-03-13 16:54:59.617 WARN  gxf/std/program.cpp@538: No GXF scheduler specified.[0m
+[component_container_mt-3] [INFO] [1773417299.622839478] [tensor_rt]: [NitrosNode] Starting NitrosNode
+[component_container_mt-3] [INFO] [1773417299.629076011] [tensor_rt]: [NitrosNode] Loading extensions
+[component_container_mt-3] [INFO] [1773417299.629297287] [tensor_rt]: [NitrosContext] Loading extension: gxf/lib/multimedia/libgxf_multimedia.so
+[component_container_mt-3] [INFO] [1773417299.633211908] [tensor_rt]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_message_compositor.so
+[component_container_mt-3] [INFO] [1773417299.634159988] [tensor_rt]: [NitrosContext] Loading extension: gxf/lib/cuda/libgxf_cuda.so
+[component_container_mt-3] [INFO] [1773417299.638273710] [tensor_rt]: [NitrosContext] Loading extension: gxf/lib/serialization/libgxf_serialization.so
+[component_container_mt-3] [INFO] [1773417299.643743568] [tensor_rt]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_tensor_rt.so
+[component_container_mt-3] [INFO] [1773417299.646643806] [tensor_rt]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-3] [INFO] [1773417299.649634091] [tensor_rt]: [NitrosNode] Running optimization
+[component_container_mt-3] [INFO] [1773417299.677718379] [tensor_rt]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-3] [INFO] [1773417299.681654279] [tensor_rt]: [NitrosPublisherSubscriberGroup] Pinning the component "inference/rx" (type="nvidia::gxf::DoubleBufferReceiver") to use its compatible format only: "nitros_tensor_list_nchw_rgb_f32"
+[component_container_mt-3] [INFO] [1773417299.681855684] [tensor_rt]: [NitrosPublisherSubscriberGroup] Pinning the component "sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_tensor_list_nhwc_rgb_f32"
+[component_container_mt-3] [INFO] [1773417299.700519493] [tensor_rt]: [NitrosNode] Starting negotiation...
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/tensor_rt' in container '/tensor_rt_container'
+[component_container_mt-3] [ERROR] [1773417299.707057589] [tensor_rt_container]: Could not find requested resource in ament index
+[ERROR] [launch_ros.actions.load_composable_nodes]: Failed to load node 'yolov8_decoder_node' of type 'nvidia::isaac_ros::yolov8::YoloV8DecoderNode' in container '/tensor_rt_container': Could not find requested resource in ament index
+[component_container_mt-3] [INFO] [1773417299.711359947] [tensor_rt_container]: Load Library: /opt/ros/humble/lib/libresize_node.so
+[component_container_mt-3] [INFO] [1773417299.725292189] [tensor_rt_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ResizeNode>
+[component_container_mt-3] [INFO] [1773417299.726599814] [tensor_rt_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ResizeNode>
+[component_container_mt-2] [INFO] [1773417299.741037807] [yolov8_encoder.resize_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [INFO] [1773417299.741643173] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/std/libgxf_std.so
+[component_container_mt-2] [INFO] [1773417299.743220330] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_gxf_helpers.so
+[component_container_mt-2] [INFO] [1773417299.748724364] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_sight.so
+[component_container_mt-2] [INFO] [1773417299.762999256] [NitrosContext]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_atlas.so
+[component_container_mt-3] [INFO] [1773417299.786169099] [mask_resize_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [33m2026-03-13 16:54:59.803 WARN  gxf/std/program.cpp@538: No GXF scheduler specified.[0m
+[component_container_mt-3] [INFO] [1773417299.813753139] [mask_resize_node]: [ResizeNode] Set output data format to: "nitros_image_mono8"
+[component_container_mt-3] [INFO] [1773417299.813979247] [mask_resize_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-3] [INFO] [1773417299.818525890] [mask_resize_node]: [NitrosNode] Overriding QoS depth for topic "camera_info" to 10
+[component_container_mt-3] [INFO] [1773417299.820321155] [mask_resize_node]: [NitrosNode] Overriding QoS depth for topic "image" to 10
+[component_container_mt-2] [INFO] [1773417299.837873815] [yolov8_encoder.resize_node]: [ResizeNode] Set output data format to: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417299.838080627] [yolov8_encoder.resize_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-3] [INFO] [1773417299.842527079] [mask_resize_node]: [NitrosNode] Loading extensions
+[component_container_mt-3] [INFO] [1773417299.843133021] [mask_resize_node]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_tensorops.so
+[component_container_mt-3] [INFO] [1773417299.865356448] [mask_resize_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-3] [INFO] [1773417299.887592292] [mask_resize_node]: [NitrosNode] Running optimization
+[component_container_mt-2] [INFO] [1773417299.917428901] [yolov8_encoder.resize_node]: [NitrosNode] Loading extensions
+[component_container_mt-2] [INFO] [1773417299.917687105] [yolov8_encoder.resize_node]: [NitrosContext] Loading extension: gxf/lib/multimedia/libgxf_multimedia.so
+[component_container_mt-2] [INFO] [1773417299.921495584] [yolov8_encoder.resize_node]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_message_compositor.so
+[component_container_mt-2] [INFO] [1773417299.922390193] [yolov8_encoder.resize_node]: [NitrosContext] Loading extension: gxf/lib/cuda/libgxf_cuda.so
+[component_container_mt-2] [INFO] [1773417299.926504362] [yolov8_encoder.resize_node]: [NitrosContext] Loading extension: gxf/lib/libgxf_isaac_tensorops.so
+[component_container_mt-2] [INFO] [1773417299.933382676] [yolov8_encoder.resize_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-2] [INFO] [1773417299.939944036] [yolov8_encoder.resize_node]: [NitrosNode] Running optimization
+[csv_logger_node-12] [INFO] [1773417300.029046416] [csv_logger_node]: CSV logger writing to /tmp/sc2_visual_servo_mvp.csv
+[visual_servo_debug_viz_node-13] [INFO] [1773417300.170327389] [visual_servo_debug_viz_node]: visual_servo_debug_viz_node: target=/sc2/visual_servo/target_obs, cmd=/sc2/visual_servo/cmd_vel_body, markers=/sc2/visual_servo/debug_markers
+[component_container_mt-3] [INFO] [1773417300.277779374] [mask_resize_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-3] [INFO] [1773417300.284884276] [mask_resize_node]: [NitrosPublisherSubscriberGroup] Pinning the component "image_sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_image_mono8"
+[component_container_mt-3] [INFO] [1773417300.307827276] [mask_resize_node]: [NitrosNode] Starting negotiation...
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/mask_resize_node' in container '/tensor_rt_container'
+[component_container_mt-3] [INFO] [1773417300.325041701] [tensor_rt_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libpublish_mask_component.so
+[component_container_mt-2] [INFO] [1773417300.414034034] [yolov8_encoder.resize_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-2] [INFO] [1773417300.422913146] [yolov8_encoder.resize_node]: [NitrosPublisherSubscriberGroup] Pinning the component "image_sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_image_rgb8"
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/resize_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417300.461938366] [yolov8_encoder.resize_node]: [NitrosNode] Starting negotiation...
+[component_container_mt-2] [INFO] [1773417300.470232944] [dnn_image_encoder_container]: Load Library: /opt/ros/humble/lib/libimage_format_converter_node.so
+[component_container_mt-2] [INFO] [1773417300.473113406] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+[component_container_mt-2] [INFO] [1773417300.473213949] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::ImageFormatConverterNode>
+[component_container_mt-3] [INFO] [1773417300.482031398] [tensor_rt_container]: Found class: rclcpp_components::NodeFactoryTemplate<publish_mask>
+[component_container_mt-3] [INFO] [1773417300.482171203] [tensor_rt_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<publish_mask>
+[component_container_mt-3] [WARN] [1773417300.486411163] [rcl.logging_rosout]: Publisher already registered for provided node name. If this is due to multiple nodes with the same name then all logs for that logger name will go out over the existing publisher. As soon as any node with that name is destructed it will unregister the publisher, preventing any further logs for that name from being published on the rosout topic.
+[component_container-1] [INFO] [1773417300.556185424] [oak]: Starting camera.
+[component_container-1] [INFO] [1773417300.559580086] [oak]: No ip/mxid specified, connecting to the next available device.
+[component_container_mt-2] [INFO] [1773417300.565377619] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [INFO] [1773417300.579897627] [yolov8_encoder.image_format_converter_node]: [ImageFormatConverterNode] Set output data format to: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417300.580074263] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-2] [INFO] [1773417300.593905579] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Loading extensions
+[component_container_mt-2] [INFO] [1773417300.594285892] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-2] [INFO] [1773417300.596072550] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Running optimization
+[WARNING] [/tensor_rt_container]: there are now at least 2 nodes with the name /tensor_rt_container created within this launch context
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/tensor_rt_container' in container '/tensor_rt_container'
+[component_container_mt-3] [INFO] [1773417300.703757330] [tensor_rt]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-3] [INFO] [1773417300.703879216] [tensor_rt]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-3] [INFO] [1773417300.703916816] [tensor_rt]: [NitrosPublisher] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417300.703932207] [tensor_rt]: [NitrosPublisher] Use only the compatible publisher: topic_name="/tensor_sub", data_format="nitros_tensor_list_nhwc_rgb_f32"
+[component_container_mt-3] [INFO] [1773417300.703950831] [tensor_rt]: [NitrosSubscriber] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417300.703959919] [tensor_rt]: [NitrosSubscriber] Use the compatible subscriber: topic_name="/tensor_pub", data_format="nitros_tensor_list_nchw_rgb_f32"
+[component_container_mt-3] [INFO] [1773417300.704275881] [tensor_rt]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-3] [INFO] [1773417300.709892297] [tensor_rt]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/YDSVQLNGZH/YDSVQLNGZH.yaml"
+[component_container_mt-3] [INFO] [1773417300.709998024] [tensor_rt]: [NitrosNode] Loading application
+[component_container_mt-3] [33m2026-03-13 16:55:00.711 WARN  gxf/std/yaml_file_loader.cpp@1076: Using unregistered parameter 'dev_id' in component 'stream'.[0m
+[component_container_mt-3] [INFO] [1773417300.712756280] [tensor_rt]: In TensorRTNode postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417300.745712868] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-2] [INFO] [1773417300.779330213] [yolov8_encoder.image_format_converter_node]: [NitrosPublisherSubscriberGroup] Pinning the component "sink/sink" (type="nvidia::isaac_ros::MessageRelay") to use its compatible format only: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417300.795347603] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Starting negotiation...
+[component_container_mt-2] [INFO] [1773417300.798351615] [yolov8_encoder.resize_node]: Negotiating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/image_format_converter_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417300.803602533] [dnn_image_encoder_container]: Load Library: /opt/ros/humble/lib/libcrop_node.so
+[component_container_mt-2] [INFO] [1773417300.808582672] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::CropNode>
+[component_container_mt-2] [INFO] [1773417300.808685454] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::image_proc::CropNode>
+[target_point_estimator_node-10] Traceback (most recent call last):
+[target_point_estimator_node-10]   File "/workspaces/oakd_isaac_ros/install/lib/sc2_visual_servo_perception/target_point_estimator_node", line 33, in <module>
+[target_point_estimator_node-10]     sys.exit(load_entry_point('sc2-visual-servo-perception==0.1.0', 'console_scripts', 'target_point_estimator_node')())
+[target_point_estimator_node-10]   File "/workspaces/oakd_isaac_ros/install/lib/python3.10/site-packages/sc2_visual_servo_perception/target_point_estimator_node.py", line 241, in main
+[target_point_estimator_node-10]     node = TargetPointEstimatorNode()
+[target_point_estimator_node-10]   File "/workspaces/oakd_isaac_ros/install/lib/python3.10/site-packages/sc2_visual_servo_perception/target_point_estimator_node.py", line 40, in __init__
+[target_point_estimator_node-10]     self.declare_parameter('max_hold_ms', 500.0)
+[target_point_estimator_node-10]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/node.py", line 367, in declare_parameter
+[target_point_estimator_node-10]     return self.declare_parameters('', [args], ignore_override)[0]
+[target_point_estimator_node-10]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/node.py", line 493, in declare_parameters
+[target_point_estimator_node-10]     self._set_parameters(
+[target_point_estimator_node-10]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/node.py", line 738, in _set_parameters
+[target_point_estimator_node-10]     raise InvalidParameterTypeException(
+[target_point_estimator_node-10] rclpy.exceptions.InvalidParameterTypeException: Trying to set parameter 'max_hold_ms' to '500' of type 'INTEGER', expecting type 'DOUBLE'
+[image_converter.py-4] [INFO] [1773417300.886662776] [image_converter_node]: Image Converter Node has started.
+[component_container_mt-2] [INFO] [1773417300.898874407] [yolov8_encoder.crop_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [INFO] [1773417300.904520070] [yolov8_encoder.crop_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-2] [INFO] [1773417300.920488405] [yolov8_encoder.crop_node]: [NitrosNode] Loading extensions
+[component_container_mt-2] [INFO] [1773417300.920885934] [yolov8_encoder.crop_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-2] [INFO] [1773417300.924217173] [yolov8_encoder.crop_node]: [NitrosNode] Running optimization
+[component_container_mt-2] [INFO] [1773417300.985986291] [yolov8_encoder.crop_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-2] [INFO] [1773417301.002994352] [yolov8_encoder.crop_node]: [NitrosNode] Starting negotiation...
+[component_container_mt-2] [INFO] [1773417301.005965181] [yolov8_encoder.image_format_converter_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.006568051] [yolov8_encoder.resize_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.007115146] [yolov8_encoder.resize_node]: Negotiating
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/crop_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417301.010918921] [yolov8_encoder.crop_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.011009543] [yolov8_encoder.crop_node]: Could not negotiate
+[component_container_mt-2] [INFO] [1773417301.011042790] [yolov8_encoder.crop_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.011054854] [yolov8_encoder.crop_node]: Could not negotiate
+[component_container_mt-2] [INFO] [1773417301.015178144] [dnn_image_encoder_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libimage_to_tensor_node.so
+[target_observer_node-9] [INFO] [1773417301.020462341] [target_observer_node]: target_observer_node: detections=/detections_output, depth=/oak/stereo/image_raw, out=/sc2/visual_servo/target_obs, target_class='', pick=highest_confidence
+[component_container_mt-2] [INFO] [1773417301.072511786] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ImageToTensorNode>
+[component_container_mt-2] [INFO] [1773417301.072657479] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ImageToTensorNode>
+[component_container_mt-2] [INFO] [1773417301.141487533] [yolov8_encoder.image_to_tensor.ManagedNitrosSubscriber]: Starting Managed Nitros Subscriber
+[component_container_mt-2] [INFO] [1773417301.141865894] [yolov8_encoder.crop_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.141968580] [yolov8_encoder.image_format_converter_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.141972196] [yolov8_encoder.resize_node]: Negotiating
+[ERROR] [target_point_estimator_node-10]: process has died [pid 2638983, exit code 1, cmd '/workspaces/oakd_isaac_ros/install/lib/sc2_visual_servo_perception/target_point_estimator_node --ros-args -r __node:=target_point_estimator_node --params-file /tmp/launch_params_2hkjqiot'].
+[component_container_mt-2] [INFO] [1773417301.153566846] [yolov8_encoder.image_to_tensor.ManagedNitrosPublisher]: Starting Managed Nitros Publisher
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/image_to_tensor' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417301.261223466] [dnn_image_encoder_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libimage_tensor_normalize_node.so
+[component_container_mt-2] [INFO] [1773417301.264581265] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ImageTensorNormalizeNode>
+[component_container_mt-2] [INFO] [1773417301.264707278] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ImageTensorNormalizeNode>
+[component_container_mt-3] [INFO] [1773417301.310061734] [mask_resize_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-3] [INFO] [1773417301.310212515] [mask_resize_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-3] [INFO] [1773417301.310240195] [mask_resize_node]: [NitrosPublisher] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417301.310261154] [mask_resize_node]: [NitrosPublisher] Use only the compatible publisher: topic_name="/camera0/detection/mask_resized", data_format="nitros_image_mono8"
+[component_container_mt-3] [INFO] [1773417301.310277282] [mask_resize_node]: [NitrosPublisher] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417301.310286210] [mask_resize_node]: [NitrosPublisher] Use only the compatible publisher: topic_name="/camera0/detection/mask_resized/camera_info", data_format="nitros_camera_info"
+[component_container_mt-3] [INFO] [1773417301.310300962] [mask_resize_node]: [NitrosSubscriber] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417301.310311585] [mask_resize_node]: [NitrosSubscriber] Use the compatible subscriber: topic_name="/camera0/detection/mask", data_format="nitros_image_mono8"
+[component_container_mt-3] [INFO] [1773417301.310321281] [mask_resize_node]: [NitrosSubscriber] Negotiation ended with no results
+[component_container_mt-3] [INFO] [1773417301.310329345] [mask_resize_node]: [NitrosSubscriber] Use the compatible subscriber: topic_name="/camera0/detection/mask/camera_info", data_format="nitros_camera_info"
+[component_container_mt-3] [INFO] [1773417301.311620331] [mask_resize_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-2] [INFO] [1773417301.324237555] [yolov8_encoder.normalize_node.ManagedNitrosSubscriber]: Starting Managed Nitros Subscriber
+[component_container_mt-2] [INFO] [1773417301.324587373] [yolov8_encoder.image_to_tensor]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.324673004] [yolov8_encoder.image_to_tensor]: Could not negotiate
+[component_container_mt-3] [INFO] [1773417301.333941485] [mask_resize_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/IJAMVUKLAU/IJAMVUKLAU.yaml"
+[component_container_mt-3] [INFO] [1773417301.334066155] [mask_resize_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417301.335710287] [yolov8_encoder.normalize_node.ManagedNitrosPublisher]: Starting Managed Nitros Publisher
+[component_container_mt-3] [INFO] [1773417301.339273970] [mask_resize_node]: [ResizeNode] postLoadGraphCallback().
+[component_container_mt-3] [INFO] [1773417301.340729497] [mask_resize_node]: [NitrosNode] Initializing and running GXF graph
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/normalize_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417301.345031375] [dnn_image_encoder_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libinterleaved_to_planar_node.so
+[component_container_mt-2] [INFO] [1773417301.348009852] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::InterleavedToPlanarNode>
+[component_container_mt-2] [INFO] [1773417301.348107194] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::InterleavedToPlanarNode>
+[target_observer_node-9] [WARN] [1773417301.374096413] [target_observer_node]: No TargetObservation published for 537ms (timeout_ms=500)
+[component_container_mt-2] [INFO] [1773417301.406673967] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [INFO] [1773417301.418031373] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-2] [INFO] [1773417301.429880866] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Loading extensions
+[component_container_mt-2] [INFO] [1773417301.430284059] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-2] [INFO] [1773417301.432041277] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Running optimization
+[component_container_mt-2] [INFO] [1773417301.437484992] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-2] [INFO] [1773417301.454291904] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Starting negotiation...
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/interleaved_to_planar_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417301.456867604] [yolov8_encoder.normalize_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.459866592] [dnn_image_encoder_container]: Load Library: /workspaces/oakd_isaac_ros/install/lib/libreshape_node.so
+[component_container_mt-2] [INFO] [1773417301.463113001] [dnn_image_encoder_container]: Found class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ReshapeNode>
+[component_container_mt-2] [INFO] [1773417301.463199591] [dnn_image_encoder_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<nvidia::isaac_ros::dnn_inference::ReshapeNode>
+[component_container_mt-2] [INFO] [1773417301.466280755] [yolov8_encoder.resize_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-2] [INFO] [1773417301.466374033] [yolov8_encoder.resize_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-2] [INFO] [1773417301.466416816] [yolov8_encoder.resize_node]: [NitrosPublisher] Use the negotiated data format: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417301.466436592] [yolov8_encoder.resize_node]: [NitrosPublisher] Use the negotiated data format: "nitros_camera_info"
+[component_container_mt-2] [INFO] [1773417301.466451120] [yolov8_encoder.resize_node]: [NitrosSubscriber] Negotiation ended with no results
+[component_container_mt-2] [INFO] [1773417301.466465775] [yolov8_encoder.resize_node]: [NitrosSubscriber] Use the compatible subscriber: topic_name="/oak/rgb/image_raw", data_format="nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417301.466714667] [yolov8_encoder.resize_node]: [NitrosSubscriber] Negotiation ended with no results
+[component_container_mt-2] [INFO] [1773417301.466730379] [yolov8_encoder.resize_node]: [NitrosSubscriber] Use the compatible subscriber: topic_name="/oak/rgb/camera_info", data_format="nitros_camera_info"
+[component_container_mt-2] [INFO] [1773417301.467064517] [yolov8_encoder.resize_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-3] [INFO] [1773417301.475167066] [mask_resize_node]: [NitrosNode] Node was started
+[component_container_mt-2] [INFO] [1773417301.484011331] [yolov8_encoder.resize_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/UTUPYFBURM/UTUPYFBURM.yaml"
+[component_container_mt-2] [INFO] [1773417301.484227135] [yolov8_encoder.resize_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417301.491981018] [yolov8_encoder.resize_node]: [ResizeNode] postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417301.494087254] [yolov8_encoder.reshape_node]: [NitrosNode] Initializing NitrosNode
+[component_container_mt-2] [INFO] [1773417301.497896917] [yolov8_encoder.resize_node]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-2] [INFO] [1773417301.499573016] [yolov8_encoder.reshape_node]: [NitrosNode] Starting NitrosNode
+[component_container_mt-2] [INFO] [1773417301.510319648] [yolov8_encoder.reshape_node]: [NitrosNode] Loading extensions
+[component_container_mt-2] [INFO] [1773417301.572954512] [yolov8_encoder.resize_node]: [NitrosNode] Node was started
+[component_container_mt-2] [INFO] [1773417301.572970543] [yolov8_encoder.reshape_node]: [NitrosNode] Loading graph to the optimizer
+[component_container_mt-2] [INFO] [1773417301.575195017] [yolov8_encoder.reshape_node]: [NitrosNode] Running optimization
+[component_container_mt-2] [INFO] [1773417301.581259778] [yolov8_encoder.reshape_node]: [NitrosNode] Obtaining graph IO group info from the optimizer
+[component_container_mt-2] [INFO] [1773417301.600175358] [yolov8_encoder.reshape_node]: [NitrosNode] Starting negotiation...
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/yolov8_encoder/reshape_node' in container 'dnn_image_encoder_container'
+[component_container_mt-2] [INFO] [1773417301.602671635] [yolov8_encoder.interleaved_to_planar_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.603237321] [yolov8_encoder.normalize_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.614618438] [yolov8_encoder.reshape_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.614892802] [yolov8_encoder.interleaved_to_planar_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.615096638] [yolov8_encoder.normalize_node]: Negotiating
+[component_container_mt-2] [INFO] [1773417301.798921330] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-2] [INFO] [1773417301.799047792] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-2] [INFO] [1773417301.799072239] [yolov8_encoder.image_format_converter_node]: [NitrosPublisher] Use the negotiated data format: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417301.799090639] [yolov8_encoder.image_format_converter_node]: [NitrosSubscriber] Use the negotiated data format: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417301.799341963] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-2] [INFO] [1773417301.814344746] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/FHTHJPQYQF/FHTHJPQYQF.yaml"
+[component_container_mt-2] [INFO] [1773417301.814479976] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417301.816491845] [yolov8_encoder.image_format_converter_node]: [ImageFormatConverterNode] postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417301.816650082] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-2] [INFO] [1773417301.821275283] [yolov8_encoder.image_format_converter_node]: [NitrosNode] Node was started
+[component_container_mt-2] [INFO] [1773417302.005665118] [yolov8_encoder.crop_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-2] [INFO] [1773417302.005802651] [yolov8_encoder.crop_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-2] [INFO] [1773417302.005823003] [yolov8_encoder.crop_node]: [NitrosPublisher] Use the negotiated data format: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417302.005842107] [yolov8_encoder.crop_node]: [NitrosPublisher] Negotiation ended with no results
+[component_container_mt-2] [INFO] [1773417302.005853626] [yolov8_encoder.crop_node]: [NitrosPublisher] Use only the compatible publisher: topic_name="/yolov8_encoder/crop/camera_info", data_format="nitros_camera_info"
+[component_container_mt-2] [INFO] [1773417302.005868282] [yolov8_encoder.crop_node]: [NitrosSubscriber] Use the negotiated data format: "nitros_image_rgb8"
+[component_container_mt-2] [INFO] [1773417302.005954553] [yolov8_encoder.crop_node]: [NitrosSubscriber] Use the negotiated data format: "nitros_camera_info"
+[component_container_mt-2] [INFO] [1773417302.006261907] [yolov8_encoder.crop_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-2] [INFO] [1773417302.052709048] [yolov8_encoder.crop_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/AOFMRRHTHB/AOFMRRHTHB.yaml"
+[component_container_mt-2] [INFO] [1773417302.052856181] [yolov8_encoder.crop_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417302.056008959] [yolov8_encoder.crop_node]: [CropNode] postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417302.056197212] [yolov8_encoder.crop_node]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-2] [INFO] [1773417302.060515858] [yolov8_encoder.crop_node]: [NitrosNode] Node was started
+[component_container_mt-2] [INFO] [1773417302.456878763] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-2] [INFO] [1773417302.457036296] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-2] [INFO] [1773417302.457084392] [yolov8_encoder.interleaved_to_planar_node]: [NitrosPublisher] Use the negotiated data format: "nitros_tensor_list_nchw_rgb_f32"
+[component_container_mt-2] [INFO] [1773417302.457121095] [yolov8_encoder.interleaved_to_planar_node]: [NitrosSubscriber] Use the negotiated data format: "nitros_tensor_list_nhwc_rgb_f32"
+[component_container_mt-2] [INFO] [1773417302.457490657] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-2] [INFO] [1773417302.461744568] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/OCOWCUJPIB/OCOWCUJPIB.yaml"
+[component_container_mt-2] [INFO] [1773417302.461860662] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417302.465204892] [yolov8_encoder.interleaved_to_planar_node]: In InterleavedToPlanarNode postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417302.465507863] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-2] [INFO] [1773417302.472979031] [yolov8_encoder.interleaved_to_planar_node]: [NitrosNode] Node was started
+[component_container_mt-2] [INFO] [1773417302.602522892] [yolov8_encoder.reshape_node]: [NitrosNode] Starting post negotiation setup
+[component_container_mt-2] [INFO] [1773417302.602629130] [yolov8_encoder.reshape_node]: [NitrosNode] Getting data format negotiation results
+[component_container_mt-2] [INFO] [1773417302.602646602] [yolov8_encoder.reshape_node]: [NitrosPublisher] Use the negotiated data format: "nitros_tensor_list_nchw_rgb_f32"
+[component_container_mt-2] [INFO] [1773417302.602669161] [yolov8_encoder.reshape_node]: [NitrosSubscriber] Use the negotiated data format: "nitros_tensor_list_nchw_rgb_f32"
+[component_container_mt-2] [INFO] [1773417302.602906757] [yolov8_encoder.reshape_node]: [NitrosNode] Exporting the final graph based on the negotiation results
+[component_container_mt-2] [INFO] [1773417302.609314039] [yolov8_encoder.reshape_node]: [NitrosNode] Wrote the final top level YAML graph to "/tmp/isaac_ros_nitros/graphs/IFZLIRPQTC/IFZLIRPQTC.yaml"
+[component_container_mt-2] [INFO] [1773417302.609425942] [yolov8_encoder.reshape_node]: [NitrosNode] Loading application
+[component_container_mt-2] [INFO] [1773417302.612036745] [yolov8_encoder.reshape_node]: In ReshapeNode postLoadGraphCallback().
+[component_container_mt-2] [INFO] [1773417302.612215910] [yolov8_encoder.reshape_node]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-2] [INFO] [1773417302.621424072] [yolov8_encoder.reshape_node]: [NitrosNode] Node was started
+[visual_servo_controller_node-11] [INFO] [1773417302.660392492] [visual_servo_controller_node]: visual_servo_controller_node mode=bbox_target_point target=/sc2/visual_servo/target_obs cmd=/sc2/visual_servo/cmd_vel_body
+[target_observer_node-9] [WARN] [1773417303.574441052] [target_observer_node]: No TargetObservation published for 2737ms (timeout_ms=500)
+[component_container_mt-3] Could not open file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx
+[component_container_mt-3] [ERROR] [1773417303.793641391] [TRT]: TRT ERROR: ModelImporter.cpp:918: Failed to parse ONNX model from file: /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx!
+[component_container_mt-3] [ERROR] [1773417304.124616613] [tensor_rt]: Unable to read tensor shape info from TRT Model Engine or from ONNX file.
+[component_container_mt-3] [WARN] [1773417304.126289256] [tensor_rt]: Failed to get block size from model, set to the default size: 67108864.
+[component_container_mt-3] [INFO] [1773417304.127176473] [tensor_rt]: Tensors 67108864 bytes, num outputs 40 x tensors per output 1 = 40 blocks
+[component_container_mt-3] [INFO] [1773417304.127990795] [tensor_rt]: [NitrosNode] Initializing and running GXF graph
+[component_container_mt-3] [INFO] [1773417304.209780848] [tensor_rt]: [NitrosNode] Node was started
+[component_container_mt-3] [33m2026-03-13 16:55:04.210 WARN  /workspaces/oakd_isaac_ros/src/isaac_ros_dnn_inference/isaac_ros_gxf_extensions/gxf_isaac_tensor_rt/gxf/extensions/tensor_rt/tensor_rt_inference.cpp@284: Rebuilding CUDA engine /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan (forced by config). Note: this process may take up to several minutes.[0m
+[target_observer_node-9] [WARN] [1773417305.774172672] [target_observer_node]: No TargetObservation published for 4937ms (timeout_ms=500)
+[target_observer_node-9] [WARN] [1773417307.973858623] [target_observer_node]: No TargetObservation published for 7137ms (timeout_ms=500)
+[component_container-1] [INFO] [1773417308.129699956] [oak]: Camera with MXID: 1944301011AADD2C00 and Name: 192.168.2.97 connected!
+[component_container-1] [INFO] [1773417308.129892985] [oak]: PoE camera detected. Consider enabling low bandwidth for specific image topics (see Readme->DepthAI ROS Driver->Specific camera configurations).
+[component_container-1] [INFO] [1773417308.183911939] [oak]: Device type: OAK-D-S2-POE
+[component_container-1] [INFO] [1773417308.195759475] [oak]: Pipeline type: RGBD
+[component_container_mt-3] Could not open file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx
+[component_container_mt-3] [1;31m2026-03-13 16:55:08.513 ERROR /workspaces/oakd_isaac_ros/src/isaac_ros_dnn_inference/isaac_ros_gxf_extensions/gxf_isaac_tensor_rt/gxf/extensions/tensor_rt/tensor_rt_inference.cpp@154: TRT ERROR: ModelImporter.cpp:918: Failed to parse ONNX model from file: /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx![0m
+[component_container_mt-3] [1;31m2026-03-13 16:55:08.513 ERROR /workspaces/oakd_isaac_ros/src/isaac_ros_dnn_inference/isaac_ros_gxf_extensions/gxf_isaac_tensor_rt/gxf/extensions/tensor_rt/tensor_rt_inference.cpp@442: Failed to parse ONNX file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx[0m
+[component_container-1] [INFO] [1773417308.750315430] [oak]: Subpixel disabled due to low bandwidth mode
+[component_container-1] [INFO] [1773417308.754449137] [oak]: Decimation filter enabled with decimation factor 1. Previous width and height: 1280 x 720, after decimation: 1280 x 720
+[component_container-1] [INFO] [1773417308.756828046] [oak]: Finished setting up pipeline.
+[component_container_mt-3] [1;31m2026-03-13 16:55:08.861 ERROR /workspaces/oakd_isaac_ros/src/isaac_ros_dnn_inference/isaac_ros_gxf_extensions/gxf_isaac_tensor_rt/gxf/extensions/tensor_rt/tensor_rt_inference.cpp@290: Failed to create engine plan for model /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx.[0m
+[component_container_mt-3] [33m2026-03-13 16:55:08.861 WARN  gxf/std/entity_executor.cpp@539: Failed to start entity [YDSVQLNGZH_inference][0m
+[component_container_mt-3] [33m2026-03-13 16:55:08.861 WARN  gxf/std/multi_thread_scheduler.cpp@343: Error while executing entity E17 named 'YDSVQLNGZH_inference': GXF_FAILURE[0m
+[component_container_mt-3] [1;31m2026-03-13 16:55:08.864 ERROR gxf/std/entity_executor.cpp@630: Entity [YDSVQLNGZH_inference] must be in Started, Tick Pending, Ticking or Idle stage before stopping. Current state is StartPending[0m
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [5.987] [StereoDepth(10)] [warning] Speckle range requested '50', but there is enough memory for only '28'. Use 'stereoNode.setPostProcessingHardwareResources(int numShaves, int numMemorySlices)' API to increase resources.
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.209 ERROR gxf/std/entity_executor.cpp@212: Entity with eid 17 not found![0m
+[component_container_mt-3] [WARN] [1773417309.210034217] [tensor_rt]: [NitrosNode] The heartbeat entity (eid=17) was stopped. The graph may have been terminated.
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.051] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container_mt-3] [INFO] [1773417309.293515200] [mask_resize_node]: [NitrosNode] Terminating the running application
+[component_container_mt-3] [INFO] [1773417309.293560545] [mask_resize_node]: [NitrosContext] Interrupting GXF...
+[component_container_mt-3] [INFO] [1773417309.294598075] [mask_resize_node]: [NitrosContext] Waiting on GXF...
+[component_container_mt-3] [INFO] [1773417309.294658589] [mask_resize_node]: [NitrosContext] Deinitializing...
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.110] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |                                           Job Statistics Report (regular)                                                                                        |
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] | Name                                               |   Count | Time (Median - 90% - Max) [ms] | Load (%) | Exec(ms) | Variation (Median - 90% - Max) [ns]        |
+[component_container_mt-3] |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |                                           Entity Statistics Report (regular)                                                                                     |
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] | Entity Name             | Entity State             |   Count | Time (Median - 90% - Max) [ms]                                                                    |
+[component_container_mt-3] |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] [INFO] [1773417309.297462693] [mask_resize_node]: [NitrosContext] Destroying context
+[component_container_mt-3] [INFO] [1773417309.297751852] [mask_resize_node]: [NitrosNode] Application termination done
+[component_container_mt-3] [INFO] [1773417309.376048190] [tensor_rt]: [NitrosNode] Terminating the running application
+[component_container_mt-3] [INFO] [1773417309.376101312] [tensor_rt]: [NitrosContext] Interrupting GXF...
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.376 ERROR gxf/core/runtime.cpp@1641: Graph interrupt failed with error: GXF_FAILURE[0m
+[component_container_mt-3] [ERROR] [1773417309.376236707] [tensor_rt]: [NitrosContext] GxfGraphInterrupt Error: GXF_FAILURE
+[component_container_mt-3] [INFO] [1773417309.376241859] [tensor_rt]: [NitrosContext] Waiting on GXF...
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.376 ERROR gxf/std/program.cpp@580: wait failed. Deactivating...[0m
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |                                           Job Statistics Report (regular)                                                                                        |
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] | Name                                               |   Count | Time (Median - 90% - Max) [ms] | Load (%) | Exec(ms) | Variation (Median - 90% - Max) [ns]        |
+[component_container_mt-3] |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] |                                           Entity Statistics Report (regular)                                                                                     |
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] | Entity Name             | Entity State             |   Count | Time (Median - 90% - Max) [ms]                                                                    |
+[component_container_mt-3] |------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+[component_container_mt-3] |==================================================================================================================================================================|
+[component_container_mt-3] [33m2026-03-13 16:55:09.435 WARN  gxf/std/entity_warden.cpp@575: Component of type nvidia::gxf::MultiThreadScheduler, cid 40 failed to deinitialize with code GXF_FAILURE[0m
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.435 ERROR gxf/core/runtime.cpp@791: Could not deinitialize entity 'YDSVQLNGZH_utils' (E38): GXF_FAILURE[0m
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.435 ERROR gxf/std/program.cpp@582: Deactivation failed.[0m
+[component_container_mt-3] [1;31m2026-03-13 16:55:09.435 ERROR gxf/core/runtime.cpp@1649: Graph wait failed with error: GXF_FAILURE[0m
+[component_container_mt-3] [ERROR] [1773417309.435881817] [tensor_rt]: [NitrosContext] GxfGraphWait Error: GXF_FAILURE
+[component_container_mt-3] [INFO] [1773417309.435899001] [tensor_rt]: [NitrosNode] Application termination done
+[component_container-1] [INFO] [1773417309.473975591] [oak]: Setting up stereo pair sync timer with period 100 ms based on left sensor FPS.
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [INFO] [1773417309.571039897] [oak]: Camera ready!
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.506] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[INFO] [component_container_mt-3]: process has finished cleanly [pid 2638881]
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [6.906] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417310.173962568] [target_observer_node]: No TargetObservation published for 9337ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.006] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.105] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.506] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.805] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [7.906] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.006] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.105] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.506] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [8.906] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.006] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.105] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417312.374922539] [target_observer_node]: No TargetObservation published for 11537ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.506] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [9.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [10.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417314.373860589] [target_observer_node]: No TargetObservation published for 13537ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [11.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [12.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417316.375812634] [target_observer_node]: No TargetObservation published for 15539ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [13.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [14.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417318.574114582] [target_observer_node]: No TargetObservation published for 17737ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [15.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.006] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.106] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [16.906] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.106] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.506] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417320.773906360] [target_observer_node]: No TargetObservation published for 19937ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [17.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.706] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [18.906] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.206] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.306] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417322.773868600] [target_observer_node]: No TargetObservation published for 21937ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [19.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.006] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.106] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.406] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.606] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [20.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417324.973606369] [target_observer_node]: No TargetObservation published for 24137ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [21.908] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.208] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.708] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.807] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [22.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.007] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.108] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.307] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.507] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.707] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417326.974134840] [target_observer_node]: No TargetObservation published for 26137ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.807] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [23.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.007] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.107] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.307] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.507] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.707] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.807] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [24.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.008] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.107] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.307] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.507] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.707] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.807] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [25.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417329.173821248] [target_observer_node]: No TargetObservation published for 28337ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.007] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.107] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.307] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.507] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.707] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.807] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [26.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.007] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.107] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.307] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.507] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.607] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.707] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.806] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [27.907] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417331.173834394] [target_observer_node]: No TargetObservation published for 30337ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.007] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.107] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.207] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.308] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.407] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.508] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.608] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [28.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [29.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417333.173881821] [target_observer_node]: No TargetObservation published for 32337ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.010] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [30.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [31.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.010] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417335.373869513] [target_observer_node]: No TargetObservation published for 34537ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.610] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [32.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.410] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [33.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[target_observer_node-9] [WARN] [1773417337.573922501] [target_observer_node]: No TargetObservation published for 36737ms (timeout_ms=500)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.809] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [34.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.409] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.509] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.609] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.709] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.808] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [35.909] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [36.009] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [36.109] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [36.209] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [36.309] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
+[component_container-1] [1944301011AADD2C00] [192.168.2.97] [36.408] [VideoEncoder(12)] [warning] Arrived frame type (14) is not either NV12 or YUV400p (8-bit Gray)
