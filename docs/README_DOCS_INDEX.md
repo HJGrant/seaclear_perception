@@ -22,6 +22,10 @@ Supersedes: ad hoc document placement at `docs/`, `docs/status/`, and `docs/work
 - `SC2/20251225_D5_2_Control_Overhaul_SC2.pdf` — D5.2 PDF requirement source.
 - `SC2/D5.2_Smart_Grapple_Report_SC2.tex` — D5.2 LaTeX source.
 - `../scripts/ensure_ros_apt_deps.sh` — Preflight installer/check for `ros-humble-mavros-msgs` required by rc_override workflow.
+- `../scripts/ensure_uv.sh` — Ensures a workspace-local `uv` binary exists so container recreation does not require reinstalling `uv`.
+- `../scripts/ensure_dev_container_ready.sh` — Idempotent container-side setup check that only runs `uv_bootstrap.sh` when `.venv` is missing or broken.
+- `../scripts/run_oakd_system_check.sh` — Container-side build and launch smoke check for `oakd_system.launch.py`, with logs stored under `diagnoses_oakd_system/`.
+- `../scripts/run_oakd_system_check_docker.sh` — Host-side wrapper that starts or reuses the Isaac ROS dev container and runs the smoke check inside it.
 
 ## OAK-D and VSLAM documents
 

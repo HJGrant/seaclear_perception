@@ -1,0 +1,11 @@
+PLACEHOLDER - original file removed during GitLab -> GitHub migration
+(GitHub rejects files over 100 MB).
+
+Original path : .tools/uv/uv
+Original size : 53.5 MB
+Git blob SHA  : 2a47aff9a174be7cdbd9a101d6b1195d44a22e18
+
+The original is still in the LRZ GitLab repo:
+  https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros
+To restore it from a clone of that repo:
+  git cat-file blob 2a47aff9a174be7cdbd9a101d6b1195d44a22e18 > uv

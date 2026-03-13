@@ -1,0 +1,11 @@
+#!/bin/sh
+# add binaries to PATH if they aren't added yet
+# affix colons on either side of $PATH to simplify matching
+case ":${PATH}:" in
+    *:"/workspaces/oakd_isaac_ros/.tools/uv":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed binary needs to be overridden
+        export PATH="/workspaces/oakd_isaac_ros/.tools/uv:$PATH"
+        ;;
+esac
