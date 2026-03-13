@@ -8,6 +8,7 @@ fi
 
 # Guard against nounset shells when ROS/colcon setup scripts reference these vars.
 : "${COLCON_TRACE:=}"
+: "${COLCON_CURRENT_PREFIX:=}"
 : "${AMENT_TRACE_SETUP_FILES:=}"
 : "${AMENT_PYTHON_EXECUTABLE:=}"
 

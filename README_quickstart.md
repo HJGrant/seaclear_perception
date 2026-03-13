@@ -22,6 +22,33 @@ Notes:
 - venv is created with Python 3.10 and `--system-site-packages` so ROS apt packages (`rclpy`, `cv_bridge`, message modules) remain importable.
 - `numpy<2` is pinned in `pyproject.toml` to avoid common `cv_bridge` ABI issues.
 - Torch in `mppi` group is intended for x86_64 development; on Jetson, use NVIDIA-provided torch wheel and skip `--with-mppi`.
+- `.venv` lives under the workspace, so it persists across container recreation as long as the workspace is bind-mounted.
+- `uv` is installed into a workspace-local location by `scripts/ensure_uv.sh`, so it also persists across container recreation as long as the workspace is bind-mounted.
+- To avoid manually deciding when `uv_bootstrap.sh` is needed, run `./scripts/ensure_dev_container_ready.sh` inside the container. It only bootstraps when `.venv` is missing or broken.
+- `uv_bootstrap.sh` is now safe to rerun; it recreates `.venv` deterministically when a stale environment already exists.
+- Workspace setup sourcing is wrapped by `scripts/source_workspace_env_safe.sh` to avoid `set -u` / colcon setup-script failures during automated checks.
+
+## 0.1) One-command environment check
+
+Inside the ROS Humble container:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+./scripts/ensure_dev_container_ready.sh
+```
+
+From the host, using Docker:
+
+```bash
+cd /path/to/oakd_isaac_ros
+./scripts/run_oakd_system_check_docker.sh --profile no_hw
+```
+
+This host-side wrapper:
+- starts or reuses the Isaac ROS dev container,
+- runs the container-side bootstrap/build/launch check,
+- writes logs under `diagnoses_oakd_system/<timestamp>/`.
+- Do not run `run_oakd_system_check_docker.sh` inside the container; use `run_oakd_system_check.sh` there instead.
 
 ## 1) Build using venv Python
 
@@ -169,6 +196,35 @@ Visualization note:
 - `visual_servo_debug_viz_node` is enabled by default in `mvp_sim.launch.py` and publishes:
   - `/sc2/visual_servo/debug_markers` (`visualization_msgs/msg/MarkerArray`)
 - This can be viewed in RViz2 or Foxglove.
+
+## 8.1) `oakd_system.launch.py` smoke checks
+
+WSL / Docker preflight without OAK-D hardware:
+
+```bash
+cd /path/to/oakd_isaac_ros
+./scripts/run_oakd_system_check_docker.sh --profile no_hw
+```
+
+Jetson live check inside the container:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+./scripts/run_oakd_system_check.sh --profile jetson_live
+```
+
+Jetson live check from the host:
+
+```bash
+cd /path/to/oakd_isaac_ros
+./scripts/run_oakd_system_check_docker.sh --profile jetson_live
+```
+
+Generated logs are kept under:
+
+```bash
+diagnoses_oakd_system/<timestamp>/
+```
 
 ## 9) BlueROV MAVROS quickcheck (synthetic detections)
 

@@ -6,10 +6,8 @@ if [[ "${1:-}" == "--with-mppi" ]]; then
   WITH_MPPI=1
 fi
 
-if ! command -v uv >/dev/null 2>&1; then
-  echo "uv is not installed. Install: https://docs.astral.sh/uv/getting-started/installation/"
-  exit 1
-fi
+UV_BIN="$("$(dirname "$0")/ensure_uv.sh")"
+export PATH="$(dirname "$UV_BIN"):$PATH"
 
 if [[ -f /opt/ros/humble/setup.bash ]]; then
   # Source ROS env with nounset-safe guards.
@@ -26,15 +24,16 @@ fi
 
 if ! command -v python3.10 >/dev/null 2>&1; then
   echo "python3.10 not found; attempting to install via uv..."
-  uv python install 3.10
+  "$UV_BIN" python install 3.10
 fi
 
-uv venv .venv --python 3.10 --system-site-packages
+# Recreate deterministically when a stale or partially-created venv already exists.
+"$UV_BIN" venv .venv --clear --python 3.10 --system-site-packages
 
 if [[ "$WITH_MPPI" -eq 1 ]]; then
-  uv sync --python .venv/bin/python --group dev --group mppi
+  "$UV_BIN" sync --python .venv/bin/python --group dev --group mppi
 else
-  uv sync --python .venv/bin/python --group dev
+  "$UV_BIN" sync --python .venv/bin/python --group dev
 fi
 
 mkdir -p .venv
