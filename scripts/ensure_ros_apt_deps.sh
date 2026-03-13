@@ -4,9 +4,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WITH_MAVROS=0
 
-if [[ "${1:-}" == "--with-mavros" ]]; then
-  WITH_MAVROS=1
-fi
+for arg in "$@"; do
+  case "$arg" in
+    --with-mavros)
+      WITH_MAVROS=1
+      ;;
+    *)
+      echo "Unknown argument: $arg"
+      echo "Usage: $0 [--with-mavros]"
+      exit 1
+      ;;
+  esac
+done
 
 if [[ -f "${SCRIPT_DIR}/source_ros_env_safe.sh" ]]; then
   # shellcheck disable=SC1091

@@ -23,7 +23,7 @@ This is the primary status checklist (`DONE`/`PARTIAL`/`NOT_STARTED`) for weekly
 
 **Expected inputs/logic (from D5.2 + winter school):**
 - D5.2: visual servoing is triggered after the final tracking waypoint; uses **object detection bbox** to center target and uses **altitude (DVL)** for vertical alignment.
-- D5.2: perception pipeline is stereo RGBD → YOLOv8 bbox → depth mask → (optional) voxel/TSDF mapping + monitoring.
+- D5.2: perception pipeline is stereo RGBD → detector bbox → depth mask → (optional) voxel/TSDF mapping + monitoring.
 - Winter school: start with **IBVS** (camera-centric, robust) and optionally switch to **PBVS** when SLAM is reliable; MPC can include **FOV constraints**.
 
 ---
@@ -46,7 +46,7 @@ This is the primary status checklist (`DONE`/`PARTIAL`/`NOT_STARTED`) for weekly
 | Item | Requirement | Status | Notes |
 |---|---|---:|---|
 | P1. Stereo RGBD source | Stereo camera provides RGB + depth (aligned or alignable) | PARTIAL | OAK-D pipeline exists; “stable mode” is constrained (stereo-only baseline is stable; richer modes trigger failures) — treat as *integration risk*. |
-| P2. YOLO detection | YOLOv8 outputs bbox for litter objects | PARTIAL | Implemented in ROS2 workspace (needs confirmation on underwater dataset + runtime). D5.2 expects bbox as the main VS cue. |
+| P2. Object detection | Detector outputs bbox for litter objects | PARTIAL | Implemented in ROS2 workspace (needs confirmation on the teammate-maintained underwater detector and runtime path). D5.2 expects bbox as the main VS cue. |
 | P3. Depth masking | Use bbox to mask depth map into target vs non-target | PARTIAL | VS path currently uses bbox-ROI depth statistics; mask-based gating exists for target-point estimation but is not the default observer path. |
 | P4. Voxel/TSDF map (optional for MVP) | TSDF-based voxel reconstruction around target ROI | OPTIONAL | Valuable later; **not required** for MVP VS loop. D5.2 describes it for geometry/obstacles. |
 | P5. Monitoring | Foxglove/Gstreamer monitoring of RGB+bbox+map | PARTIAL | Present in concept; ensure a "demo panel" exists for debugging. |
@@ -86,7 +86,7 @@ This section is the current baseline for implementation status and replaces stan
 ### Phase B (Week 3-4): Wire perception to controller (end-to-end in sim/live)
 | Item | Current status | Implementation path(s) | Notes |
 |---|---|---|---|
-| B1. Connect YOLO bbox topic to VS input | In Progress | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`, `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Wiring exists via `use_stub_target:=false`; detection topic stabilization remains deferred. |
+| B1. Connect detector bbox topic to VS input | In Progress | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py`, `src/sc2_visual_servo_bringup/launch/mvp_sim.launch.py` | Wiring exists via `use_stub_target:=false`; detection topic stabilization remains deferred. |
 | B2. Depth-to-target estimation in consistent units | Verified | `src/sc2_visual_servo_perception/sc2_visual_servo_perception/conversion.py`, `src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_point_estimator_node.py` | ROI median and UV-median-neighborhood representative depth are implemented. |
 | B3. FOV constraint (hard/probabilistic) | In Progress | `src/sc2_visual_servo_controller/sc2_visual_servo_controller/pbvs/mppi_core.py` | FOV/risk cost exists in MPPI core; not default path in MVP IBVS mode. |
 | B4. Reproducible evaluation harness | In Progress | `scripts/record_perception_bag.sh`, `scripts/play_perception_bag.sh`, `src/sc2_visual_servo_perception/test/test_target_observer_integration.py`, `src/sc2_visual_servo_perception/test/test_target_point_estimator_integration.py` | Record/replay and perception-side integration tests exist; offline convergence plotting is still pending. |

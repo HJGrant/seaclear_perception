@@ -226,6 +226,16 @@ Generated logs are kept under:
 diagnoses_oakd_system/<timestamp>/
 ```
 
+For the `jetson_live` profile, also inspect:
+
+```bash
+cat diagnoses_oakd_system/<timestamp>/perception_preflight.log
+```
+
+This captures:
+- existence/type of `isaac_ros_assets/models/seaclear/v12s.onnx` and `v12s.plan`
+- detection-related launch files currently present under `src/oakd_isaac_ros/launch/`
+
 ## 9) BlueROV MAVROS quickcheck (synthetic detections)
 
 For detector-free actuation validation run:

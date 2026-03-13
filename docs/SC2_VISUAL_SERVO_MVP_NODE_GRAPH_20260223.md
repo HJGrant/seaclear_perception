@@ -15,7 +15,7 @@ Launch files:
 
 - **Mode A (default): stub target → controller → cmd**
   - `use_stub_target:=true` (default)
-- **Mode B: YOLO+Depth input → controller → cmd**
+- **Mode B: detector+depth input → controller → cmd**
   - `use_stub_target:=false`
 - **Controller mode**
   - `controller_mode:=ibvs` (default), `bbox_approach`, `bbox_target_point`, or `mppi`
@@ -53,7 +53,7 @@ flowchart LR
   V -->|/sc2/visual_servo/debug_markers<br/>MarkerArray| H["/sc2/visual_servo/debug_markers"]
 ```
 
-### 2.2 Perception-input mode (YOLO+Depth)
+### 2.2 Perception-input mode (detector+depth)
 ```mermaid
 flowchart LR
   Y["/detections_output<br/>vision_msgs/Detection2DArray"] --> P["target_observer_node<br/>(sc2_visual_servo_perception)"]
@@ -101,7 +101,7 @@ Message: `sc2_visual_servo_interfaces/msg/TargetObservation.msg`
 | `depth_m` | robust depth estimate inside bbox ROI (median). NaN allowed. |
 | `confidence` | detection confidence |
 | `keypoints_uv` | reserved (future) |
-| `source` | provenance string (e.g., `sim_scripted`, `yolo_detection2d`) |
+| `source` | provenance string (e.g., `sim_scripted`, `detection2d`) |
 
 ### 3.2 `/sc2/visual_servo/cmd_vel_body` — `geometry_msgs/TwistStamped`
 - `header.frame_id` = body frame (default parameter `base_link`)
@@ -163,8 +163,8 @@ Note: MPPI requires `torch` and a finite depth estimate at runtime; otherwise th
 - `ros2 topic echo /sc2/visual_servo/cmd_vel_body --once`
 - check `/tmp/sc2_visual_servo_mvp.csv` is created and growing
 
-### 5.2 Perception-input run (YOLO+Depth)
-1) run your YOLO/depth pipeline
+### 5.2 Perception-input run (detector+depth)
+1) run your detector/depth pipeline
 2) `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py use_stub_target:=false`
 3) Confirm:
 - `/detections_output` exists and messages arrive

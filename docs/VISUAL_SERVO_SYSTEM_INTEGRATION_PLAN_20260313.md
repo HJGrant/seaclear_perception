@@ -9,7 +9,7 @@ Supersedes: ad hoc discussion about how `oakd_nvblox.launch.py` and `mvp_sim.lau
 
 Goal:
 - Introduce a new top-level launch file `oakd_system.launch.py`.
-- Reuse the existing OAK-D + YOLO + mask + nvblox pipeline as the real perception input for visual servoing.
+- Reuse the existing OAK-D + detector + mask + nvblox pipeline as the real perception input for visual servoing.
 - Keep existing launch files intact for rollback and isolated debugging.
 
 Boundary:
@@ -56,11 +56,11 @@ flowchart LR
   RGB --> CONV["image_converter_node"]
   CONV --> RGB8["RGB image (rgb8)"]
 
-  RGB --> ENC["yolov8_encoder launch"]
+  RGB --> ENC["detector encoder launch"]
   CAMINFO0 --> ENC
   ENC --> RESIZED["Resized RGB + camera info"]
 
-  RESIZED --> TRT["tensor_rt_container:<br/>TensorRT + YoloV8Decoder"]
+  RESIZED --> TRT["tensor_rt_container:<br/>TensorRT + detector decoder"]
   TRT --> DET["Detection results"]
 
   DET --> MASK["publish_mask + mask_resize"]
@@ -82,10 +82,10 @@ flowchart LR
 Nodes launched directly or via include:
 - OAK-D camera driver container from `launch/tools/camera.launch.py`
 - `image_converter_node`
-- `yolov8_encoder` include
+- detector encoder include
 - `tensor_rt_container`
   - `tensor_rt`
-  - `yolov8_decoder_node`
+  - detector decoder node
   - `mask_resize_node`
   - `depth_mask_publisher` (`publish_mask`)
 - `nvblox_node`
@@ -103,7 +103,7 @@ Nodes launched directly or via include:
 | `RGB image` | `/oak/rgb/image_raw` | `sensor_msgs/msg/Image` |
 | `Stereo depth` | `/oak/stereo/image_raw_depth` | `sensor_msgs/msg/Image` |
 | `RGB image (rgb8)` | `/oak/rgb/image_raw_rgb8` | `sensor_msgs/msg/Image` |
-| `Resized RGB + camera info` | `/yolov8_encoder/resize/image`, `/yolov8_encoder/resize/camera_info` | `sensor_msgs/msg/Image`, `sensor_msgs/msg/CameraInfo` |
+| `Resized RGB + camera info` | Detector encoder resize image and camera-info topics from the current detection launch | `sensor_msgs/msg/Image`, `sensor_msgs/msg/CameraInfo` |
 | `Detection results` | `/detections_output` | `vision_msgs/msg/Detection2DArray` |
 | `Detection mask + overlay` | `/camera0/detection/mask`, `/camera0/detection/mask/camera_info`, `/mask_overlay` | `sensor_msgs/msg/Image`, `sensor_msgs/msg/CameraInfo`, `sensor_msgs/msg/Image` |
 | `RGB-timestamped depth` | `/oak/stereo/image_raw`, `/oak/stereo/camera_info` | `sensor_msgs/msg/Image`, `sensor_msgs/msg/CameraInfo` |
@@ -172,7 +172,7 @@ Integration rule:
 
 | Producer node / launch side | Output topic | Type | Consumer node / launch side | Integration decision |
 |---|---|---|---|---|
-| `yolov8_decoder_node` in `tensor_rt_container` | `/detections_output` | `vision_msgs/msg/Detection2DArray` | `target_observer_node` | Reuse as-is |
+| detector decoder in `tensor_rt_container` | `/detections_output` | `vision_msgs/msg/Detection2DArray` | `target_observer_node` | Reuse as-is |
 | `publish_mask` | `/oak/stereo/image_raw` | `sensor_msgs/msg/Image` | `target_observer_node`, `target_point_estimator_node` | Reuse as-is |
 | `publish_mask` | `/oak/stereo/camera_info` | `sensor_msgs/msg/CameraInfo` | `target_point_estimator_node` | Reuse as-is |
 | `publish_mask` | `/camera0/detection/mask` | `sensor_msgs/msg/Image` | `target_point_estimator_node` with `use_mask_gating:=true` | Reuse by parameter |
@@ -196,7 +196,7 @@ It does not mean:
 
 Relevant requirement path from `docs/SC2/vision_pipeline.tex`:
 - RGBD input
-- YOLO bounding boxes
+- detector bounding boxes
 - bbox-derived depth masking
 - TSDF / dynamic layer generation
 - final grasp-point estimation from the detected object region
@@ -204,7 +204,7 @@ Relevant requirement path from `docs/SC2/vision_pipeline.tex`:
 
 Current repo status against that chain:
 - RGBD input: implemented in `oakd_nvblox.launch.py`
-- YOLO detections: implemented in `detection.launch.py`
+- detector outputs: implemented in `detection.launch.py`
 - bbox-derived mask: implemented via `publish_mask.cpp`
 - TSDF / dynamic layer: implemented in `nvblox.launch.py`
 - final grasp-point estimation:
@@ -279,7 +279,7 @@ Visualization/logging:
 The first integrated real-pipeline target should be:
 
 ```text
-OAK-D camera -> YOLO detections -> target_observer_node -> visual_servo_controller_node -> cmd output
+OAK-D camera -> detector outputs -> target_observer_node -> visual_servo_controller_node -> cmd output
 ```
 
 Optional second step in the same launch:
