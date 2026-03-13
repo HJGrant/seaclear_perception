@@ -1,0 +1,6 @@
+Sourcing ROS environment...
+Sourcing workspace install/setup.bash...
+Workspace environment sourced.
+Launching oakd_system.launch.py with profile=jetson_live
+Launch stayed alive for 12s; collecting ROS graph state.
+ROS graph collection complete.
