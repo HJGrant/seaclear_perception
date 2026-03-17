@@ -2,11 +2,38 @@
 
 Scope: primary run/build/test entry point for the current visual-servo MVP workflow.
 Source of truth: use this file for reproducible commands; deeper design details live under `docs/`.
-Last updated: 2026-03-13
+Last updated: 2026-03-17
 Supersedes: duplicated command blocks in older status/debug notes.
 
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
 Perception topic map (live OAK-D / bag replay): `docs/PERCEPTION_TOPIC_MAP.md`.
+
+## Host-side prerequisites for current `dev/aoki`
+
+Use the supported workflow: clone/update on the host, then do ROS2/CV build/test/run inside the ROS Humble dev container. Host-side Python execution is not the supported path for the MVP checks below.
+
+For a fresh clone:
+
+```bash
+git clone --recurse-submodules <repo-url>
+cd oakd_isaac_ros
+git submodule sync --recursive
+git submodule update --init --recursive
+```
+
+WSL + Docker Desktop notes for the current LRZ `dev/aoki` branch:
+- Start Docker Desktop before running `run_dev.sh`.
+- If private submodules or private image access rely on your SSH agent, start `ssh-agent` on the host and run `run_dev.sh` from the same terminal session so `SSH_AUTH_SOCK` is forwarded into the container.
+- If your clone is missing unrelated Git LFS payloads but you only need the visual-servo MVP quickstart, launch the container with `SKIP_LFS_CHECK=1` or `src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check`. This only skips the preflight completeness gate; it does not fetch missing LFS assets.
+
+Example host-side container start:
+
+```bash
+cd /path/to/oakd_isaac_ros
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/<your_key>
+SKIP_LFS_CHECK=1 ./src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir "$(pwd)"
+```
 
 ## 0) uv Bootstrap (recommended first)
 
@@ -41,7 +68,7 @@ From the host, using Docker:
 
 ```bash
 cd /path/to/oakd_isaac_ros
-./scripts/run_oakd_system_check_docker.sh --profile no_hw
+SKIP_LFS_CHECK=1 ./scripts/run_oakd_system_check_docker.sh --profile no_hw
 ```
 
 This host-side wrapper:
@@ -60,6 +87,15 @@ This host-side wrapper:
   sc2_visual_servo_interfaces \
   sc2_visual_servo_synth
 source install/setup.bash
+```
+
+## 1.1) Run tests for the MVP packages
+
+```bash
+./scripts/colcon_test_venv.sh --packages-select \
+  sc2_visual_servo_perception \
+  sc2_visual_servo_controller \
+  sc2_visual_servo_bringup
 ```
 
 ## 2) One-command run
@@ -155,14 +191,13 @@ Key tuning switches for field validation:
 Design note and detailed investigation are documented in:
 - `docs/VS_BBOX_TARGET_POINT_INTEGRATION_20260225.md`
 
-## 7) Run tests (venv + colcon)
-
-```bash
-./scripts/colcon_test_venv.sh --packages-select \
-  sc2_visual_servo_perception \
-  sc2_visual_servo_controller \
-  sc2_visual_servo_bringup
-```
+Minimal reproducibility check for the current MVP path:
+1. Inside the container, run `./scripts/ensure_dev_container_ready.sh`.
+2. Build the five `sc2_visual_servo_*` packages with `./scripts/colcon_build_venv.sh --packages-up-to ...`.
+3. Run `./scripts/colcon_test_venv.sh --packages-select sc2_visual_servo_perception sc2_visual_servo_controller sc2_visual_servo_bringup`.
+4. Launch `ros2 launch sc2_visual_servo_bringup mvp_sim.launch.py use_stub_target:=false`.
+5. Publish a centered manual `TargetObservation` and verify `/sc2/visual_servo/cmd_vel_body` is near zero.
+6. Publish an offset manual `TargetObservation` and verify the command magnitude increases in the error-reducing direction.
 
 ## 8) Reproducible rosbag workflow (no hardware)
 
