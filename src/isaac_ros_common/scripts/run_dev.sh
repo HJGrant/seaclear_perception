@@ -14,7 +14,7 @@ ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $ROOT/utils/print_color.sh
 
 function usage() {
-    print_info "Usage: run_dev.sh {-d isaac_ros_dev directory path OPTIONAL}"
+    print_info "Usage: run_dev.sh {-d isaac_ros_dev directory path OPTIONAL} [--skip_lfs_check]"
     print_info "Copyright (c) 2021-2024, NVIDIA CORPORATION."
 }
 
@@ -43,8 +43,9 @@ fi
 
 ISAAC_ROS_DEV_DIR="${ISAAC_ROS_WS}"
 SKIP_IMAGE_BUILD=0
+SKIP_LFS_CHECK_FLAG=0
 VERBOSE=0
-VALID_ARGS=$(getopt -o hvd:i:ba: --long help,verbose,isaac_ros_dev_dir:,image_key:,skip_image_build,docker_arg: -- "$@")
+VALID_ARGS=$(getopt -o hvd:i:ba: --long help,verbose,isaac_ros_dev_dir:,image_key:,skip_image_build,skip_lfs_check,docker_arg: -- "$@")
 eval set -- "$VALID_ARGS"
 while [ : ]; do
   case "$1" in
@@ -58,6 +59,10 @@ while [ : ]; do
         ;;
     -b | --skip_image_build)
         SKIP_IMAGE_BUILD=1
+        shift
+        ;;
+    --skip_lfs_check)
+        SKIP_LFS_CHECK_FLAG=1
         shift
         ;;
     -a | --docker_arg)
@@ -144,19 +149,27 @@ if [[ $? -ne 0 ]] ; then
     exit 1
 fi
 
+if [[ "${SKIP_LFS_CHECK_FLAG}" -eq 1 ]]; then
+    export SKIP_LFS_CHECK=1
+fi
+
 # Check if all LFS files are in place in the repository where this script is running from.
 cd $ROOT
 git rev-parse &>/dev/null
-if [[ $? -eq 0 ]]; then
-    LFS_FILES_STATUS=$(cd $ISAAC_ROS_DEV_DIR && git lfs ls-files | cut -d ' ' -f2)
+if [[ $? -eq 0 && -z "${SKIP_LFS_CHECK}" ]]; then
+    LFS_FILES_STATUS=$(cd $ISAAC_ROS_DEV_DIR && git lfs ls-files)
     for (( i=0; i<${#LFS_FILES_STATUS}; i++ )); do
         f="${LFS_FILES_STATUS:$i:1}"
         if [[ "$f" == "-" ]]; then
             print_error "LFS files are missing. Please re-clone repos after installing git-lfs."
-            git lfs ls-files
+            (cd $ISAAC_ROS_DEV_DIR && git lfs ls-files)
+            print_error "If you only need the visual-servo MVP quickstart, rerun with SKIP_LFS_CHECK=1 or --skip_lfs_check."
             exit 1
         fi
     done
+elif [[ -n "${SKIP_LFS_CHECK}" ]]; then
+    print_warning "Skipping git-lfs completeness check because SKIP_LFS_CHECK is set."
+    print_warning "Use this only when the workflow does not require all LFS-managed assets."
 fi
 
 # Determine base image key

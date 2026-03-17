@@ -1,0 +1,32 @@
+Commands executed during this reproducibility-fix pass
+
+Repository inspection
+- git branch --show-current
+- git status --short
+- sed -n '1,240p' src/isaac_ros_common/scripts/run_dev.sh
+- sed -n '1,240p' README_quickstart.md
+- sed -n '1,240p' .gitmodules
+- git ls-files --stage | rg '^160000'
+- git submodule status --recursive
+- git ls-tree HEAD src/depthai-ros src/grip_points_service src/isaac_ros_nvblox src/isaac_ros_visual_slam src/webrtc_ros src/foxglove_compressed_video
+- git show 4c75d69:.gitmodules
+- git show 2e1df02:.gitmodules
+
+Verification
+- bash -n src/isaac_ros_common/scripts/run_dev.sh scripts/run_oakd_system_check_docker.sh scripts/ensure_dev_container_ready.sh scripts/colcon_build_venv.sh scripts/colcon_test_venv.sh
+- git submodule sync --recursive
+- git submodule update --init --recursive
+- timeout 20s git submodule update --init --recursive
+
+Git index cleanup
+- git add .gitmodules README_quickstart.md src/isaac_ros_common/scripts/run_dev.sh
+- git rm --cached src/grip_points_service
+
+Artifacts written
+- artifacts/2026-03-17/reproducibility_fix/bash_n.log
+- artifacts/2026-03-17/reproducibility_fix/submodule_sync.log
+- artifacts/2026-03-17/reproducibility_fix/submodule_update.log
+- artifacts/2026-03-17/reproducibility_fix/submodule_update.exitcode
+- artifacts/2026-03-17/reproducibility_fix/submodule_status.log
+- artifacts/2026-03-17/reproducibility_fix/git_status.log
+- artifacts/2026-03-17/reproducibility_fix/diff_stat.log

@@ -4,6 +4,9 @@
 [submodule "src/depthai-ros"]
 	path = src/depthai-ros
 	url = https://github.com/luxonis/depthai-ros.git
-[submodule "src/foxglove_compressed_video"]
-	path = src/foxglove_compressed_video
-	url = https://github.com/HJGrant/foxglove_compressed_video_stream.git
+[submodule "src/isaac_ros_visual_slam"]
+	path = src/isaac_ros_visual_slam
+	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git
+[submodule "src/webrtc_ros"]
+	path = src/webrtc_ros
+	url = https://github.com/RobotWebTools/webrtc_ros.git
