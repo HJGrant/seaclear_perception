@@ -7,12 +7,12 @@
       i_pipeline_type: RGB
       i_enable_sync: false
       i_ip: "192.168.2.97"
-    
+
     pipeline_gen:
       i_enable_diagnostics: true
       i_enable_imu: false
       i_enable_sync: false
-    
+
     left:
       i_publish_topic: false
       i_fps: 10.0
@@ -22,7 +22,7 @@
       #i_synced: true
       #r_exposure: 10000
       #r_iso: 200
-      #r_set_man_exposure: true 
+      #r_set_man_exposure: true
 
     right:
       i_publish_topic: false
@@ -34,7 +34,7 @@
       #r_exposure: 10000
       #r_iso: 200
       #r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
-    
+
     rgb:
       i_publish_topic: true
       i_resolution: 1080P
@@ -73,7 +73,7 @@
       #i_right_rect_synced: true
       #i_right_socket_id: 2
       #i_left_rect_add_exposure_offset: false
-      
+
       #i_left_rect_enable_feature_tracker: false
       #i_left_rect_exposure_offset: 0
       #i_left_rect_low_bandwidth: false
@@ -100,5 +100,3 @@
       i_rot_cov: -1.0
       i_sync_method: LINEAR_INTERPOLATE_ACCEL
       i_update_ros_base_time_on_ros_msg: false
-        
-      

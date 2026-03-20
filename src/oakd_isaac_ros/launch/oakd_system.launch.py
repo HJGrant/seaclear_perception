@@ -13,6 +13,9 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     package_share = get_package_share_directory('oakd_isaac_ros')
     tools_dir = os.path.join(package_share, 'launch', 'tools')
+    default_detector_model_dir = os.path.join(
+        os.environ.get('ISAAC_ROS_WS', '/workspaces/oakd_isaac_ros'),
+        'isaac_ros_assets', 'models', 'seaclear')
 
     run_oakd = LaunchConfiguration('run_oakd')
     enable_detection = LaunchConfiguration('enable_detection')
@@ -54,6 +57,8 @@ def generate_launch_description() -> LaunchDescription:
     require_target_point = LaunchConfiguration('require_target_point')
     use_sim_time = LaunchConfiguration('use_sim_time')
     body_frame_id = LaunchConfiguration('body_frame_id')
+    detector_model_file_path = LaunchConfiguration('detector_model_file_path')
+    detector_engine_file_path = LaunchConfiguration('detector_engine_file_path')
 
     mavros_backend = LaunchConfiguration('mavros_backend')
     deadman_topic = LaunchConfiguration('deadman_topic')
@@ -91,6 +96,12 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('debug_markers_topic', default_value='/sc2/visual_servo/debug_markers'),
         DeclareLaunchArgument('csv_path', default_value='/tmp/sc2_visual_servo_mvp.csv'),
         DeclareLaunchArgument('body_frame_id', default_value='base_link'),
+        DeclareLaunchArgument(
+            'detector_model_file_path',
+            default_value=os.path.join(default_detector_model_dir, 'v12n.onnx')),
+        DeclareLaunchArgument(
+            'detector_engine_file_path',
+            default_value=os.path.join(default_detector_model_dir, 'v12n.plan')),
 
         DeclareLaunchArgument('controller_mode', default_value='bbox_target_point'),
         DeclareLaunchArgument('target_class', default_value=''),
@@ -130,6 +141,8 @@ def generate_launch_description() -> LaunchDescription:
                 'container_name': 'nvblox_container',
                 'num_cameras': '1',
                 'one_container_per_camera': 'True',
+                'model_file_path': detector_model_file_path,
+                'engine_file_path': detector_engine_file_path,
             }.items(),
             condition=IfCondition(enable_detection),
         ),
