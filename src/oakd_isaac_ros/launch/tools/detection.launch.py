@@ -30,6 +30,10 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME, \
     PEOPLENET_INPUT_IMAGE_WIDTH, PEOPLENET_INPUT_IMAGE_HEIGHT
 
+DEFAULT_ISAAC_ROS_WS = os.environ.get('ISAAC_ROS_WS', '/workspaces/oakd_isaac_ros')
+DEFAULT_DETECTOR_MODEL_DIR = os.path.join(
+    DEFAULT_ISAAC_ROS_WS, 'isaac_ros_assets', 'models', 'seaclear')
+
 def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
 
     # DNN Image Encoder parameters
@@ -229,12 +233,14 @@ def generate_launch_description() -> LaunchDescription:
     #             lu.get_isaac_ros_ws_path() +
     #             '/isaac_ros_assets/models/yolov8/yolov8s.onnx',
     #             description='Full path to detection model TRT engine')
-    args.add_arg('model_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx',
-                 description='Full path to detection model TRT engine')
-    args.add_arg('engine_file_path',
-                 '/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan',
-                 description='Full path to detection model TRT engine')
+    args.add_arg(
+        'model_file_path',
+        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12n.onnx'),
+        description='Full path to detection model file. Override this for alternate checkpoints.')
+    args.add_arg(
+        'engine_file_path',
+        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12n.plan'),
+        description='Full path to TensorRT engine plan. Override this if the plan is generated elsewhere.')
     args.add_arg('input_binding_names', '["images"]',
                  description='List of TRT input tensor binding names')
     args.add_arg('input_tensor_names', '["input_tensor"]',

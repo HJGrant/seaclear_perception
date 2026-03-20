@@ -1,0 +1,53 @@
+/oak:
+  ros__parameters:
+    camera:
+      i_nn_type: none
+      i_tf_base_frame: oak-d_frame
+      i_tf_parent_frame: oak-d-base-frame
+      i_pipeline_type: RGB
+      i_enable_sync: false
+      i_ip: "192.168.2.97"
+
+    pipeline_gen:
+      i_enable_diagnostics: true
+      i_enable_imu: false
+      i_enable_sync: false
+
+    left:
+      i_publish_topic: false
+      i_fps: 10.0
+      i_resolution: 800P
+
+    right:
+      i_publish_topic: false
+      i_fps: 10.0
+      i_resolution: 800P
+
+    rgb:
+      i_publish_topic: true
+      i_resolution: 1080P
+      i_fps: 60.0
+      i_low_bandwidth: true
+
+    stereo:
+      i_publish_topic: false
+      i_low_bandwidth: false
+      i_synced: false
+      i_align_depth: false
+      i_left_rect_publish_topic: false
+      i_right_rect_publish_topic: false
+
+    imu:
+      i_acc_cov: 0.0
+      i_acc_freq: 200
+      i_batch_report_threshold: 5
+      i_enable_rotation: false
+      i_get_base_device_timestamp: false
+      i_gyro_cov: 0.0
+      i_gyro_freq: 200
+      i_mag_cov: 0.0
+      i_max_batch_reports: 10
+      i_message_type: IMU
+      i_rot_cov: -1.0
+      i_sync_method: LINEAR_INTERPOLATE_ACCEL
+      i_update_ros_base_time_on_ros_msg: false
