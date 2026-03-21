@@ -2,6 +2,23 @@
 
 This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
 
+## Current branch status
+
+This repository contains multiple parallel workflows. For the current
+`dev/aoki_detector_integration` line, use these entry points as the operational
+source of truth:
+
+- integrated detector + VS entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
+- detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
+- detector core pipeline: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
+- current detector asset defaults: `isaac_ros_assets/models/seaclear/v12n.onnx` and
+  `isaac_ros_assets/models/seaclear/v12n.plan`
+
+For runnable commands and current caveats, prefer `README_quickstart.md`.
+The legacy nvBlox / VSLAM sections below are still useful reference material,
+but they do not fully describe the current detector + visual-servo integration
+workflow.
+
 ## Repository structure
 
 This repository is organized as a ROS2 workspace with upstream submodules and SC2-specific packages.

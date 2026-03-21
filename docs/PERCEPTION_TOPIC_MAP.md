@@ -2,10 +2,15 @@
 
 Scope: active topic contract for `target_observer_node` and related perception inputs.
 Source of truth: use this file when wiring detections, depth, or bag replay into the MVP pipeline.
-Last updated: 2026-03-13
+Last updated: 2026-03-21
 Supersedes: topic snippets previously spread across status/debug notes.
 
 This map documents the practical perception topics used by visual-servo MVP (`use_stub_target:=false`).
+
+Current launch entry points in this tree:
+- integrated entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
+- detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
+- detector core: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
 
 ## How to inspect on your system
 
@@ -81,10 +86,11 @@ Operational guidance:
 - Do not block controller validation on detections availability; use stub/manual `TargetObservation` or rosbag path.
 - Also verify that the configured detection model files exist:
   - `ls -lah /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear`
-  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx`
-  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan`
+  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12n.onnx`
+  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12n.plan`
 - Team guidance indicates that the production detector is a teammate-maintained underwater model path rather than a generic off-the-shelf detector package.
-- A colleague pointed to `src/oakd_isaac_ros/launch/debug/object_detection.launch.py` as a possible reference path, but that file is not present in the current tree; treat the exact detection launch entry point as pending confirmation.
+- `src/oakd_isaac_ros/launch/debug/object_detection.launch.py` is present in the current tree and serves as the detector-only wrapper path.
+- `src/oakd_isaac_ros/launch/oakd_system.launch.py` is the integrated detector + visual-servo entry in the current branch.
 
 Colleague-confirmed mapping placeholder:
 - Status: TBD
