@@ -2,11 +2,16 @@
 
 Scope: primary run/build/test entry point for the current visual-servo MVP workflow.
 Source of truth: use this file for reproducible commands; deeper design details live under `docs/`.
-Last updated: 2026-03-17
+Last updated: 2026-03-21
 Supersedes: duplicated command blocks in older status/debug notes.
 
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
 Perception topic map (live OAK-D / bag replay): `docs/PERCEPTION_TOPIC_MAP.md`.
+
+Current integrated launch status on `dev/aoki_detector_integration`:
+- integrated entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
+- detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
+- current detector asset defaults: `v12n.onnx` / `v12n.plan`
 
 ## Host-side prerequisites for current `dev/aoki`
 
@@ -268,7 +273,7 @@ cat diagnoses_oakd_system/<timestamp>/perception_preflight.log
 ```
 
 This captures:
-- existence/type of `isaac_ros_assets/models/seaclear/v12s.onnx` and `v12s.plan`
+- existence/type of `isaac_ros_assets/models/seaclear/v12n.onnx` and `v12n.plan`
 - detection-related launch files currently present under `src/oakd_isaac_ros/launch/`
 
 ## 9) BlueROV MAVROS quickcheck (synthetic detections)
