@@ -34,7 +34,7 @@ Clone the repo and it's submodules (DepthAI ROS Driver, Isaac ROS Packages, ...)
 
 ```bash
 mkdir -p ~/workspaces/ && cd ~/workspaces/ && \
-git clone --recurse-submodules https://gitlab.cc-asp.fraunhofer.de/seaclear-project/tum/sc2/development/oakd_isaac_ros.git
+git clone --recurse-submodules https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros.git
 ```
 Copy the .isaac_ros_common-config file into your home directory:
 ```bash
