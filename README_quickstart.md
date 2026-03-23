@@ -2,7 +2,7 @@
 
 Scope: primary run/build/test entry point for the current visual-servo MVP workflow.
 Source of truth: use this file for reproducible commands; deeper design details live under `docs/`.
-Last updated: 2026-03-21
+Last updated: 2026-03-23
 Supersedes: duplicated command blocks in older status/debug notes.
 
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
@@ -11,9 +11,9 @@ Perception topic map (live OAK-D / bag replay): `docs/PERCEPTION_TOPIC_MAP.md`.
 Current integrated launch status on `dev/aoki_detector_integration`:
 - integrated entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
 - detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
-- current detector asset defaults: `v12n.onnx` / `v12n.plan`
+- current detector asset defaults: `v12s.onnx` / `v12s.plan`
 
-## Host-side prerequisites for current `dev/aoki`
+## Host-side prerequisites for current `dev/aoki_detector_integration`
 
 Use the supported workflow: clone/update on the host, then do ROS2/CV build/test/run inside the ROS Humble dev container. Host-side Python execution is not the supported path for the MVP checks below.
 
@@ -26,18 +26,20 @@ git submodule sync --recursive
 git submodule update --init --recursive
 ```
 
-WSL + Docker Desktop notes for the current LRZ `dev/aoki` branch:
+WSL + Docker Desktop notes for the current LRZ `dev/aoki_detector_integration` branch:
 - Start Docker Desktop before running `run_dev.sh`.
 - If private submodules or private image access rely on your SSH agent, start `ssh-agent` on the host and run `run_dev.sh` from the same terminal session so `SSH_AUTH_SOCK` is forwarded into the container.
-- If your clone is missing unrelated Git LFS payloads but you only need the visual-servo MVP quickstart, launch the container with `SKIP_LFS_CHECK=1` or `src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check`. This only skips the preflight completeness gate; it does not fetch missing LFS assets.
+- If your clone is missing unrelated Git LFS payloads but you only need the visual-servo MVP quickstart, use `run_dev.sh --skip_lfs_check`. This only skips the preflight completeness gate; it does not fetch missing LFS assets.
+- `SKIP_LFS_CHECK=1` is an environment variable read by `run_dev.sh`. Use it only when you are calling another wrapper that does not expose `--skip_lfs_check` directly.
 
 Example host-side container start:
 
 ```bash
 cd /path/to/oakd_isaac_ros
+cp .isaac_ros_common_config ~/.isaac_ros_common-config
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/<your_key>
-SKIP_LFS_CHECK=1 ./src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir "$(pwd)"
+./src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check --isaac_ros_dev_dir "$(pwd)"
 ```
 
 ## 0) uv Bootstrap (recommended first)
@@ -80,6 +82,7 @@ This host-side wrapper:
 - starts or reuses the Isaac ROS dev container,
 - runs the container-side bootstrap/build/launch check,
 - writes logs under `diagnoses_oakd_system/<timestamp>/`.
+- `run_oakd_system_check_docker.sh` itself does not expose `--skip_lfs_check`, so `SKIP_LFS_CHECK=1` is passed via the environment to the underlying `run_dev.sh`.
 - Do not run `run_oakd_system_check_docker.sh` inside the container; use `run_oakd_system_check.sh` there instead.
 
 ## 1) Build using venv Python
@@ -273,8 +276,17 @@ cat diagnoses_oakd_system/<timestamp>/perception_preflight.log
 ```
 
 This captures:
-- existence/type of `isaac_ros_assets/models/seaclear/v12n.onnx` and `v12n.plan`
+- existence/type of `isaac_ros_assets/models/seaclear/v12s.onnx` and `v12s.plan`
 - detection-related launch files currently present under `src/oakd_isaac_ros/launch/`
+
+Jetson integrated launch example for this branch:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+ros2 launch oakd_isaac_ros oakd_system.launch.py \
+  detector_model_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx \
+  detector_engine_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan
+```
 
 ## 9) BlueROV MAVROS quickcheck (synthetic detections)
 

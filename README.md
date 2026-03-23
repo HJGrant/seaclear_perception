@@ -11,8 +11,8 @@ source of truth:
 - integrated detector + VS entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
 - detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
 - detector core pipeline: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
-- current detector asset defaults: `isaac_ros_assets/models/seaclear/v12n.onnx` and
-  `isaac_ros_assets/models/seaclear/v12n.plan`
+- current detector asset defaults: `isaac_ros_assets/models/seaclear/v12s.onnx` and
+  `isaac_ros_assets/models/seaclear/v12s.plan`
 
 For runnable commands and current caveats, prefer `README_quickstart.md`.
 The legacy nvBlox / VSLAM sections below are still useful reference material,
@@ -119,10 +119,10 @@ Clone the repo and its submodules (DepthAI ROS Driver, Isaac ROS Packages, ...) 
 mkdir -p ~/workspaces/ && cd ~/workspaces/ && \
 git clone --recurse-submodules https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros.git
 ```
-Copy the .isaac_ros_common-config file into your home directory:
+Copy the repository config file into the home-directory filename expected by `run_dev.sh`:
 ```bash
 cd ~/workspaces/oakd_isaac_ros && \
-cp .isaac_ros_common-config $HOME
+cp .isaac_ros_common_config ~/.isaac_ros_common-config
 ```
 
 ## Step 3
@@ -177,7 +177,7 @@ src/isaac_ros_common/scripts/run_dev.sh \
 
 **If you use WSL**
 you need to run
-`cp .isaac_ros_common-config ~/.isaac_ros_common-config` and launch Docker Desktop beforehand
+`cp .isaac_ros_common_config ~/.isaac_ros_common-config` and launch Docker Desktop beforehand
 
 
 ### 1. Build the workspace
