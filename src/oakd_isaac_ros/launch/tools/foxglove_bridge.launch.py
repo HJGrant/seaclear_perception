@@ -74,7 +74,8 @@ IMAGE_TOPIC_WHITELIST = ["depth", "left/image_resized"]
 
 MY_TOPIC_LIST = [
     #nvblox 
-    #'/nvblox_node/tsdf_layer',
+    '/nvblox_node/tsdf_layer',
+    '/nvblox_node/tsdf_layer_marker',
     '/nvblox_node/color_layer_marker',
     '/nvblox_node/dynamic_occupancy_layer',
     '/nvblox_node/dynamic_points',
@@ -88,6 +89,7 @@ MY_TOPIC_LIST = [
     #'/oak/imu/data',
     #'/oak/rgb/camera_info',
     '/oak/stereo/image_raw',
+    '/oak/stereo/image_raw/compressed',
     #'/oak/stereo/camera_info',
     #'/oak/rgb/image_raw/compressed',
     #'/oak/rgb/image_raw_rgb8/nitros',
@@ -131,6 +133,8 @@ MY_TOPIC_LIST = [
 
     # visualization
     '/seabed_grid',
+    '/mask_overlay/video',
+    '/dnn_depth/video',
 
     #DVL
     '/waterlinked_dvl_driver/dead_reckoning_report',

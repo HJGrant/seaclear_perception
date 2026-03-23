@@ -16,7 +16,20 @@ def generate_launch_description():
     # Path to the other launch file
     oakd_launch_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
-        'launch', 'tools', 'camera.launch.py'
+        'config', 'oak_d', 'oakd_dnn_depth.yaml'
+    )
+
+    #
+
+    # 2. Define the Camera Node
+    camera_node = ComposableNode(
+        package="depthai_ros_driver",
+        plugin="depthai_ros_driver::Camera",
+        name="oak",
+        parameters=[oak_params_file],
+        remappings=[
+            ("/oak/imu/data", "/sc2/imu/imu"), # Match your remapping from camera.launch.py
+        ],
     )
 
     # Include another launch file
