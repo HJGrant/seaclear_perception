@@ -12,6 +12,8 @@ Current integrated launch status on `dev/aoki_detector_integration`:
 - integrated entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
 - detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
 - current detector asset defaults: `v12s.onnx` / `v12s.plan`
+- end-to-end OAK-D detector -> target observer -> controller pipeline is launched from `oakd_system.launch.py`
+- `object_detection.launch.py` is the detector-only wrapper for camera + detector debugging, not the full VS/MAVROS pipeline
 
 ## Host-side prerequisites for current `dev/aoki_detector_integration`
 

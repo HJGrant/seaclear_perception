@@ -98,10 +98,10 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('body_frame_id', default_value='base_link'),
         DeclareLaunchArgument(
             'detector_model_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12n.onnx')),
+            default_value=os.path.join(default_detector_model_dir, 'v12s.onnx')),
         DeclareLaunchArgument(
             'detector_engine_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12n.plan')),
+            default_value=os.path.join(default_detector_model_dir, 'v12s.plan')),
 
         DeclareLaunchArgument('controller_mode', default_value='bbox_target_point'),
         DeclareLaunchArgument('target_class', default_value=''),

@@ -235,11 +235,11 @@ def generate_launch_description() -> LaunchDescription:
     #             description='Full path to detection model TRT engine')
     args.add_arg(
         'model_file_path',
-        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12n.onnx'),
+        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12s.onnx'),
         description='Full path to detection model file. Override this for alternate checkpoints.')
     args.add_arg(
         'engine_file_path',
-        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12n.plan'),
+        os.path.join(DEFAULT_DETECTOR_MODEL_DIR, 'v12s.plan'),
         description='Full path to TensorRT engine plan. Override this if the plan is generated elsewhere.')
     args.add_arg('input_binding_names', '["images"]',
                  description='List of TRT input tensor binding names')
