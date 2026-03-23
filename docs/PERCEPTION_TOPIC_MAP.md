@@ -12,6 +12,20 @@ Current launch entry points in this tree:
 - detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
 - detector core: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
 
+## Launch role split
+
+- `src/oakd_isaac_ros/launch/oakd_system.launch.py`
+  - full integrated path
+  - camera + detector + target observer + target-point estimator + controller + optional MAVROS bridge
+  - uses `src/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml`
+- `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
+  - detector-only path
+  - camera + detector debugging
+  - uses `src/oakd_isaac_ros/config/oak_d/oakd_dnn_depth.yaml`
+- `src/oakd_isaac_ros/launch/tools/detection.launch.py`
+  - detector core only
+  - expects camera / image conversion topics to already exist
+
 ## How to inspect on your system
 
 ```bash
@@ -48,6 +62,18 @@ ros2 topic hz /oak/rgb/image_raw
 Default observer input parameters:
 - `detections_topic:=/detections_output`
 - `depth_topic:=/oak/stereo/image_raw`
+- `source:=yolo_detection2d`
+- `pick_strategy:=highest_confidence`
+- `max_age_ms:=300`
+- `timeout_ms:=500`
+- `depth_min_m:=0.2`
+- `depth_max_m:=20.0`
+
+Observer-side implicit assumptions:
+- `/detections_output` is `vision_msgs/msg/Detection2DArray`.
+- The observer selects one detection after class/confidence filtering; it is not a multi-target tracker.
+- If depth is enabled and the ROI depth is invalid, the observer still publishes `TargetObservation` with `depth_m=NaN`.
+- Stale detections older than `max_age_ms` are dropped before they reach the controller side.
 
 Recommended checks before running `use_stub_target:=false`:
 
@@ -61,6 +87,101 @@ ros2 topic hz /oak/stereo/image_raw
 If `/oak/stereo/image_raw` is missing, either:
 - run the detection pipeline path that includes `publish_mask.cpp` republish, or
 - remap observer `depth_topic` to the available depth topic.
+
+## Target-point estimator assumptions
+
+Current integrated launch feeds the controller through `target_point_estimator_node`, which assumes:
+
+- `source_mode:=bbox_depth_roi`
+  - other modes are not implemented and fall back to `bbox_depth_roi`
+- default inputs:
+  - target obs: `/sc2/visual_servo/target_obs`
+  - depth: `/oak/stereo/image_raw`
+  - camera info: `/oak/stereo/camera_info`
+  - mask: `/camera0/detection/mask`
+- default filters:
+  - `min_valid_points:=20`
+  - `num_nearest_points:=25`
+  - `max_search_radius_px:=40.0`
+  - `use_mask_gating:=false`
+  - `hold_last_valid:=true`
+  - `max_hold_ms:=500.0`
+- if `camera_info` is unavailable, fallback intrinsics are:
+  - `fx=600`, `fy=600`, `cx=640`, `cy=360`
+- default output frame falls back to `oak_rgb_camera_optical_frame`
+
+This means the integrated path is implicitly tuned to a 1280x720 RGB view and a stereo-depth ROI backprojection path.
+
+## Camera intrinsic / extrinsic assumptions
+
+These are easy to miss, but they are part of the current integrated path.
+
+Intrinsic assumptions:
+
+- The target-point estimator backprojects image coordinates using `camera_info` from `/oak/stereo/camera_info`.
+- If `camera_info` is unavailable, it silently falls back to:
+  - `fx=600`
+  - `fy=600`
+  - `cx=640`
+  - `cy=360`
+- The controller is also tuned around a 1280x720 image with image center `(640, 360)`.
+- In practice, this means the current integrated setup implicitly assumes:
+  - a 1280x720-like image geometry
+  - principal point near the image center
+  - intrinsics that are reasonably close to the fallback values if `camera_info` is missing
+
+Extrinsic assumptions:
+
+- `src/oakd_isaac_ros/launch/oakd_system.launch.py` publishes static TFs:
+  - `map -> odom` as identity
+  - `odom -> oak-d-base-frame` with translation `(0, 0, 1.0)` and rotation `(roll=0, pitch=3.14, yaw=1.5708)`
+  - `oak-d-base-frame -> oak_rgb_camera_optical_frame` as identity
+- These transforms are operational placeholders, not a calibrated vehicle/camera extrinsic model.
+- Therefore, any downstream use of target pose, target point, or MAVROS/body-frame command interpretation implicitly assumes those static transforms are acceptable for the current bench or dry-run setup.
+- For real vehicle deployment, these TFs should be treated as items to verify, not as proven calibration.
+
+Practical implication:
+
+- If the OAK-D calibration, mounted camera pose, or frame conventions differ from the above assumptions, the detector may still run, but the target-point estimate and controller behavior can become biased or misleading.
+
+## Controller-side assumptions
+
+Current integrated launch sets `controller_mode:=bbox_target_point`. In practice this means:
+
+- `/sc2/visual_servo/target_point` is part of the intended path, even though `require_target_point` defaults to `false`
+- controller image geometry defaults are:
+  - `image_width:=1280`
+  - `image_height:=720`
+  - `target_u:=640`
+  - `target_v:=360`
+- distance control defaults are:
+  - `desired_target_distance_m:=0.6`
+  - `k_target_distance:=0.6`
+  - `target_distance_mode:=z`
+- timeout behavior defaults are:
+  - observation timeout: `500 ms`
+  - target-point timeout: `500 ms`
+  - on timeout, controller publishes zero command
+- command frame defaults to `body_frame_id:=base_link`
+
+If your camera resolution, optical center, or distance convention differs, you should override these instead of relying on the defaults.
+
+## Detector-core assumptions
+
+`src/oakd_isaac_ros/launch/tools/detection.launch.py` currently assumes:
+
+- RGB input topic: `/oak/rgb/image_raw_rgb8`
+- RGB camera info: `/oak/rgb/camera_info`
+- TensorRT input resolution: `640x640`
+- TensorRT bindings:
+  - input binding name: `images`
+  - output binding name: `output0`
+- decoder thresholds:
+  - confidence: `0.6`
+  - NMS: `0.45`
+- resized mask output path assumes a 1280x720 image geometry
+
+These are model/export-specific assumptions, not generic detector guarantees.
 
 ## Verified on Jetson (2026-02-23)
 

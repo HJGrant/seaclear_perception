@@ -14,6 +14,8 @@ Current integrated launch status on `dev/aoki_detector_integration`:
 - current detector asset defaults: `v12s.onnx` / `v12s.plan`
 - end-to-end OAK-D detector -> target observer -> controller pipeline is launched from `oakd_system.launch.py`
 - `object_detection.launch.py` is the detector-only wrapper for camera + detector debugging, not the full VS/MAVROS pipeline
+- integrated `oakd_system.launch.py` uses `src/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml` because the full path needs both RGB detection input and stereo depth / camera info
+- detector-only `object_detection.launch.py` uses `src/oakd_isaac_ros/config/oak_d/oakd_dnn_depth.yaml` for a lighter camera+detector check
 
 ## Host-side prerequisites for current `dev/aoki_detector_integration`
 
@@ -43,6 +45,28 @@ eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/<your_key>
 ./src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check --isaac_ros_dev_dir "$(pwd)"
 ```
+
+## Operational assumptions to keep in mind
+
+These are not all obvious from the launch command, but the current integrated path assumes them.
+
+- `oakd_system.launch.py` is the end-to-end entry for OAK-D detections feeding visual servo and optional MAVROS bridge.
+- `object_detection.launch.py` is detector-only. Use it to validate camera + detector wiring, not the full VS pipeline.
+- Default integrated topics are:
+  - detections: `/detections_output`
+  - depth: `/oak/stereo/image_raw`
+  - camera info: `/oak/stereo/camera_info`
+  - mask: `/camera0/detection/mask`
+- Default control mode in the integrated launch is `bbox_target_point`, not plain `ibvs`.
+- The controller assumes a 1280x720 image with principal target at `(640, 360)` unless you override the corresponding parameters.
+- The target-point estimator assumes `bbox_depth_roi` mode. Other `source_mode` values currently fall back to that mode.
+- If `camera_info` is missing, the target-point estimator falls back to `fx=600`, `fy=600`, `cx=640`, `cy=360`, which is only a rough default.
+- Detector launch defaults assume a TensorRT model with bindings:
+  - input binding: `images`
+  - output binding: `output0`
+  If the exported engine uses different names, detection will fail until the launch args are overridden.
+- Detector preprocessing assumes RGB8 input on `/oak/rgb/image_raw_rgb8` and a 640x640 network input. The mask-resize path assumes a 1280x720 output image.
+- Current detector assets default to `isaac_ros_assets/models/seaclear/v12s.onnx` and `v12s.plan`. If these files are missing or are unresolved LFS pointers, launch may resolve but detector runtime will still fail.
 
 ## 0) uv Bootstrap (recommended first)
 
