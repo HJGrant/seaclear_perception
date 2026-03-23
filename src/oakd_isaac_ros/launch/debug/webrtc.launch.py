@@ -1,33 +1,68 @@
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
-from launch_ros.actions import Node
+from launch_ros.actions import Node, LoadComposableNodes
+from launch_ros.descriptions import ComposableNode
 import os
 from ament_index_python.packages import get_package_share_directory
 
-
 def generate_launch_description():
-    # Path to the other launch file
+    # Path to the OAK-D launch file
     oakd_launch_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
         'launch', 'tools', 'camera.launch.py'
     )
 
-    # Include OAK-D launch
+    # 1. Include OAK-D launch (This starts the 'component_container')
     oakd_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(oakd_launch_file),
         launch_arguments={
             'params_file': os.path.join(
                 get_package_share_directory('oakd_isaac_ros'),
-                'config', 'oak_d', 'oakd_rgbd.yaml'
+                'config', 'oak_d', 'oakd_dnn_depth.yaml'
             )
         }.items()
     )
 
-    # Our custom resizer node
+    # 2. Load the video_output ComposableNode into the existing container
+    load_video_output = LoadComposableNodes(
+        target_container='oak_container', # Must match the name in camera.launch.py
+        composable_node_descriptions=[
+            ComposableNode(
+                package='ros_deep_learning',
+                plugin='jetson_ros::VideoOutputNode',
+                name='video_output',
+                parameters=[{
+                    'resource': 'webrtc://@:8557/rgb_1',
+                    'codec': 'h264',
+                    'bitrate': 4000000
+                }],
+                remappings=[
+                    ('image_in', '/oak/rgb/image_raw')
+                ]
+            )
+        ]
+    )
+
+    webrtc_launch = IncludeLaunchDescription(
+                        AnyLaunchDescriptionSource(
+                        os.path.join(
+                        get_package_share_directory('ros_deep_learning'),
+                        'launch',
+                        'video_output.ros2.launch'
+                        )),
+                        launch_arguments={
+                            'topic': '/oak/rgb/image_raw', # <-- stream resized topic
+                            'output': 'webrtc://@:8556/rgb_1',
+                            'output_codec': 'h264',
+                            'output_bitrate': '3000000'
+                            }.items()
+                        ) 
+
+    # 3. Your custom resizer node (Standard Node)
     resize = Node(
-        package="oakd_isaac_ros",          # <-- replace with your package name
-        executable="image_resizer.py",    # <-- must match entry point / script name
+        package="oakd_isaac_ros",
+        executable="image_resizer.py",
         name="oak_resizer",
         parameters=[{
             "resize_width": 640,
@@ -39,24 +74,9 @@ def generate_launch_description():
         }]
     )
 
-    # WebRTC video output
-    webrtc_launch = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(       
-                get_package_share_directory('ros_deep_learning'),
-                'launch',
-                'video_output.ros2.launch'
-            )
-        ),
-        launch_arguments={
-            'topic': '/oak/rgb/image_raw',  # <-- stream resized topic
-            'output': 'webrtc://@:8556/rgb',
-            'output_codec': 'h264',
-            'output_bitrate': '4000000'
-        }.items()
-    )
-
     return LaunchDescription([
         oakd_launch,
-        webrtc_launch
+        #webrtc_launch,
+        #resize,
+        load_video_output
     ])

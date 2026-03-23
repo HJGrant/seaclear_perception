@@ -23,6 +23,9 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(foxglove_msgs REQUIRED)
+find_package(stereo_msgs REQUIRED)
+find_package(OpenCV REQUIRED)
+find_package(rclcpp_components REQUIRED)
 
 
 add_library(publish_mask_component SHARED src/publish_mask.cpp)
@@ -98,6 +101,32 @@ rclcpp_components_register_node(h264_bridge_component
 )
 
 install(TARGETS h264_bridge_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+
+# install visualizer
+add_library(dnn_depth_visualizer_component SHARED src/dnn_depth_visualizer.cpp)
+
+target_compile_definitions(dnn_depth_visualizer_component PRIVATE "COMPOSITION_BUILDING_DLL")
+
+ament_target_dependencies(dnn_depth_visualizer_component
+  "rclcpp"
+  "rclcpp_components"
+  "sensor_msgs"
+  "foxglove_msgs"
+  "stereo_msgs"
+  "cv_bridge"
+  "OpenCV"
+)
+
+rclcpp_components_register_node(dnn_depth_visualizer_component 
+  PLUGIN "oakd_isaac_ros::DNNDepthVisualizer" 
+  EXECUTABLE dnn_depth_visualizer_node
+)
+
+install(TARGETS dnn_depth_visualizer_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
