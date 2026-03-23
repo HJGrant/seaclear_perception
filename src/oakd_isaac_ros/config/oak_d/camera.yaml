@@ -9,7 +9,7 @@ ros__parameters:
     i_enable_sync: false
     i_external_calibration_path: ""
     i_floodlight_brightness: 0
-    i_ip: "192.168.2.97"
+    i_ip: ""
     i_laser_dot_brightness: 800
     i_mx_id: ""
     i_nn_type: none

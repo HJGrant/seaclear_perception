@@ -89,46 +89,23 @@ MY_TOPIC_LIST = [
     #'/oak/rgb/camera_info',
     '/oak/stereo/image_raw',
     #'/oak/stereo/camera_info',
-    '/oak/rgb/image_raw/compressed',
+    #'/oak/rgb/image_raw/compressed',
     #'/oak/rgb/image_raw_rgb8/nitros',
     #'/oak/compressed_video',
-    '/depth',
-    '/disparity',
-    '/oak/left/image_raw',
-    '/oak/right/image_raw',
-    '/oak/right/image_rect',
-    '/oak/left/image_rect',
-    '/oak/right/image_rect_rgb8',
-    '/oak/left/image_rect_rgb8',
-    '/dnn_depth_compressed',
-    '/oak/right/image_raw/compressed',
-    '/oak/left/image_raw/compressed',
-    '/oak/rgb/image_raw/resize',
-    '/oak/rgb/video',
-    
-
-    #visual servoing
-    '/mavros/rc/override',
-    '/BlueROV2/error',
-    '/BlueROV2/thrust',
-    '~/current_state_name',
-    '/control_loop_frequency',
-    '/data_frequency',
-
 
     #YOLOv8
     #'/camera0/detection/mask',
     #'/mask_overlay',
-    '/detections_output',
+    #'/detections_output',
 
 
     #URDF topcis
     '/robot_description',
-    #'/joint_states',
+    '/joint_states',
     #'/position_rad',
-    #'/decoupled_position_rad',
-    #'/command/set_rel_pos_rad',
-    #'/grapple_percentage',
+    '/decoupled_position_rad',
+    '/command/set_rel_pos_rad',
+    '/grapple_percentage',
 
     # Robot
     '/robot_description',
@@ -139,14 +116,12 @@ MY_TOPIC_LIST = [
 
     #system stat topics
     '/system_stats',
-    '/jetson_network_monitor/network/incoming_mbps',
-    '/jetson_network_monitor/network/outgoing_mbps',
 
     # senso control
-    #'/torque_gauge',
-    #'/abs_torque_nm',
-    #'/abs_torque_nm_per_joint',
-    #'/position_rad',  
+    '/torque_gauge',
+    '/abs_torque_nm',
+    '/abs_torque_nm_per_joint',
+    '/position_rad',  
 
     # Bar30 Pressure Sensor
     '/bar30/depth',
@@ -156,7 +131,6 @@ MY_TOPIC_LIST = [
 
     # visualization
     '/seabed_grid',
-    '/mask_overlay/video',
 
     #DVL
     '/waterlinked_dvl_driver/dead_reckoning_report',
