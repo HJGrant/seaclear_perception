@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'visual_servo_controller_node = sc2_visual_servo_controller.visual_servo_controller_node:main',
+            #'visual_servo_controller_node = sc2_visual_servo_controller.visual_servo_controller_node:main',
+            'visual_servo_controller_node = sc2_visual_servo_controller.visual_servo_controller_node_implementation:main',
             'target_obs_publisher = sc2_visual_servo_controller.target_obs_publisher:main',
             'fake_vehicle_node = sc2_visual_servo_controller.fake_vehicle_node:main',
             'csv_logger_node = sc2_visual_servo_controller.csv_logger_node:main',

@@ -42,6 +42,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
+        self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
@@ -49,6 +50,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('grasp_timeout_ms', 500)
         self.declare_parameter('rate_hz', 20.0)
         self.declare_parameter('controller_mode', 'ibvs')
+        self.declare_parameter('calibrated', True)
 
         self.declare_parameter('image_width', 1280.0)
         self.declare_parameter('image_height', 720.0)
@@ -77,7 +79,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('cy_px', 360.0)
 
         self._target_topic = str(self.get_parameter('target_topic').value)
-        self._target_point_topic = str(self.get_parameter('target_point_topic').value)
+        self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
@@ -95,14 +97,13 @@ class VisualServoControllerNode(Node):
         self._slew_vz = float(self.get_parameter('slew_vz').value)
         self._slew_yaw = float(self.get_parameter('slew_yaw_rate').value)
 
-
+        self.calibrated = bool(self.get_parameter('calibrated').value)
         self._fx = float(self.get_parameter('fx_px').value)
         self._fy = float(self.get_parameter('fy_px').value)
         self._cx = float(self.get_parameter('cx_px').value)
         self._cy = float(self.get_parameter('cy_px').value)
         self.image_height = float(self.get_parameter('image_height').value)
         self.image_width = float(self.get_parameter('image_width').value)
-        self._k_target_dist = float(self.get_parameter('k_target_distance').value)
         self._desired_target_dist = float(self.get_parameter('desired_target_distance_m').value)
 
         self._latest_obs: Optional[Detection2D] = None
@@ -161,7 +162,7 @@ class VisualServoControllerNode(Node):
         # uncalibrated visual servoing
         self.Pk = np.eye(6) * 0.1
         self.lmbda_rls = 0.6
-        self.prev_e = np.zeros(self.p_star.flatten().shape[0])
+        self.prev_e = np.zeros_like(self.center_box_corners).flatten(order="F") 
         self.delta_e = 0
 
         #######################################################################################################################################################
@@ -245,7 +246,7 @@ class VisualServoControllerNode(Node):
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
 
-        if self._latest_obs is not None or not dt_obs > self._timeout_sec:
+        if self._latest_obs is not None and not dt_obs > self._timeout_sec:
             # compute the error of the bounding box corners to the target box corners
             e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
 
@@ -374,7 +375,7 @@ class VisualServoControllerNode(Node):
         msg.data = text
         self._status_pub.publish(msg)
 
-        def _publish_cmd(self, vx: float, vy: float, vz: float, yaw: float) -> None:
+    def _publish_cmd(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)
         vy = clamp(vy, self._max_vy)
         vz = clamp(vz, self._max_vz)
