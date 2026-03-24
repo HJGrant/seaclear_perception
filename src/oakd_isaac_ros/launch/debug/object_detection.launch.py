@@ -22,15 +22,15 @@ def generate_launch_description():
     #
 
     # 2. Define the Camera Node
-    camera_node = ComposableNode(
-        package="depthai_ros_driver",
-        plugin="depthai_ros_driver::Camera",
-        name="oak",
-        parameters=[oak_params_file],
-        remappings=[
-            ("/oak/imu/data", "/sc2/imu/imu"), # Match your remapping from camera.launch.py
-        ],
-    )
+    #camera_node = ComposableNode(
+    #    package="depthai_ros_driver",
+    #    plugin="depthai_ros_driver::Camera",
+    #    name="oak",
+    #    parameters=[oak_params_file],
+    #    remappings=[
+    #        ("/oak/imu/data", "/sc2/imu/imu"), # Match your remapping from camera.launch.py
+    #    ],
+    #)
 
     # Include another launch file
     oakd_launch = IncludeLaunchDescription(
@@ -78,45 +78,35 @@ def generate_launch_description():
         }.items()
     )
 
-    rtp_launch_rgb = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(       
-                get_package_share_directory('ros_deep_learning'),
-                'launch',
-                'video_output.ros2.launch'
-            )
-        ),
-        launch_arguments={
-            'topic': '/oak/rgb/image_raw',  # <-- stream resized topic
-            'output': 'rtp://192.168.2.94:8550',
-            'output_codec': 'h264',
-            'output_bitrate': '4000000'
-        }.items()
-    )
-
-    rtp_launch_yolo = IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(       
-                get_package_share_directory('ros_deep_learning'),
-                'launch',
-                'video_output.ros2.launch'
-            )
-        ),
-        launch_arguments={
-            'topic': '/mask_overlay',  # <-- stream resized topic
-            'output': 'rtp://192.168.2.94:8551',
-            'output_codec': 'h264',
-            'output_bitrate': '4000000'
-        }.items()
-    )
-
-    #foxglove_launch = IncludeLaunchDescription(
-    #    PythonLaunchDescriptionSource(
-     #       os.path.join(get_package_share_directory('oakd_isaac_ros'), 'launch', 'tools', 'visualization.launch.py')
-      #  ),
+    #rtp_launch_rgb = IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(       
+    #            get_package_share_directory('ros_deep_learning'),
+    #            'launch',
+    #            'video_output.ros2.launch'
+    #        )
+    #    ),
     #    launch_arguments={
-    #        'use_foxglove_whitelist' : 'True',
-    #        'run_foxglove' : 'True'
+    #        'topic': '/oak/rgb/image_raw',  # <-- stream resized topic
+    #        'output': 'rtp://192.168.2.94:8550',
+    #        'output_codec': 'h264',
+    #        'output_bitrate': '4000000'
+    #    }.items()
+    #)
+
+    #rtp_launch_yolo = IncludeLaunchDescription(
+    #    AnyLaunchDescriptionSource(
+    #        os.path.join(       
+    #            get_package_share_directory('ros_deep_learning'),
+    #            'launch',
+    #            'video_output.ros2.launch'
+    #        )
+    #    ),
+    #    launch_arguments={
+    #        'topic': '/mask_overlay',  # <-- stream resized topic
+    #        'output': 'rtp://192.168.2.94:8551',
+    #        'output_codec': 'h264',
+    #        'output_bitrate': '4000000'
     #    }.items()
     #)
 
@@ -125,6 +115,6 @@ def generate_launch_description():
         image_converter,
         detection_container,
         detection_include,
-        rtp_launch_rgb,
-        rtp_launch_yolo
+        #rtp_launch_rgb,
+        #rtp_launch_yolo
     ])
