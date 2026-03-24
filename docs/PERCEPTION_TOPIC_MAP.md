@@ -208,7 +208,8 @@ Operational guidance:
 - Also verify that the configured detection model files exist:
   - `ls -lah /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear`
   - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx`
-  - `file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan`
+- `v12s.plan` is not assumed to be committed in the repo; on a new Jetson / GPU runtime it may be generated on first detector launch for the active hardware target.
+- During that first generation, detector startup may take a few minutes even if the launch itself remains alive.
 - Team guidance indicates that the production detector is a teammate-maintained underwater model path rather than a generic off-the-shelf detector package.
 - `src/oakd_isaac_ros/launch/debug/object_detection.launch.py` is present in the current tree and serves as the detector-only wrapper path.
 - `src/oakd_isaac_ros/launch/oakd_system.launch.py` is the integrated detector + visual-servo entry in the current branch.
