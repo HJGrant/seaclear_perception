@@ -11,7 +11,7 @@
     # Parameters governing frequency of different processing steps in the reconstruction pipeline.
     # Processing happens every n:th tick_period. <=0 means that no processing take place
     tick_period_ms: 10
-    integrate_depth_rate_hz: 40.0
+    integrate_depth_rate_hz: 15.0
     integrate_color_rate_hz: 5.0
     integrate_lidar_rate_hz: 40.0
     update_mesh_rate_hz: 5.0
@@ -26,7 +26,7 @@
     print_rates_to_console: false
     print_timings_to_console: false
     print_delays_to_console: false
-    print_queue_drops_to_console: false
+    print_queue_drops_to_console: true
     print_statistics_on_console_period_ms: 10000
 
     # esdf settings
@@ -49,7 +49,7 @@
     map_clearing_radius_m: 5.0 # no map clearing if < 0.0
     map_clearing_frame_id: "base_link"
     # QoS settings
-    input_qos: "SYSTEM_DEFAULT"
+    input_qos: "SENSOR_DATA"
     # Visualization
     esdf_slice_bounds_visualization_attachment_frame_id: "base_link"
     esdf_slice_bounds_visualization_side_length: 10.0
@@ -69,7 +69,7 @@
 
     static_mapper:
       # mapper
-      do_depth_preprocessing: false
+      do_depth_preprocessing: true
       depth_preprocessing_num_dilations: 3
       # projective integrator (tsdf/color/occupancy)
       projective_integrator_max_integration_distance_m: 5.0

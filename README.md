@@ -13,6 +13,9 @@ source of truth:
 - detector core pipeline: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
 - current detector asset defaults: `isaac_ros_assets/models/seaclear/v12s.onnx` and
   `isaac_ros_assets/models/seaclear/v12s.plan`
+- integrated `oakd_system.launch.py` reuses `debug/object_detection.launch.py` for
+  camera + detector wiring, while overriding the camera params file to
+  `config/oak_d/oakd_rgbd.yaml`
 
 For runnable commands and current caveats, prefer `README_quickstart.md`.
 The legacy nvBlox / VSLAM sections below are still useful reference material,
@@ -117,7 +120,7 @@ Clone the repo and its submodules (DepthAI ROS Driver, Isaac ROS Packages, ...) 
 
 ```bash
 mkdir -p ~/workspaces/ && cd ~/workspaces/ && \
-git clone --recurse-submodules https://gitlab.cc-asp.fraunhofer.de/seaclear-project/tum/sc2/development/oakd_isaac_ros.git
+git clone --recurse-submodules https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros.git
 ```
 Copy the repository config file into the home-directory filename expected by `run_dev.sh`:
 ```bash

@@ -22,7 +22,8 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 #Install depthai ros package for the OAK-D ROS driver
-RUN apt-get update && \
+RUN rm -f /etc/apt/sources.list.d/yarn.list && \
+    apt-get update --allow-releaseinfo-change && \
     wget -qO- https://docs.luxonis.com/install_dependencies.sh | bash && \
     python3 -m pip install -U depthai && \
     apt-get install -y ros-humble-depthai-ros && \
@@ -119,4 +120,10 @@ RUN printf '%s\n' \
 
 RUN pip3 install -U jetson-stats
 
-RUN apt install ros-humble-marine-acoustic-msgs
+RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
+    ros-humble-marine-acoustic-msgs \
+    ros-humble-isaac-ros-ess \
+    ros-humble-isaac-ros-ess-models-install \
+    ros-humble-isaac-ros-h264-encoder \
+    ros-humble-isaac-ros-h264-decoder \
+    && rm -rf /var/lib/apt/lists/*

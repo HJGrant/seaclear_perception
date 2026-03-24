@@ -1,0 +1,42 @@
+[33meda687d[m[33m ([m[1;36mHEAD -> [m[1;32mdnn_stereo_depth[m[33m, [m[1;31morigin/dnn_stereo_depth[m[33m)[m HEAD@{0}: pull: Fast-forward
+[33m8eca294[m HEAD@{1}: commit: debugging webrtc, compressed video etc.
+[33medf4dd5[m HEAD@{2}: commit: fixed low YOLO FPS
+[33m7b29adc[m HEAD@{3}: commit: debugging low OAK-D FPS
+[33m9eb515e[m[33m ([m[1;32mrtp_grstreamer[m[33m, [m[1;32mmain[m[33m, [m[1;32mclean_up[m[33m)[m HEAD@{4}: checkout: moving from clean_up to dnn_stereo_depth
+[33m9eb515e[m[33m ([m[1;32mrtp_grstreamer[m[33m, [m[1;32mmain[m[33m, [m[1;32mclean_up[m[33m)[m HEAD@{5}: checkout: moving from main to clean_up
+[33m9eb515e[m[33m ([m[1;32mrtp_grstreamer[m[33m, [m[1;32mmain[m[33m, [m[1;32mclean_up[m[33m)[m HEAD@{6}: checkout: moving from rtp_grstreamer to main
+[33m9eb515e[m[33m ([m[1;32mrtp_grstreamer[m[33m, [m[1;32mmain[m[33m, [m[1;32mclean_up[m[33m)[m HEAD@{7}: checkout: moving from main to rtp_grstreamer
+[33m9eb515e[m[33m ([m[1;32mrtp_grstreamer[m[33m, [m[1;32mmain[m[33m, [m[1;32mclean_up[m[33m)[m HEAD@{8}: commit: merge from grasp_point_detection
+[33ma5a5af3[m HEAD@{9}: commit (merge): Merge branch 'grasp_point_detection'
+[33m296a4e9[m HEAD@{10}: commit: updated submodules
+[33m0fed107[m HEAD@{11}: reset: moving to HEAD
+[33m0fed107[m HEAD@{12}: commit: WIP: local changes before merging grasp_point_detection
+[33mf164fc6[m HEAD@{13}: commit: WIP: local changes before merging grasp_point_detection
+[33m308b3d7[m HEAD@{14}: checkout: moving from grasp_point_detection to main
+[33meec6891[m[33m ([m[1;31morigin/grasp_point_detection[m[33m, [m[1;32mgrasp_point_detection[m[33m)[m HEAD@{15}: commit: marseille state
+[33mf95f06f[m HEAD@{16}: commit: added confidence score and class id to mask overlay
+[33m8f4bfec[m HEAD@{17}: commit: started adding visual servoing code in publish_mask code
+[33m723bfca[m HEAD@{18}: checkout: moving from video_stream to grasp_point_detection
+[33m51e2db9[m[33m ([m[1;31morigin/video_stream[m[33m, [m[1;32mvideo_stream[m[33m)[m HEAD@{19}: merge grasp_point_detection: Merge made by the 'ort' strategy.
+[33m220eaad[m HEAD@{20}: checkout: moving from grasp_point_detection to video_stream
+[33m723bfca[m HEAD@{21}: commit: added imu publishing from oak-d
+[33m0459eec[m HEAD@{22}: commit: removed unused package
+[33md7eeeb2[m HEAD@{23}: checkout: moving from video_stream to grasp_point_detection
+[33m220eaad[m HEAD@{24}: commit: removed unused webrtc_ros package in favour of ros_deep_learning webrtc capabilities
+[33mfe37c03[m HEAD@{25}: commit (merge): merged grasp_point_detection with working webrtc stream into video_stream
+[33m2703141[m HEAD@{26}: checkout: moving from grasp_point_detection to video_stream
+[33md7eeeb2[m HEAD@{27}: commit: removed isaac_ros_common submodule
+[33m9d3193c[m HEAD@{28}: commit: update to launch
+[33mfa38394[m HEAD@{29}: commit: removed object detection submodule
+[33mdac8f77[m HEAD@{30}: commit: removed submodule, added code
+[33m260cfc9[m HEAD@{31}: commit: webrtc video streaming working with jetson-inference and ros_deep_learning
+[33m9b984e1[m HEAD@{32}: commit: added previously ignored .so files
+[33mda55487[m HEAD@{33}: commit: added previously ignored .so files
+[33m68c8cda[m HEAD@{34}: commit: removed .so files from gitignore
+[33m0cbdf50[m HEAD@{35}: commit: removed .o files from gitignore
+[33m8c5c6b1[m HEAD@{36}: commit: readded isaac_ros_dnn_inference
+[33m2f01b2e[m HEAD@{37}: checkout: moving from main to grasp_point_detection
+[33m308b3d7[m HEAD@{38}: checkout: moving from grasp_point_detection to main
+[33m2f01b2e[m HEAD@{39}: checkout: moving from main to grasp_point_detection
+[33m308b3d7[m HEAD@{40}: commit: update to the Dockerfile
+[33m9ca32d9[m HEAD@{41}: clone: from gitlab.cc-asp.fraunhofer.de:seaclear-project/tum/sc2/development/oakd_isaac_ros.git

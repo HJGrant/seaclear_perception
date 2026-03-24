@@ -17,25 +17,74 @@
       i_publish_topic: false
       i_fps: 10.0
       i_resolution: 800P
+      #i_low_bandiwdth_frame_freq: 30
+      #i_low_bandwidth: false
+      #i_synced: true
+      #r_exposure: 10000
+      #r_iso: 200
+      #r_set_man_exposure: true
 
     right:
       i_publish_topic: false
       i_fps: 10.0
       i_resolution: 800P
+      #i_low_bandiwdth_frame_freq: 30
+      #i_low_bandwidth: false
+      #i_synced: true
+      #r_exposure: 10000
+      #r_iso: 200
+      #r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
 
     rgb:
       i_publish_topic: true
       i_resolution: 1080P
       i_fps: 60.0
+      #i_low_bandiwdth_frame_freq: 60
       i_low_bandwidth: true
+      #i_low_bandwidth_bitrate: 0
+      #i_low_bandwidth_ffmpeg_encoder: libx264
+      #i_low_bandwidth_profile: 4
+      #i_low_bandwidth_quality: 75
+      #i_publish_compressed: false
+      #i_publish_topic: true
+      #i_output_isp: false
+      #i_isp_den: 3
+      #i_isp_num: 2
 
     stereo:
       i_publish_topic: false
       i_low_bandwidth: false
       i_synced: false
       i_align_depth: false
+
       i_left_rect_publish_topic: false
       i_right_rect_publish_topic: false
+
+      #i_right_rect_add_exposure_offset: false
+      #i_right_rect_enable_feature_tracker: false
+      #i_right_rect_exposure_offset: 0
+      #i_right_rect_low_bandwidth: false
+      #i_right_rect_low_bandwidth_bitrate: 0
+      #i_right_rect_low_bandwidth_ffmpeg_encoder: libx264
+      #i_right_rect_low_bandwidth_frame_freq: 30
+      #i_right_rect_low_bandwidth_profile: 4
+      #i_right_rect_low_bandwidth_quality: 75
+      #i_right_rect_publish_compressed: false
+      #i_right_rect_synced: true
+      #i_right_socket_id: 2
+      #i_left_rect_add_exposure_offset: false
+
+      #i_left_rect_enable_feature_tracker: false
+      #i_left_rect_exposure_offset: 0
+      #i_left_rect_low_bandwidth: false
+      #i_left_rect_low_bandwidth_bitrate: 0
+      #i_left_rect_low_bandwidth_ffmpeg_encoder: libx264
+      #i_left_rect_low_bandwidth_frame_freq: 30
+      #i_left_rect_low_bandwidth_profile: 4
+      #i_left_rect_low_bandwidth_quality: 75
+      #i_left_rect_publish_compressed: false
+      #i_left_rect_synced: true
+      #i_left_socket_id: 1
 
     imu:
       i_acc_cov: 0.0

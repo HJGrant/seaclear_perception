@@ -236,9 +236,8 @@ Conclusion:
 ### 8.2 Implemented node set
 
 Always-on core:
-- camera include: `launch/tools/camera.launch.py`
-- `image_converter_node`
-- detection include: `launch/tools/detection.launch.py`
+- detector wrapper include: `launch/debug/object_detection.launch.py`
+  - integrated launch overrides its camera params file to `config/oak_d/oakd_rgbd.yaml`
 - `target_observer_node`
 - `visual_servo_controller_node`
 - `csv_logger_node`

@@ -72,6 +72,12 @@ def generate_launch_description() -> LaunchDescription:
             enable_target_point_estimator, '" == "true"'
         ])
     )
+    detector_stack_enabled = IfCondition(
+        PythonExpression([
+            '"', run_oakd, '" == "true" and "',
+            enable_detection, '" == "true"'
+        ])
+    )
 
     launch_description = LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
@@ -98,10 +104,10 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('body_frame_id', default_value='base_link'),
         DeclareLaunchArgument(
             'detector_model_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12n.onnx')),
+            default_value=os.path.join(default_detector_model_dir, 'v12s.onnx')),
         DeclareLaunchArgument(
             'detector_engine_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12n.plan')),
+            default_value=os.path.join(default_detector_model_dir, 'v12s.plan')),
 
         DeclareLaunchArgument('controller_mode', default_value='bbox_target_point'),
         DeclareLaunchArgument('target_class', default_value=''),
@@ -128,34 +134,18 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('mavros_timeout_ms', default_value='600'),
 
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(tools_dir, 'camera.launch.py')),
+            PythonLaunchDescriptionSource(
+                os.path.join(package_share, 'launch', 'debug', 'object_detection.launch.py')
+            ),
             launch_arguments={
                 'params_file': os.path.join(package_share, 'config', 'oak_d', 'oakd_rgbd.yaml'),
+                'container_name': 'detection_container',
+                'detector_model_file_path': detector_model_file_path,
+                'detector_engine_file_path': detector_engine_file_path,
+                'verbose': 'True',
+                'target_class_id': '3',
             }.items(),
-            condition=IfCondition(run_oakd),
-        ),
-
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(tools_dir, 'detection.launch.py')),
-            launch_arguments={
-                'container_name': 'nvblox_container',
-                'num_cameras': '1',
-                'one_container_per_camera': 'True',
-                'model_file_path': detector_model_file_path,
-                'engine_file_path': detector_engine_file_path,
-            }.items(),
-            condition=IfCondition(enable_detection),
-        ),
-
-        Node(
-            package='oakd_isaac_ros',
-            executable='image_converter.py',
-            name='image_converter_node',
-            output='screen',
-            remappings=[
-                ('/oak/rgb/image_raw', '/oak/rgb/image_raw'),
-                ('/oak/rgb/image_raw_rgb8', '/oak/rgb/image_raw_rgb8'),
-            ],
+            condition=detector_stack_enabled,
         ),
 
         Node(

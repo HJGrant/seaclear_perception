@@ -27,8 +27,8 @@ from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME
 
 def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
     remappings = []
-    remappings.append((f'camera_0/depth/image', '/oak/stereo/image_raw'))
-    remappings.append((f'camera_0/depth/camera_info', '/oak/stereo/camera_info'))
+    remappings.append((f'camera_0/depth/image', '/depth'))
+    remappings.append((f'camera_0/depth/camera_info', '/left/resize_camera_info'))
 
     if mode is NvbloxMode.people_segmentation:
             # nvblox takes resized images from semseg inputs
@@ -41,8 +41,8 @@ def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
                 (f'camera_0/mask/camera_info', f'/camera0/segmentation/camera_info_resized'))
 
     else:
-        remappings.append((f'camera_0/color/image', f'/oak/rgb/image_raw_rgb8'))
-        remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
+        #remappings.append((f'camera_0/color/image', f'/oak/rgb/image_raw_rgb8'))
+        #remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
 
         if mode is NvbloxMode.people_detection:
             remappings.append((f'camera_0/mask/image', f'/camera0/detection/mask_resized'))

@@ -15,7 +15,14 @@ Restart=always
 RestartSec=5
 ExecStartPre=-/usr/bin/docker stop foxglove_bridge_container
 ExecStartPre=-/usr/bin/docker rm foxglove_bridge_container
-ExecStart=/usr/bin/docker run --name foxglove_bridge_container --runtime=nvidia --network host --privileged --ipc=host -v /mnt/orin_ssd/workspaces/oakd_isaac_ros/:/workspaces/oakd_isaac_ros/ -v /mnt/orin_ssd/workspaces/visualize_urdf/:/workspaces/visualize_urdf/ -w /workspaces/oakd_isaac_ros/ --entrypoint /workspaces/oakd_isaac_ros/my_ws/my_docker/foxglove_bridge_entrypoint.sh hjgrant99/nvblox_dynamics_oakd_jetson_aarch64:latest
+ExecStart=/usr/bin/docker run --name foxglove_bridge_container --runtime=nvidia --network host \
+                                --privileged --ipc=host \
+                                -v /mnt/orin_ssd/workspaces/oakd_isaac_ros/:/workspaces/oakd_isaac_ros/ \
+                                -v /mnt/orin_ssd/workspaces/visualize_urdf/:/workspaces/visualize_urdf/ \
+                                -e FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml \
+                                -e ROS_LOCALHOST_ONLY=0 \
+                                -w /workspaces/oakd_isaac_ros/ --entrypoint /workspaces/oakd_isaac_ros/my_ws/my_docker/foxglove_bridge_entrypoint.sh \
+                                hjgrant99/nvblox_dynamics_oakd_jetson_aarch64:latest
 ExecStop=-/usr/bin/docker stop foxglove_bridge_container
 StandardOutput=journal
 StandardError=journal
