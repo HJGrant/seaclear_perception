@@ -1,6 +1,7 @@
 import math
 from dataclasses import dataclass
 from typing import Tuple
+import numpy as np
 
 
 @dataclass
@@ -42,6 +43,83 @@ class BBoxApproachConfig:
     k_yaw: float = 0.8
     use_vy: bool = True
     use_vz: bool = True
+
+
+def is_in_roi(x, y, center, size):
+    '''Checks whether a 2D point is within a sqaure region of interest with side length 'size'
+    Args:
+        x (int) : the x coordinate of the pixel 
+        y (int) : the y coordinate of the pixel
+        cx (int) : x coordinate of ROI center
+        cy (int) : y coordinate of ROI center
+        size (int) : side length of the square ROI
+
+    Returns:
+        True OR False : depending on whether or not the point (x, y) is in the ROI
+
+    '''
+    return (center[0] - size <= x <= center[0] + size and 
+            center[1] - size <= y <= center[1] + size)
+
+def get_image_jacobian(pts_2d, depths, fx, fy, cx, cy):
+    """
+    Computes the interaction matrix (Image Jacobian) for multiple points.
+    
+    :param pts_2d: np.array of shape (N, 2) -> [[u, v], ...]
+    :param depths: np.array of shape (N,) -> [Z1, Z2, ...]
+    :param fx, fy, cx, cy: Camera intrinsic parameters
+    :return: Combined Jacobian matrix of shape (2*N, 6)
+    """
+    N = pts_2d.shape[0]
+    J_full = np.zeros((2 * N, 6))
+
+    for i in range(N):
+        u, v = pts_2d[i]
+        Z = depths[i]
+        
+        # Normalized coordinates (x, y)
+        x = (u - cx) / fx
+        y = (v - cy) / fy
+
+        # Standard Interaction Matrix formula for a single point
+        # mapping [vx, vy, vz, wx, wy, wz] -> [du, dv]
+        Ji = np.array([
+            [-fx/Z,  0,     fx*x/Z,  fx*x*y,      -fx*(1 + x**2),  fx*y],
+            [ 0,    -fy/Z,  fy*y/Z,  fy*(1 + y**2), -fy*x*y,      -fy*x]
+        ])
+
+        J_full[2*i:2*i+2, :] = Ji
+
+    return J_full
+
+def get_uncalibrated_jacobian(e, prev_e, nu, J_hat, Pk, lmbda_rls, dt):
+    h_vec = nu.reshape(-1, 1) * dt
+    delta_e = (e - prev_e).reshape(-1, 1)
+
+    # 1. Magnitude Check: Don't update if we aren't moving much
+    if np.linalg.norm(h_vec) < 1e-3:
+        print(f"Movement Too Small, np.linalg.norm(h_vec) = {np.linalg.norm(h_vec)}")
+        return J_hat, Pk, (e - prev_e)
+
+    # 2. RLS Math
+    denominator = lmbda_rls + (h_vec.T @ Pk @ h_vec)
+    innovation = delta_e - (J_hat @ h_vec)
+    
+    # Update Jacobian
+    J_update = (innovation @ h_vec.T @ Pk) / denominator
+    
+    # 3. Projection: Zero out updates for columns with near-zero velocity
+    # This prevents the "inactive" columns from drifting due to noise
+    mask = (np.abs(nu) > 1e-4).astype(float)
+    print(f"J_hat mask: {mask}. Mask not applied...")
+    J_hat += J_update #* mask # Only update active DOFs
+    
+    # Update Covariance
+    Pk_prev = Pk
+    Pk = (1 / lmbda_rls) * (Pk - (Pk @ h_vec @ h_vec.T @ Pk / denominator))
+    print(f"Difference in the Covariance {np.linalg.norm(Pk - Pk_prev, ord='fro')} ")
+
+    return J_hat, Pk, (e - prev_e)
 
 
 def clamp(val: float, lim: float) -> float:

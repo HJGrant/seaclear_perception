@@ -30,16 +30,16 @@ ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ENV PYTHONWARNINGS=ignore:::setuptools.command.install,ignore:::setuptools.command.easy_install,ignore:::pkg_resources,ignore:::setuptools.command.develop
 RUN echo "Warning: Using the PYTHONWARNINGS environment variable to silence setup.py and easy_install deprecation warnings caused by colcon"
 
-# Add ROS 2 apt repository
-# Key last updated from `rosdistro` commit: eb71c289f4495a0327cd03a29205a2c411cd8129
+# Add ROS 2 apt repository and fix external keys/expiry issues
 RUN --mount=type=cache,target=/var/cache/apt \
-    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
-    && apt-get update --allow-releaseinfo-change
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - || true && \
+    (sed -i '/isaac\.download\.nvidia\.com/s/^deb /deb [check-valid-until=no] /' /etc/apt/sources.list.d/* || true) && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null
 
 # ROS fundamentals
 RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y \
+    apt-get update --allow-releaseinfo-change && apt-get install -y \
         devscripts \
         dh-make \
         fakeroot \

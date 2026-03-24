@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "vision_msgs/msg/detection2_d_array.hpp"
+#include "vision_msgs/msg/detection2_d.hpp"
 
 #include <mutex>
 #include <message_filters/subscriber.h>
@@ -41,6 +42,8 @@ public:
     detection_sub_ = this->create_subscription<vision_msgs::msg::Detection2DArray>(
       "/detections_output", 10,
       std::bind(&publish_mask::detectionCallback, this, std::placeholders::_1));
+      
+    selected_detection_pub_ = this->create_publisher<vision_msgs::msg::Detection2D>("best_detection", 10);
 
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
       "/yolov8_encoder/resize/camera_info", 10,
@@ -150,7 +153,13 @@ private:
 
     geometry_msgs::msg::Point target_point_msg;
     if (best_det) {
+      //publish the selected best detection for use in the visual servoing
+      vision_msgs::msg::Detection2D best_detection = *best_det;
+      best_detection.header = detections_copy->header;
+      selected_detection_pub_->publish(best_detection);
+
       const auto& bbox = best_det->bbox;
+
 
       // draw mask for the best detection only
       cv::Point2f center_pt(static_cast<float>(bbox.center.position.x), static_cast<float>(bbox.center.position.y));
@@ -270,6 +279,7 @@ private:
   std::vector<std::string> class_ids_;
 
   rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detection_sub_;
+  rclcpp::Publisher<vision_msgs::msg::Detection2D>::SharedPtr selected_detection_pub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr mask_pub_;
   rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr overlay_pub_;
