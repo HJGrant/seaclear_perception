@@ -11,8 +11,12 @@ if command -v uv >/dev/null 2>&1; then
 fi
 
 if [[ -x "$UV_BIN" ]]; then
-  echo "$UV_BIN"
-  exit 0
+  if "$UV_BIN" --version >/dev/null 2>&1; then
+    echo "$UV_BIN"
+    exit 0
+  fi
+  echo "Removing incompatible workspace-local uv at $UV_BIN" >&2
+  rm -f "$UV_BIN"
 fi
 
 mkdir -p "$UV_ROOT"
