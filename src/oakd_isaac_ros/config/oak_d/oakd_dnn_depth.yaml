@@ -11,30 +11,26 @@
     pipeline_gen:
       i_enable_diagnostics: true
       i_enable_imu: false
-      i_enable_sync: true
+      i_enable_sync: false
     
     left:
-      i_publish_topic: true
+      i_publish_topic: false
       i_fps: 10.0
       i_resolution: 800P
-      i_get_base_device_timestamp: false 
-      i_update_ros_base_time_on_ros_msg: true
       #i_low_bandiwdth_frame_freq: 30
-      i_low_bandwidth: true
-      i_synced: true
+      #i_low_bandwidth: false
+      #i_synced: true
       #r_exposure: 10000
       #r_iso: 200
       #r_set_man_exposure: true 
 
     right:
-      i_publish_topic: true
+      i_publish_topic: false
       i_fps: 10.0
       i_resolution: 800P
-      i_get_base_device_timestamp: false 
-      i_update_ros_base_time_on_ros_msg: true
       #i_low_bandiwdth_frame_freq: 30
-      i_low_bandwidth: true
-      i_synced: true
+      #i_low_bandwidth: false
+      #i_synced: true
       #r_exposure: 10000
       #r_iso: 200
       #r_set_man_exposure: true  #setting the exposure manually, to low ISO and long exposure time, increases low light performance
@@ -43,10 +39,6 @@
       i_publish_topic: true
       i_resolution: 1080P
       i_fps: 60.0
-      rgb.i_synced: true
-      i_max_q_size: 2
-      i_get_base_device_timestamp: false 
-      i_update_ros_base_time_on_ros_msg: true
       #i_low_bandiwdth_frame_freq: 60
       i_low_bandwidth: true
       #i_low_bandwidth_bitrate: 0
@@ -60,11 +52,10 @@
       #i_isp_num: 2
 
     stereo:
-      i_publish_topic: true
-      i_low_bandwidth: true
-      i_synced: true
-      i_align_depth: true
-      i_update_ros_base_time_on_ros_msg: true
+      i_publish_topic: false
+      i_low_bandwidth: false
+      i_synced: false
+      i_align_depth: false
 
       i_left_rect_publish_topic: false
       i_right_rect_publish_topic: false
@@ -72,7 +63,7 @@
       #i_right_rect_add_exposure_offset: false
       #i_right_rect_enable_feature_tracker: false
       #i_right_rect_exposure_offset: 0
-      i_right_rect_low_bandwidth: true
+      #i_right_rect_low_bandwidth: false
       #i_right_rect_low_bandwidth_bitrate: 0
       #i_right_rect_low_bandwidth_ffmpeg_encoder: libx264
       #i_right_rect_low_bandwidth_frame_freq: 30
@@ -85,7 +76,7 @@
       
       #i_left_rect_enable_feature_tracker: false
       #i_left_rect_exposure_offset: 0
-      i_left_rect_low_bandwidth: true
+      #i_left_rect_low_bandwidth: false
       #i_left_rect_low_bandwidth_bitrate: 0
       #i_left_rect_low_bandwidth_ffmpeg_encoder: libx264
       #i_left_rect_low_bandwidth_frame_freq: 30
