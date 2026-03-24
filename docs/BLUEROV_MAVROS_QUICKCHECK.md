@@ -2,7 +2,7 @@
 
 Scope: active runbook for synthetic visual-servo actuation checks through MAVROS/MAVLink.
 Source of truth: use this file for BlueROV rc_override and dry-run validation steps.
-Last updated: 2026-03-13
+Last updated: 2026-03-24
 Supersedes: scattered MAVROS quick-test notes in status and README drafts.
 
 ## Purpose
@@ -56,6 +56,9 @@ python3 -c "import mavros_msgs"
 ```
 
 - To opt out of automatic apt installation in scripts, set `SC2_SKIP_APT=1` (preflight will fail fast with manual install instructions if deps are missing).
+- If you are using the Jetson/container workflow from `my_ws/scripts/launch_container.sh`, the container is expected to inherit `FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml`.
+- That XML currently points at FastDDS Discovery Server `192.168.2.95:11815`.
+- For BlueROV2 tests, verify whether discovery should still target that host. If the Discovery Server runs on a different machine for the test setup, update `config/fastdds_client_profile.xml` before starting the container.
 
 - MAVROS is running and connected to the vehicle/autopilot.
 - Tethered safety setup is in place.

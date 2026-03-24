@@ -35,6 +35,7 @@ DEFAULT_DETECTOR_MODEL_DIR = os.path.join(
     DEFAULT_ISAAC_ROS_WS, 'isaac_ros_assets', 'models', 'seaclear')
 
 def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
+    container_name = args.container_name
 
     # DNN Image Encoder parameters
     input_image_width = args.input_image_width
@@ -84,7 +85,7 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
             'image_mean': str(image_mean),
             'image_stddev': str(image_stddev),
             'attach_to_shared_component_container': 'True',
-            'component_container_name': 'detection_container',
+            'component_container_name': str(container_name),
             'dnn_image_encoder_namespace': 'yolov8_encoder',
             'keep_aspect_ratio': 'false',
             'image_input_topic': str(input_topic),
@@ -172,7 +173,7 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     #)
 
     detection_node = lu.load_composable_nodes(
-            'detection_container',
+            str(container_name),
             [
                 tensor_rt_node, yolov8_decoder_node, mask_resize_node, depth_mask_publisher
             ],

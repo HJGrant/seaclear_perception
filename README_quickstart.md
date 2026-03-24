@@ -2,7 +2,7 @@
 
 Scope: primary run/build/test entry point for the current visual-servo MVP workflow.
 Source of truth: use this file for reproducible commands; deeper design details live under `docs/`.
-Last updated: 2026-03-23
+Last updated: 2026-03-24
 Supersedes: duplicated command blocks in older status/debug notes.
 
 This quickstart runs the ROS2 visual-servo MVP in simulation mode (no SLAM required), with uv-managed Python deps that stay compatible with ROS2 Humble.
@@ -14,8 +14,8 @@ Current integrated launch status on `dev/aoki_detector_integration`:
 - current detector asset defaults: `v12s.onnx` / `v12s.plan`
 - end-to-end OAK-D detector -> target observer -> controller pipeline is launched from `oakd_system.launch.py`
 - `object_detection.launch.py` is the detector-only wrapper for camera + detector debugging, not the full VS/MAVROS pipeline
-- integrated `oakd_system.launch.py` uses `src/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml` because the full path needs both RGB detection input and stereo depth / camera info
-- detector-only `object_detection.launch.py` uses `src/oakd_isaac_ros/config/oak_d/oakd_dnn_depth.yaml` for a lighter camera+detector check
+- integrated `oakd_system.launch.py` now reuses `src/oakd_isaac_ros/launch/debug/object_detection.launch.py` for camera + detector wiring, but overrides the camera params to `src/oakd_isaac_ros/config/oak_d/oakd_rgbd.yaml` because the full path needs both RGB detection input and stereo depth / camera info
+- detector-only `object_detection.launch.py` still defaults to `src/oakd_isaac_ros/config/oak_d/oakd_dnn_depth.yaml` for a lighter camera+detector check
 
 ## Host-side prerequisites for current `dev/aoki_detector_integration`
 
@@ -35,6 +35,7 @@ WSL + Docker Desktop notes for the current LRZ `dev/aoki_detector_integration` b
 - If private submodules or private image access rely on your SSH agent, start `ssh-agent` on the host and run `run_dev.sh` from the same terminal session so `SSH_AUTH_SOCK` is forwarded into the container.
 - If your clone is missing unrelated Git LFS payloads but you only need the visual-servo MVP quickstart, use `run_dev.sh --skip_lfs_check`. This only skips the preflight completeness gate; it does not fetch missing LFS assets.
 - `SKIP_LFS_CHECK=1` is an environment variable read by `run_dev.sh`. Use it only when you are calling another wrapper that does not expose `--skip_lfs_check` directly.
+- Jetson note from the latest `dnn_stereo_depth` validation: the full workspace built end-to-end inside the container on Jetson, but some container-side whole-workspace builds can fail in Google Test discovery/configuration. If that happens, retry with `colcon build --cmake-args -DBUILD_TESTING=OFF --merge-install`.
 
 Example host-side container start:
 
@@ -67,6 +68,10 @@ These are not all obvious from the launch command, but the current integrated pa
   If the exported engine uses different names, detection will fail until the launch args are overridden.
 - Detector preprocessing assumes RGB8 input on `/oak/rgb/image_raw_rgb8` and a 640x640 network input. The mask-resize path assumes a 1280x720 output image.
 - Current detector assets default to `isaac_ros_assets/models/seaclear/v12s.onnx` and `v12s.plan`. If these files are missing or are unresolved LFS pointers, launch may resolve but detector runtime will still fail.
+- Some Jetson/container workflows in this repository assume FastDDS Discovery Server rather than simple multicast discovery:
+  - `my_ws/scripts/launch_container.sh` passes `FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml`
+  - `config/fastdds_client_profile.xml` currently points at Discovery Server IP `192.168.2.95` on port `11815`
+  - for BlueROV2 tests, verify that this IP still matches the intended server host; if discovery is hosted elsewhere, update the XML before launching the container
 
 ## 0) uv Bootstrap (recommended first)
 
@@ -122,6 +127,14 @@ This host-side wrapper:
   sc2_visual_servo_synth
 source install/setup.bash
 ```
+
+If you need to build more than the five MVP packages, or the whole workspace on Jetson, and hit a gtest / Google Test related CMake failure inside the container, use:
+
+```bash
+colcon build --cmake-args -DBUILD_TESTING=OFF --merge-install
+```
+
+This workaround came from a colleague who successfully built the latest `dnn_stereo_depth` end-to-end on Jetson.
 
 ## 1.1) Run tests for the MVP packages
 
@@ -313,6 +326,233 @@ ros2 launch oakd_isaac_ros oakd_system.launch.py \
   detector_model_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx \
   detector_engine_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan
 ```
+
+Before live Jetson / BlueROV2 tests, also verify the DDS discovery profile that the container inherits:
+
+```bash
+echo "$FASTRTPS_DEFAULT_PROFILES_FILE"
+sed -n '1,80p' /workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml
+```
+
+If the Discovery Server is not running on the grapple PC at `192.168.2.95:11815`, update `config/fastdds_client_profile.xml` to the correct host before starting the container.
+
+## 8.2) Jetson integrated verification after pull/rebase (no BlueROV)
+
+Use this when the latest code is already pulled onto the Jetson and you want to answer three questions:
+- does the rebased code still build on Jetson?
+- does `oakd_system.launch.py` stay up with the real OAK-D?
+- do camera image -> detector -> visual-servo controller topics reach `/sc2/visual_servo/cmd_vel_body` without requiring BlueROV hardware?
+
+Goal for this check:
+- OAK-D RGB image is published
+- detector publishes `/detections_output`
+- stereo depth / camera info are available for ROI depth
+- integrated visual-servo stack publishes `/sc2/visual_servo/target_obs`, optionally `/sc2/visual_servo/target_point`, and `/sc2/visual_servo/cmd_vel_body`
+
+This is not a vehicle actuation test. Keep:
+- `enable_mavros_bridge:=false`
+- no BlueROV requirement
+- focus on perception + controller output only
+
+### 8.2.1 Start the Jetson container with the expected DDS settings
+
+On the Jetson host:
+
+```bash
+cd /mnt/orin_ssd/workspaces/oakd_isaac_ros
+./my_ws/scripts/launch_container.sh
+```
+
+Inside the container, verify the expected FastDDS-related environment:
+
+```bash
+echo "RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-unset}"
+echo "ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-unset}"
+echo "ROS_LOCALHOST_ONLY=${ROS_LOCALHOST_ONLY:-unset}"
+echo "FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-unset}"
+sed -n '1,80p' /workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml
+```
+
+Expected baseline for the current Jetson workflow:
+- `RMW_IMPLEMENTATION=rmw_fastrtps_cpp` or unset but effectively FastDDS from the Isaac ROS image
+- `ROS_DOMAIN_ID=8`
+- `ROS_LOCALHOST_ONLY=0`
+- `FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml`
+
+If the Discovery Server host for the current bench setup is not `192.168.2.95:11815`, update `config/fastdds_client_profile.xml` before continuing.
+
+### 8.2.2 Bootstrap and build
+
+Inside the container:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+./scripts/ensure_dev_container_ready.sh
+```
+
+Build the integrated OAK-D + visual-servo packages first:
+
+```bash
+./scripts/colcon_build_venv.sh --packages-up-to \
+  oakd_isaac_ros \
+  sc2_visual_servo_interfaces \
+  sc2_visual_servo_perception \
+  sc2_visual_servo_controller \
+  sc2_visual_servo_bringup
+source install/setup.bash
+```
+
+If you want to validate a larger Jetson build and hit a gtest / Google Test CMake failure inside the container, retry with:
+
+```bash
+colcon build --cmake-args -DBUILD_TESTING=OFF --merge-install
+source install/setup.bash
+```
+
+Verify that the detector assets are present and not obvious broken pointers:
+
+```bash
+ls -lah /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear
+file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx
+file /workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan
+```
+
+### 8.2.3 Run the scripted Jetson smoke check first
+
+Inside the container:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+./scripts/run_oakd_system_check.sh --profile jetson_live --launch-seconds 20
+```
+
+This script:
+- rebuilds the integrated packages unless `--skip-build` is used
+- launches `oakd_system.launch.py`
+- checks that the launch stays alive
+- collects node / topic snapshots under `diagnoses_oakd_system/<timestamp>/`
+- records topic info for:
+  - `/detections_output`
+  - `/sc2/visual_servo/target_obs`
+  - `/sc2/visual_servo/target_point`
+  - `/sc2/visual_servo/cmd_vel_body`
+
+Inspect at minimum:
+
+```bash
+LATEST_LOGDIR="$(ls -dt diagnoses_oakd_system/* | head -n1)"
+echo "$LATEST_LOGDIR"
+cat "$LATEST_LOGDIR/perception_preflight.log"
+cat "$LATEST_LOGDIR/topic_info_core.log"
+tail -n 80 "$LATEST_LOGDIR/oakd_system_launch.log"
+```
+
+If this smoke check fails before the launch stays up, fix that first before trying the manual integrated run below.
+
+### 8.2.4 Manual integrated launch for perception + controller output
+
+For the first end-to-end Jetson check without BlueROV, prefer disabling subsystems that are not needed for the question at hand:
+- keep OAK-D on
+- keep detector on
+- keep visual-servo on
+- keep target-point estimator on
+- disable MAVROS bridge
+- disable nvblox unless you specifically want its side path during this check
+
+Recommended command:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+ros2 launch oakd_isaac_ros oakd_system.launch.py \
+  run_oakd:=true \
+  enable_detection:=true \
+  enable_nvblox:=false \
+  enable_visualization:=false \
+  enable_visual_servo:=true \
+  enable_target_point_estimator:=true \
+  enable_debug_viz:=true \
+  enable_mavros_bridge:=false \
+  controller_mode:=bbox_target_point \
+  detector_model_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.onnx \
+  detector_engine_file_path:=/workspaces/oakd_isaac_ros/isaac_ros_assets/models/seaclear/v12s.plan
+```
+
+Why this launch shape:
+- `oakd_system.launch.py` is the integrated entry point for the current branch
+- it reuses `debug/object_detection.launch.py` for camera + detector wiring
+- it overrides the camera params to `config/oak_d/oakd_rgbd.yaml`, so stereo depth remains available for target-point estimation
+- `enable_nvblox:=false` keeps the first Jetson validation focused on the detector -> controller path instead of the mapping side path
+
+### 8.2.5 Runtime checks while the launch is up
+
+Open a second terminal in the same container and source the workspace:
+
+```bash
+cd /workspaces/oakd_isaac_ros
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+```
+
+Check that the expected nodes are present:
+
+```bash
+ros2 node list | sort | grep -E 'oak|tensor|yolo|target|visual_servo|image_converter'
+```
+
+Check that the camera and detector side are alive:
+
+```bash
+ros2 topic list | sort | grep -E '^/oak|^/detections_output|^/camera0/detection'
+ros2 topic info -v /detections_output
+ros2 topic hz /oak/rgb/image_raw
+ros2 topic hz /oak/stereo/image_raw
+ros2 topic hz /detections_output
+```
+
+Check the visual-servo outputs:
+
+```bash
+ros2 topic info -v /sc2/visual_servo/target_obs
+ros2 topic info -v /sc2/visual_servo/target_point
+ros2 topic info -v /sc2/visual_servo/cmd_vel_body
+ros2 topic hz /sc2/visual_servo/target_obs
+ros2 topic hz /sc2/visual_servo/target_point
+ros2 topic hz /sc2/visual_servo/cmd_vel_body
+ros2 topic echo /sc2/visual_servo/status --once
+ros2 topic echo /sc2/visual_servo/cmd_vel_body --once
+```
+
+Useful sanity checks for the image/depth geometry assumptions:
+
+```bash
+ros2 topic echo /oak/stereo/camera_info --once
+ros2 topic echo /sc2/visual_servo/target_obs --once
+ros2 topic echo /sc2/visual_servo/target_point --once
+```
+
+### 8.2.6 Pass criteria for this Jetson check
+
+Treat the Jetson validation as successful if all of the following are true:
+- the integrated launch stays alive without immediate crash
+- `/oak/rgb/image_raw` is publishing
+- `/detections_output` has a live publisher and non-empty messages when the target is visible
+- `/sc2/visual_servo/target_obs` is being published from real detections
+- `/sc2/visual_servo/cmd_vel_body` is being published by the controller
+- if `controller_mode:=bbox_target_point`, `/sc2/visual_servo/target_point` also publishes when depth ROI is valid
+
+### 8.2.7 If the detector path is unstable but you still need to prove controller output
+
+The primary goal above is real camera -> detector -> controller. If detector bringup is the only failing piece, you can still isolate the controller path by manually publishing `TargetObservation` while `oakd_system.launch.py` is running:
+
+```bash
+ros2 topic pub /sc2/visual_servo/target_obs sc2_visual_servo_interfaces/msg/TargetObservation \
+"{header: {frame_id: 'oak_rgb_camera_optical_frame'}, track_id: 1, u: 920.0, v: 520.0, w: 90.0, h: 70.0, depth_m: 2.0, confidence: 0.95, keypoints_uv: [], source: 'manual'}" --once
+ros2 topic echo /sc2/visual_servo/cmd_vel_body --once
+```
+
+Use this only as a fallback diagnostic. For the main Jetson validation, prefer proving that `/sc2/visual_servo/target_obs` comes from live detections.
 
 ## 9) BlueROV MAVROS quickcheck (synthetic detections)
 
