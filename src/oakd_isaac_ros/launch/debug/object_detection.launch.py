@@ -8,6 +8,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import Node
+from launch.actions import TimerAction
 
 
 def generate_launch_description():
@@ -69,6 +70,11 @@ def generate_launch_description():
         }.items()
     )
 
+    delayed_detection_include = TimerAction(
+        period=15.0,  # Delay in seconds (adjust as needed)
+        actions=[detection_include]
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument(
             'params_file',
@@ -77,16 +83,16 @@ def generate_launch_description():
         DeclareLaunchArgument('container_name', default_value='detection_container'),
         DeclareLaunchArgument(
             'detector_model_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12s.onnx'),
+            default_value=os.path.join(default_detector_model_dir, 'v12n.onnx'),
         ),
         DeclareLaunchArgument(
             'detector_engine_file_path',
-            default_value=os.path.join(default_detector_model_dir, 'v12s.plan'),
+            default_value=os.path.join(default_detector_model_dir, 'v12n.plan'),
         ),
         DeclareLaunchArgument('verbose', default_value='True'),
         DeclareLaunchArgument('target_class_id', default_value='3'),
         oakd_launch,
         image_converter,
         detection_container,
-        detection_include
+        delayed_detection_include
     ])

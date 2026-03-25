@@ -70,7 +70,7 @@ def get_image_jacobian(pts_2d, depths, fx, fy, cx, cy):
     :param fx, fy, cx, cy: Camera intrinsic parameters
     :return: Combined Jacobian matrix of shape (2*N, 6)
     """
-    N = pts_2d.shape[0]
+    N = np.asarray(pts_2d).shape[0]
     J_full = np.zeros((2 * N, 6))
 
     for i in range(N):

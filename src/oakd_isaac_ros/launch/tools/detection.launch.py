@@ -95,20 +95,23 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     )
 
     tensor_rt_node = ComposableNode(
-        name='tensor_rt',
-        package='isaac_ros_tensor_rt',
-        plugin='nvidia::isaac_ros::dnn_inference::TensorRTNode',
-        parameters=[{
-            'model_file_path': model_file_path,
-            'engine_file_path': engine_file_path,
-            'output_binding_names': output_binding_names,
-            'output_tensor_names': output_tensor_names,
-            'input_tensor_names': input_tensor_names,
-            'input_binding_names': input_binding_names,
-            'verbose': verbose,
-            'force_engine_update': force_engine_update
-        }]
-    )
+    name='tensor_rt',
+    package='isaac_ros_tensor_rt',
+    plugin='nvidia::isaac_ros::dnn_inference::TensorRTNode',
+    parameters=[{
+        'model_file_path': model_file_path,
+        'engine_file_path': engine_file_path,
+        'output_binding_names': output_binding_names,
+        'output_tensor_names': output_tensor_names,
+        'input_tensor_names': input_tensor_names,
+        'input_binding_names': input_binding_names,
+        'verbose': verbose,
+        'force_engine_update': force_engine_update,
+        # ADD THESE TWO LINES BELOW:
+        'input_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32'],
+        'output_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32']
+    }]
+)
 
     yolov8_decoder_node = ComposableNode(
         name='yolov8_decoder_node',
@@ -252,7 +255,7 @@ def generate_launch_description() -> LaunchDescription:
                  description='List of TRT output tensor names')
     args.add_arg('output_binding_names', '["output0"]',
                  description='List of TRT output tensor binding names')
-    args.add_arg('output_tensor_formats', '["nitros_tensor_list_nhwc_rgb_f32"]',
+    args.add_arg('output_tensor_formats', '["nitros_tensor_list_nchw_rgb_f32"]',
                  description='List of TRT output tensor nitros type formats')
 
     # Additional arguments

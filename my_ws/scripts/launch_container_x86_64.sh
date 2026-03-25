@@ -7,7 +7,7 @@ ISAAC_ROS_WS=${ISAAC_ROS_WS:-"${HOME}/workspaces/oakd_isaac_ros"}
 # /workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml
 CONTAINER_CONF="/workspaces/$(basename ${ISAAC_ROS_WS})/config/fastdds_client_profile.xml"
 
-${ISAAC_ROS_WS}/src/isaac_ros_common/scripts/run_dev.sh \
+${ISAAC_ROS_WS}/src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check\
     --isaac_ros_dev_dir "${ISAAC_ROS_WS}" \
     -a '--env=ROS_DOMAIN_ID=8' \
     -a '--env=ROS_LOCALHOST_ONLY=0' \

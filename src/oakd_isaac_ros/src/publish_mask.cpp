@@ -110,7 +110,7 @@ private:
     {
       std::lock_guard<std::mutex> lock(detections_mutex_);
       if (!latest_detections_) {
-        RCLCPP_WARN(this->get_logger(), "No detections received yet");
+        RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 2000, "No detections received yet");
         return;
       }
       detections_copy = latest_detections_;
@@ -153,11 +153,6 @@ private:
 
     geometry_msgs::msg::Point target_point_msg;
     if (best_det) {
-      //publish the selected best detection for use in the visual servoing
-      vision_msgs::msg::Detection2D best_detection = *best_det;
-      best_detection.header = detections_copy->header;
-      selected_detection_pub_->publish(best_detection);
-
       const auto& bbox = best_det->bbox;
 
 
@@ -254,6 +249,12 @@ private:
     // Also publish the target point for visual servoing (if we found one)
     if (best_det) {
       target_pub_->publish(target_point_msg);
+
+      vision_msgs::msg::Detection2D selected_msg = *best_det;
+      selected_msg.header.stamp = rgb_msg->header.stamp; // SYNC THE TIMESTAMP
+      selected_msg.header.frame_id = header.frame_id;
+      selected_detection_pub_->publish(selected_msg);
+
     }
 
     // Now republish the latest depth image and camera info with RGB timestamp

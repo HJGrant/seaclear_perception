@@ -47,10 +47,11 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
-        self.declare_parameter('grasp_timeout_ms', 500)
         self.declare_parameter('rate_hz', 20.0)
         self.declare_parameter('controller_mode', 'ibvs')
         self.declare_parameter('calibrated', True)
+        self.declare_parameter('verbose', True)
+        self.declare_parameter('enable_dvl', False)
 
         self.declare_parameter('image_width', 1280.0)
         self.declare_parameter('image_height', 720.0)
@@ -59,10 +60,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('desired_depth_m', 1.0)
 
         self.declare_parameter('desired_target_distance_m', 0.6)
-        self.declare_parameter('desired_grasp_distance_m', 0.6)
-        self.declare_parameter('target_distance_mode', 'z')
-        self.declare_parameter('grasp_distance_mode', 'z')
-        self.declare_parameter('require_target_point', False)
+        self.declare_parameter('vertical_gain', 1.0)
 
         self.declare_parameter('max_vx', 0.4)
         self.declare_parameter('max_vy', 0.3)
@@ -78,7 +76,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('cx_px', 640.0)
         self.declare_parameter('cy_px', 360.0)
 
-        self._target_topic = str(self.get_parameter('target_topic').value)
+        self._target_topic = str(self.get_parameter('target_bounding_box').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
@@ -87,6 +85,8 @@ class VisualServoControllerNode(Node):
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._target_point_timeout_sec = float(self.get_parameter('target_point_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
+        self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
+        self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -119,7 +119,6 @@ class VisualServoControllerNode(Node):
         ###########################################################################################################################################
 
         # IBVS parameters
-        self.current_state = self.ControllerState.BREAK
         self.lmbda = 0          # the lambda control gain from the standard IBVS control law
         self.lmbda_max = 0.1    # the maximum control gain that we can apply
         self.v_prev = np.zeros(6)
@@ -156,8 +155,8 @@ class VisualServoControllerNode(Node):
         self.center_count = 0
 
         # DVL control parameters
-        self.dist_target = 1 # desired vertical distance to target     
-        self.kz = 1.0 # vertical gain
+        self.dist_target = float(self.get_parameter('desired_target_distance_m').value) # desired vertical distance to target     
+        self.kz = float(self.get_parameter('vertical_gain').value) # vertical gain
 
         # uncalibrated visual servoing
         self.Pk = np.eye(6) * 0.1
@@ -178,6 +177,9 @@ class VisualServoControllerNode(Node):
         rate_hz = float(self.get_parameter('rate_hz').value)
         self.create_timer(1.0 / max(1e-3, rate_hz), self._tick)
 
+        self.current_state = self.ControllerState.BREAK
+        self._publish_status(self.current_state.name)
+
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} target={self._target_topic} cmd={self._cmd_topic}'
         )
@@ -191,10 +193,10 @@ class VisualServoControllerNode(Node):
         '''
         _camera_info_msg = msg
         k = _camera_info_msg.k  # extract the intrinsic camera matrix
-        self.fx = k[0,0]
-        self.fy = k[1,1]
-        self.cx = k[2,0]
-        self.cy = k[2,1]
+        self.fx = k[0]
+        self.fy = k[4]
+        self.cx = k[2]
+        self.cy = k[5]
     
     def _vel_measurement_cb(self, msg: TwistStamped) -> None:
         t = msg.twist
@@ -222,9 +224,11 @@ class VisualServoControllerNode(Node):
         #     throttle_duration_sec=1,
         # )
 
+        self.get_logger().info(f'Detection Recieved!', throttle_duration_sec=2.0)
+
         self._last_obs_time = self.get_clock().now()
         self._latest_obs = detection_2D_msg.bbox
-        best_bbox = self._latest_obs.copy()
+        best_bbox = self._latest_obs
         
         half_w = best_bbox.size_x / 2.0
         half_h = best_bbox.size_y / 2.0
@@ -237,7 +241,7 @@ class VisualServoControllerNode(Node):
             (best_bbox.center.position.x - half_w, best_bbox.center.position.y + half_h)  # BL
         ]
 
-        self.latest_centroid = np.mean(self.current_bbox_corners, axis=1)
+        self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
 
     def _tick(self) -> None:
         now = self.get_clock().now()
@@ -269,7 +273,7 @@ class VisualServoControllerNode(Node):
             self.prev_velocity_measurement = self.latest_velocity_measurement
 
         else:
-            self.get_logger().info(f"No detections yet, cannot compute control signal...")
+            self.get_logger().info(f"No detections yet, cannot compute control signal...", throttle_duration_sec=2.0)
             return
         
         # compute the commanded velocity
@@ -286,7 +290,7 @@ class VisualServoControllerNode(Node):
         # if there is a fresh observation, and 
         if self._latest_obs is not None or not dt_obs > self._timeout_sec and in_roi:
             if self.verbose:
-                self.get_logger().info(f"Target Visible!")
+                self.get_logger().info(f"Target Visible!", throttle_duration_sec=2.0)
             
             self.target_count += 1
 
@@ -296,17 +300,20 @@ class VisualServoControllerNode(Node):
 
             # Check if we should switch to DVL (Target is in the center ROI)
             in_center = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.target_centroid, self.roi_w/2)
-            if in_center:
+            if in_center and self.enable_dvl:  # Only transition if enabled
                 if self.verbose:
-                    print(f"Target in Center ROI")
-
+                    self.get_logger().info(f"Target in Center ROI - Transitioning to DVL", throttle_duration_sec=2.0)
                 self.center_count += 1
                 if self.center_count > self.center_min:
                     self.set_state(self.ControllerState.DVL)
+            elif in_center and not self.enable_dvl:
+                if self.verbose:
+                    self.get_logger().info(f"Target in Center but DVL disabled. Staying in VISUAL.", throttle_duration_sec=2.0)
+
         else:
             # We don't reset target_count immediately to 0; we let it "cool down"
             # This prevents 1-frame flickers from resetting the whole state
-            self.get_logger().info(f"Target Not Visible!")
+            self.get_logger().info(f"Target Not Visible!", throttle_duration_sec=2.0)
             self.target_count = max(0, self.target_count - 1) 
             self.center_count = max(0, self.center_count - 1)
             if self.target_count == 0 and self.current_state == self.ControllerState.VISUAL:
@@ -315,7 +322,7 @@ class VisualServoControllerNode(Node):
 
         if self.current_state == self.ControllerState.DVL:
             if self.verbose:
-                print(f"DVL Control Mode: Descending...")
+                self.get_logger().info(f"DVL Control Mode: Descending...")
             # Calculate vertical distance to the target plane
             current_distance = np.abs(self.camera.pose.t[2] - self.P.T[0,2])
             error_z = current_distance - self.dist_target
@@ -348,16 +355,20 @@ class VisualServoControllerNode(Node):
 
         vx, vy, vz, _, _, yaw = v_desired.flatten()
 
+        self.get_logger().info(f'Publishing Velocity: {v_desired.flatten()}', throttle_duration_sec=2.0)
+
         self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
         self._publish_status('TRACKING_IBVS')
 
     def set_state(self, new_state):
         if new_state != self.current_state:
-            # If we are moving into DVL, zero out the horizontal filter memory
+            # Logging the change
+            self.get_logger().info(f"State transition: {self.current_state.name} -> {new_state.name}")
+            
+            # Specific transition logic
             if new_state == self.ControllerState.DVL:
                 if self.verbose:
-                    print("DVL Latch: Resetting horizontal velocity filters to prevent sliding.")
-                # Keep the Z (index 2) but kill Surge(0), Sway(1), and Yaw(5)
+                    self.get_logger().info("DVL Latch: Resetting horizontal velocity filters.")
                 self.v_last_valid[0] = 0
                 self.v_last_valid[1] = 0
                 self.v_last_valid[5] = 0
@@ -366,9 +377,11 @@ class VisualServoControllerNode(Node):
                 self.v_prev[1] = 0
                 self.v_prev[5] = 0
 
+            # Update the variable
             self.current_state = new_state
-            if self.verbose:
-                print(f"State changed to: {self.current_state.name}")
+            
+            # PUBLISH the new state name
+            self._publish_status(self.current_state.name)
     
     def _publish_status(self, text: str) -> None:
         msg = String()

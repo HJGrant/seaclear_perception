@@ -6,7 +6,8 @@
       i_tf_parent_frame: oak-d-base-frame
       i_pipeline_type: RGB
       i_enable_sync: false
-      i_ip: "192.168.2.97"
+      #i_ip: "192.168.2.97"
+      i_ip: "10.1.1.210"
 
     pipeline_gen:
       i_enable_diagnostics: true
