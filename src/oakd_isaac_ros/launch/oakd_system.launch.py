@@ -138,7 +138,7 @@ def generate_launch_description() -> LaunchDescription:
                 os.path.join(package_share, 'launch', 'debug', 'object_detection.launch.py')
             ),
             launch_arguments={
-                'params_file': os.path.join(package_share, 'config', 'oak_d', 'oakd_rgbd.yaml'),
+                'params_file': os.path.join(package_share, 'config', 'oak_d', 'oakd_dnn_depth.yaml'),
                 'container_name': 'detection_container',
                 'detector_model_file_path': detector_model_file_path,
                 'detector_engine_file_path': detector_engine_file_path,

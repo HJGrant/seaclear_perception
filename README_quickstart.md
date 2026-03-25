@@ -748,7 +748,8 @@ Detailed runbook:
 ## Host vs Container Python note
 
 - NumPy/cv_bridge ABI mismatch was observed when Python/ROS commands were run outside the Humble container.
-- Supported workflow: run ROS2 commands and `cv_bridge`-dependent nodes inside the Humble container.
+- The same mismatch can also happen inside the container if a stale `.venv` with `numpy>=2` is reused against ROS apt packages that were built against NumPy 1.x.
+- Supported workflow: run ROS2 commands and `cv_bridge`-dependent nodes inside the Humble container, and use `./scripts/ensure_dev_container_ready.sh` to validate or rebuild `.venv` before launching.
 - If host-side Python execution is unavoidable, NumPy alignment with host ROS apt packages may be required, but host Python setup is out of scope for this project workflow.
 
 ## Troubleshooting
@@ -757,5 +758,9 @@ Detailed runbook:
   interpreter mismatch. Recreate venv with Python 3.10 and `--system-site-packages`:
   `rm -rf .venv && ./scripts/uv_bootstrap.sh`
 - `cv_bridge` import errors mentioning NumPy 2:
-  verify you are running inside the Humble container first; host-side Python/cv_bridge mismatch is not part of the supported workflow.
+  if you are already inside the Humble container, force a clean venv rebuild:
+  `./scripts/ensure_dev_container_ready.sh --force-bootstrap`
+- `./scripts/ensure_dev_container_ready.sh --force-bootstrap` fails with `Exec format error` from `.tools/uv/uv`:
+  the workspace-local `uv` binary was created on a different CPU architecture. Remove it and rerun:
+  `rm -f .tools/uv/uv && ./scripts/ensure_dev_container_ready.sh --force-bootstrap`
 - Avoid installing `opencv-python` into this venv unless explicitly required; it can conflict with system OpenCV / `cv_bridge` bindings.
