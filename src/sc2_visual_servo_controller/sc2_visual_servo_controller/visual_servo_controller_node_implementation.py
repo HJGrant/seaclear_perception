@@ -44,10 +44,11 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
+        self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
-        self.declare_parameter('rate_hz', 20.0)
+        self.declare_parameter('rate_hz', 60.0)
         self.declare_parameter('controller_mode', 'ibvs')
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
@@ -77,6 +78,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('cy_px', 360.0)
 
         self._target_topic = str(self.get_parameter('target_bounding_box').value)
+        self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
@@ -118,18 +120,6 @@ class VisualServoControllerNode(Node):
         ################################## Here start the IBVS control parameters which were validated in simulation ##############################
         ###########################################################################################################################################
 
-        # IBVS parameters
-        self.lmbda = 0          # the lambda control gain from the standard IBVS control law
-        self.lmbda_max = 0.1    # the maximum control gain that we can apply
-        self.v_prev = np.zeros(6)
-        self.alpha_1 = 0.6
-        self.alpha_2 = 0.1
-        self.v_last_valid = np.zeros(6)
-        self.decay_rate = 0.15  # Drops 5% of speed per "blind" frame
-        self.DoF_mask = [1, 1, 1, 1, 1, 1]
-        self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
-        self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
-        
         # target paratmers
         # first define the corners of a sqaure around the center of the image
         # TODO: validate whether these target corners suffice 
@@ -149,10 +139,25 @@ class VisualServoControllerNode(Node):
         self.roi_w = 50
 
         # define the minimum needed detections and the detection counter
-        self.target_min = 5
-        self.center_min = 5
-        self.target_count = 0
-        self.center_count = 0
+        self.confirmation_time = 0.1  # Must see target for 0.1s to go VISUAL
+        self.lost_timeout = 0.2        # Must lose target for 0.2s to go BREAK
+        self._first_seen_time = None
+        self.target_min = 10
+        self.center_min = 10
+
+        # IBVS parameters
+        self.lmbda = 0          # the lambda control gain from the standard IBVS control law
+        self.lmbda_max = 0.1    # the maximum control gain that we can apply
+        self.v_prev = np.zeros(6)
+        self.alpha_1 = 0.6
+        self.alpha_2 = 0.1
+        self.v_last_valid = np.zeros(6)
+        self.decay_rate = 0.95  # Drops 5% of speed per "blind" frame
+        self.DoF_mask = [1, 1, 1, 1, 1, 1]
+        self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
+        self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
+        self.current_e = np.zeros(6)
+        self.J_img = np.eye(2*self.center_box_corners.shape[0], 6)  # initialise the Jacobian based on the number of target points
 
         # DVL control parameters
         self.dist_target = float(self.get_parameter('desired_target_distance_m').value) # desired vertical distance to target     
@@ -170,6 +175,7 @@ class VisualServoControllerNode(Node):
 
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
+        self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self.create_subscription(Detection2D, self._target_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
@@ -178,7 +184,7 @@ class VisualServoControllerNode(Node):
         self.create_timer(1.0 / max(1e-3, rate_hz), self._tick)
 
         self.current_state = self.ControllerState.BREAK
-        self._publish_status(self.current_state.name)
+        self._publish_status(str(self.current_state.name))
 
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} target={self._target_topic} cmd={self._cmd_topic}'
@@ -246,119 +252,108 @@ class VisualServoControllerNode(Node):
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
-        dt_target_point = (now - self._last_target_point_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
 
-        if self._latest_obs is not None and not dt_obs > self._timeout_sec:
-            # compute the error of the bounding box corners to the target box corners
-            e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
+        # --- 1. SENSOR VALIDATION GATE ---
+        is_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
+        
+        # ROI check against the LAST VALID centroid we trusted
+        in_roi = True
+        if not self.first_execution:
+            in_roi = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.prev_centroid, self.roi_w)
 
-            # TODO: assume a constant depth for now
-            Z = np.ones(len(self.latest_bbox_corners)) * 3.0
-
-            # for the uncalibrated case, initialize the Jacobian estimate with the current camera parameters
-            if self.first_execution and not self.calibrated:
-                self.J_hat = get_image_jacobian(self.latest_bbox_corners, Z, self.fx.copy(), self.fy.copy(), self.cx.copy(), self.cy.copy())
-                self.first_execution = False
-
-            # compute the desired raw velocity based on the image Jacobian 
-            if self.calibrated:
-                J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx.copy(), self.fy.copy(), self.cx.copy(), self.cy.copy())
-            else:
-                self.J_hat, self.Pk, self.delta_e = get_uncalibrated_jacobian(e, self.prev_e, self.prev_velocity_measurement, self.J_hat, self.Pk, self.lmbda_rls, self.dt_ctrl)
-                J_img = self.J_hat
-
-            self.prev_e = e.copy()
-            self.prev_velocity_measurement = self.latest_velocity_measurement
-
+        # Update the Consecutive Counter
+        if is_fresh and in_roi:
+            # We only count it as a "valid frame" if it's fresh and near the last one
+            self.target_count = min(self.target_count + 1, self.target_min + 1)
+            self.prev_centroid = self.latest_centroid.copy()
         else:
-            self.get_logger().info(f"No detections yet, cannot compute control signal...", throttle_duration_sec=2.0)
-            return
-        
-        # compute the commanded velocity
-        try:
-            raw_v = -self.lmbda_max * np.linalg.inv(J_img.T @ J_img + 1e-4 * np.eye(6)) @ J_img.T @ e # use damped peudo-inverse
-        except np.linalg.LinAlgError:
-            return -1
-        
+            # Hard reset: If it jumps or times out, we lose the "lock"
+            self.target_count = 0
 
-        # check whether the current bbox is in the ROI of the previously detected bbox
-        in_roi = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.prev_centroid, self.roi_w/2)
-        self.prev_centroid = self.latest_centroid
+        # Boolean for whether we trust the current frame enough to do math
+        is_locked = (self.target_count > self.target_min)
 
-        # if there is a fresh observation, and 
-        if self._latest_obs is not None or not dt_obs > self._timeout_sec and in_roi:
-            if self.verbose:
-                self.get_logger().info(f"Target Visible!", throttle_duration_sec=2.0)
-            
-            self.target_count += 1
+        # publish if the target is locked or not for debugging
+        self._publish_is_locked(str(is_locked))
 
-            # Transition to VISUAL if we've seen it enough and aren't DVL yet
-            if self.target_count > self.target_min and self.current_state not in [self.ControllerState.DVL, self.ControllerState.COMPLETE]:
+        # --- 2. MATH UPDATE (Only if Locked) ---
+        if is_locked:
+            self.current_e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
+            Z = np.ones(len(self.latest_bbox_corners)) * 3.0 # Assume 3m depth
+
+            if self.calibrated:
+                self.J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx, self.fy, self.cx, self.cy)
+            else:
+                # UNCALIBRATED MODE: Update RLS Jacobian estimate
+                self.J_hat, self.Pk, self.delta_e = get_uncalibrated_jacobian(
+                    self.current_e, self.prev_e, self.prev_velocity_measurement, 
+                    self.J_hat, self.Pk, self.lmbda_rls, dt_ctrl
+                )
+                self.J_img = self.J_hat
+
+            # Update history for next iteration
+            self.prev_e = self.current_e.copy()
+            self.prev_velocity_measurement = self.latest_velocity_measurement
+            self.first_execution = False
+
+        # --- 3. STATE TRANSITIONS ---
+        if is_locked:
+            # Check for VISUAL transition
+            if self.current_state not in [self.ControllerState.DVL, self.ControllerState.COMPLETE]:
                 self.set_state(self.ControllerState.VISUAL)
 
-            # Check if we should switch to DVL (Target is in the center ROI)
+            # Check for DVL transition (Requires being in the center)
             in_center = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.target_centroid, self.roi_w/2)
-            if in_center and self.enable_dvl:  # Only transition if enabled
-                if self.verbose:
-                    self.get_logger().info(f"Target in Center ROI - Transitioning to DVL", throttle_duration_sec=2.0)
-                self.center_count += 1
+            if in_center and self.enable_dvl:
+                self.center_count = min(self.center_count + 1, self.center_min + 1)
                 if self.center_count > self.center_min:
                     self.set_state(self.ControllerState.DVL)
-            elif in_center and not self.enable_dvl:
-                if self.verbose:
-                    self.get_logger().info(f"Target in Center but DVL disabled. Staying in VISUAL.", throttle_duration_sec=2.0)
-
+            else:
+                self.center_count = 0
         else:
-            # We don't reset target_count immediately to 0; we let it "cool down"
-            # This prevents 1-frame flickers from resetting the whole state
-            self.get_logger().info(f"Target Not Visible!", throttle_duration_sec=2.0)
-            self.target_count = max(0, self.target_count - 1) 
-            self.center_count = max(0, self.center_count - 1)
-            if self.target_count == 0 and self.current_state == self.ControllerState.VISUAL:
+            # Not locked: if blind for too long, break
+            if dt_obs >= self.lost_timeout:
                 self.set_state(self.ControllerState.BREAK)
 
+        # --- 4. ACTION SELECTION (Mode-Specific) ---
+        # Initialize raw target velocity
+        v_raw_target = np.zeros(6)
 
         if self.current_state == self.ControllerState.DVL:
-            if self.verbose:
-                self.get_logger().info(f"DVL Control Mode: Descending...")
-            # Calculate vertical distance to the target plane
-            current_distance = np.abs(self.camera.pose.t[2] - self.P.T[0,2])
-            error_z = current_distance - self.dist_target
-            
-            # Proportional descent + decay any existing horizontal drift
+            # DVL DESCENT LOGIC
+            # error_z calculation (you'll need to ensure you have the Z-measurement available)
+            error_z = 1.0 - self.dist_target # Placeholder: Replace with real altitude
             v_z = self.kz * error_z
-            v_drift = self.v_last_valid * self.decay_rate
             v_raw_target = np.array([0, 0, v_z, 0, 0, 0])
             
-            if error_z < 0.05:
+            if abs(error_z) < 0.05:
                 self.set_state(self.ControllerState.COMPLETE)
-                return 1
 
-        elif self.current_state == self.ControllerState.VISUAL:
-            # We are in tracking mode. If this specific frame is a flicker, decay.
-            if self._latest_obs is not None or not dt_obs > self._timeout_sec and in_roi:
-                v_raw_target = raw_v * self.DoF_mask # Surge, Sway, Yaw only
-            else:
-                self.set_state(self.ControllerState.BREAK)
+        elif self.current_state == self.ControllerState.VISUAL and is_locked:
+            # IBVS TRACKING LOGIC
+            try:
+                # Use Damped Least Squares inverse
+                inv_J = np.linalg.inv(self.J_img.T @ self.J_img + 1e-4 * np.eye(6)) @ self.J_img.T
+                v_raw_target = (-self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask
+            except np.linalg.LinAlgError:
                 v_raw_target = self.v_last_valid * self.decay_rate
         
         else:
-            # BREAK mode or "Warming up": apply decay to whatever the last velocity was
-            self.set_state(self.ControllerState.BREAK)
+            # BREAK or GLIDE (Target lost while in VISUAL)
             v_raw_target = self.v_last_valid * self.decay_rate
 
-        # filter the velocity with a first-order low pass filter (Exponential Moving Average)
-        v_desired = (self.alpha_1 * v_raw_target) + ((1 - self.alpha_1) * self.v_last_valid)
-        self.v_last_valid = v_desired   # Save velocity for the next frame's decay calculation
+        # --- 5. SMOOTHING & PUBLISHING ---
+        # Apply EMA filter (only if target is valid, otherwise use raw decay)
+        if is_locked or self.current_state == self.ControllerState.DVL:
+            v_desired = (self.alpha_1 * v_raw_target) + ((1 - self.alpha_1) * self.v_last_valid)
+        else:
+            v_desired = v_raw_target # Already contains the decayed v_last_valid
 
+        self.v_last_valid = v_desired
         vx, vy, vz, _, _, yaw = v_desired.flatten()
-
-        self.get_logger().info(f'Publishing Velocity: {v_desired.flatten()}', throttle_duration_sec=2.0)
-
         self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
-        self._publish_status('TRACKING_IBVS')
 
     def set_state(self, new_state):
         if new_state != self.current_state:
@@ -381,12 +376,17 @@ class VisualServoControllerNode(Node):
             self.current_state = new_state
             
             # PUBLISH the new state name
-            self._publish_status(self.current_state.name)
+            self._publish_status(str(self.current_state.name))
     
     def _publish_status(self, text: str) -> None:
         msg = String()
         msg.data = text
         self._status_pub.publish(msg)
+
+    def _publish_is_locked(self, text: str) -> None:
+        msg = String()
+        msg.data = text
+        self._target_locked_pub.publish(msg)
 
     def _publish_cmd(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)

@@ -39,15 +39,13 @@ endif()
 # Add an interface target to export dependencies
 add_library(${PROJECT_NAME} INTERFACE)
 
-# commented out 12.12.2025 for build
 # Install shared library
-#install(FILES "${GXF_EXT_LIB_PATH}/lib${PROJECT_NAME}.so"
-#        DESTINATION "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/gxf/lib")
-# Install shared library
-#set_property(TARGET ${PROJECT_NAME} PROPERTY
-#  INTERFACE_LINK_LIBRARIES
-#    "$<INSTALL_PREFIX>/share/${PROJECT_NAME}/gxf/lib/lib${PROJECT_NAME}.so"
-#)
+install(FILES "${GXF_EXT_LIB_PATH}/lib${PROJECT_NAME}.so"
+        DESTINATION "${CMAKE_INSTALL_PREFIX}/share/${PROJECT_NAME}/gxf/lib")
+set_property(TARGET ${PROJECT_NAME} PROPERTY
+  INTERFACE_LINK_LIBRARIES
+    "$<INSTALL_PREFIX>/share/${PROJECT_NAME}/gxf/lib/lib${PROJECT_NAME}.so"
+)
 
 # Install headers
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/gxf")
@@ -66,9 +64,8 @@ install(TARGETS ${PROJECT_NAME}
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
 
 # Install nvds libraries
-# install(DIRECTORY ${NVDS_LIB_PATH}/
-#         DESTINATION share/${PROJECT_NAME}/gxf/lib)
-
+install(DIRECTORY ${NVDS_LIB_PATH}/
+        DESTINATION share/${PROJECT_NAME}/gxf/lib)
 
 
 # Embed versioning information into installed files
