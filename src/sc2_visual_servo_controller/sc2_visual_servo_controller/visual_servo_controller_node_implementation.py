@@ -262,12 +262,12 @@ class VisualServoControllerNode(Node):
         in_roi = True
         if not self.first_execution:
             in_roi = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.prev_centroid, self.roi_w)
+            self.prev_centroid = self.latest_centroid.copy()
 
         # Update the Consecutive Counter
         if is_fresh and in_roi:
             # We only count it as a "valid frame" if it's fresh and near the last one
             self.target_count = min(self.target_count + 1, self.target_min + 1)
-            self.prev_centroid = self.latest_centroid.copy()
         else:
             # Hard reset: If it jumps or times out, we lose the "lock"
             self.target_count = 0
