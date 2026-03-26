@@ -59,6 +59,8 @@ def generate_launch_description() -> LaunchDescription:
     body_frame_id = LaunchConfiguration('body_frame_id')
     detector_model_file_path = LaunchConfiguration('detector_model_file_path')
     detector_engine_file_path = LaunchConfiguration('detector_engine_file_path')
+    detector_target_class_id = LaunchConfiguration('detector_target_class_id')
+    oakd_params_file = LaunchConfiguration('oakd_params_file')
 
     mavros_backend = LaunchConfiguration('mavros_backend')
     deadman_topic = LaunchConfiguration('deadman_topic')
@@ -108,6 +110,10 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument(
             'detector_engine_file_path',
             default_value=os.path.join(default_detector_model_dir, 'v12s.plan')),
+        DeclareLaunchArgument('detector_target_class_id', default_value='3'),
+        DeclareLaunchArgument(
+            'oakd_params_file',
+            default_value=os.path.join(package_share, 'config', 'oak_d', 'oakd_dnn_depth.yaml')),
 
         DeclareLaunchArgument('controller_mode', default_value='bbox_target_point'),
         DeclareLaunchArgument('target_class', default_value=''),
@@ -138,12 +144,12 @@ def generate_launch_description() -> LaunchDescription:
                 os.path.join(package_share, 'launch', 'debug', 'object_detection.launch.py')
             ),
             launch_arguments={
-                'params_file': os.path.join(package_share, 'config', 'oak_d', 'oakd_rgbd.yaml'),
+                'params_file': oakd_params_file,
                 'container_name': 'detection_container',
                 'detector_model_file_path': detector_model_file_path,
                 'detector_engine_file_path': detector_engine_file_path,
                 'verbose': 'True',
-                'target_class_id': '3',
+                'target_class_id': detector_target_class_id,
             }.items(),
             condition=detector_stack_enabled,
         ),

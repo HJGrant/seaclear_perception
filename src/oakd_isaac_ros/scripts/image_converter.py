@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-import cv2
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
@@ -23,8 +22,8 @@ class ImageConverter(Node):
             # Convert ROS Image message to OpenCV format (BGR8)
             cv_image = self.bridge.imgmsg_to_cv2(msg, "bgr8")
 
-            # Convert BGR to RGB
-            rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            # Avoid OpenCV dependency here; channel reversal is enough for bgr8 -> rgb8.
+            rgb_image = cv_image[:, :, ::-1].copy()
 
             # Convert OpenCV image back to ROS Image message
             ros_rgb_image = self.bridge.cv2_to_imgmsg(rgb_image, "rgb8")

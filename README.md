@@ -11,8 +11,10 @@ source of truth:
 - integrated detector + VS entry: `src/oakd_isaac_ros/launch/oakd_system.launch.py`
 - detector-only wrapper: `src/oakd_isaac_ros/launch/debug/object_detection.launch.py`
 - detector core pipeline: `src/oakd_isaac_ros/launch/tools/detection.launch.py`
-- current detector asset defaults: `isaac_ros_assets/models/seaclear/v12s.onnx` and
-  `isaac_ros_assets/models/seaclear/v12s.plan`
+- current detector model default: `isaac_ros_assets/models/seaclear/v12s.onnx`
+- current detector engine output default: `isaac_ros_assets/models/seaclear/v12s.plan`
+  `v12s.plan` is not expected to be versioned in the repo; on a new Jetson / GPU
+  runtime it may be generated on first launch from the ONNX model
 - integrated `oakd_system.launch.py` reuses `debug/object_detection.launch.py` for
   camera + detector wiring, while overriding the camera params file to
   `config/oak_d/oakd_rgbd.yaml`

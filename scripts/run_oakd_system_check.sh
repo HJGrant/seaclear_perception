@@ -109,8 +109,8 @@ case "$PROFILE" in
     LAUNCH_ARGS=(
       run_oakd:=true
       enable_detection:=true
-      enable_nvblox:=true
-      enable_visualization:=true
+      enable_nvblox:=false
+      enable_visualization:=false
       enable_visual_servo:=true
       enable_target_point_estimator:=true
       enable_debug_viz:=true

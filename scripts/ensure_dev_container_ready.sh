@@ -39,8 +39,16 @@ fi
 if [[ "$need_bootstrap" -eq 0 ]]; then
   if ! .venv/bin/python - <<'PY' >/dev/null 2>&1
 import importlib
+import numpy as np
+from cv_bridge import CvBridge
+
+if int(np.__version__.split('.', 1)[0]) >= 2:
+    raise RuntimeError(f"numpy {np.__version__} is incompatible with cv_bridge/cv2 in this container")
+
 for module in ("rclpy", "cv_bridge"):
     importlib.import_module(module)
+
+CvBridge()
 PY
   then
     need_bootstrap=1

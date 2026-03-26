@@ -58,5 +58,22 @@ if [[ "$source_rc" -ne 0 ]]; then
   _sc2_fail "$source_rc" "ERROR: sourcing workspace setup failed: $SETUP_FILE"
 fi
 
+WORKSPACE_ROOT="$(pwd)"
+VENV_PYTHON="${WORKSPACE_ROOT}/.venv/bin/python"
+if [[ -x "$VENV_PYTHON" ]]; then
+  export PATH="${WORKSPACE_ROOT}/.venv/bin:${PATH}"
+  export COLCON_PYTHON_EXECUTABLE="$VENV_PYTHON"
+  export AMENT_PYTHON_EXECUTABLE="$VENV_PYTHON"
+
+  VENV_SITE_PACKAGES="$("$VENV_PYTHON" - <<'PY'
+import sysconfig
+print(sysconfig.get_path("purelib"))
+PY
+)"
+  if [[ -n "$VENV_SITE_PACKAGES" ]]; then
+    export PYTHONPATH="${VENV_SITE_PACKAGES}${PYTHONPATH:+:${PYTHONPATH}}"
+  fi
+fi
+
 unset _sc2_sourced
 unset -f _sc2_fail
