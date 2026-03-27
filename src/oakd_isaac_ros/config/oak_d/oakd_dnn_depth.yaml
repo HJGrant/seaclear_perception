@@ -74,7 +74,7 @@
       #i_right_rect_synced: true
       #i_right_socket_id: 2
       #i_left_rect_add_exposure_offset: false
-
+      
       #i_left_rect_enable_feature_tracker: false
       #i_left_rect_exposure_offset: 0
       #i_left_rect_low_bandwidth: false

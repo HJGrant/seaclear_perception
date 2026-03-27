@@ -42,7 +42,7 @@ public:
     detection_sub_ = this->create_subscription<vision_msgs::msg::Detection2DArray>(
       "/detections_output", 10,
       std::bind(&publish_mask::detectionCallback, this, std::placeholders::_1));
-      
+
     selected_detection_pub_ = this->create_publisher<vision_msgs::msg::Detection2D>("best_detection", 10);
 
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
