@@ -33,6 +33,31 @@ def generate_launch_description():
         )
     )
     
+    target_pose_node = Node(
+        package='sc2_visual_servo_perception',
+        executable='target_point_estimator_node',
+        name='target_point_estimator_node',
+        output='screen',
+        parameters=[{
+            'target_bounding_box': '/best_detection',
+            'depth_topic': '/oak/stereo/image_raw',
+            'camera_info_topic': '/oak/stereo/camera_info',
+            'status_topic': '/sc2/visual_servo/target_point_status',
+            'default_frame_id': 'oak_rgb_camera_optical_frame',
+            'max_hold_ms': 500.0,
+            'hold_last_valid': True,
+            'max_obs_age_ms': 300.0,
+            'depth_min_m': 0.2,
+            'depth_max_m': 20.0,
+            'min_valid_points': 20,
+            'num_nearest_points': 25,
+            'max_search_radius_px': 40.0,
+            'use_uv_median_depth': True,
+            'use_mask_gating': False,
+            'mask_threshold': 1
+        }],
+    )
+
     # 3. Add the condition to your Node
     ibvs_node = Node(
         package='sc2_visual_servo_controller',
@@ -76,6 +101,7 @@ def generate_launch_description():
         declare_launch_ibvs_arg,
         declare_launch_foxglove_arg,
         oakd_object_detection_launch,
+        target_pose_node,
         ibvs_node,
         foxglove_node
     ])

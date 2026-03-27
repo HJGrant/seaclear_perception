@@ -127,3 +127,10 @@ RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
     ros-humble-isaac-ros-h264-encoder \
     ros-humble-isaac-ros-h264-decoder \
     && rm -rf /var/lib/apt/lists/*
+
+# temporary fix while the foxglove-bridge is not available in the standard apt repository
+RUN apt-get update \
+    && apt install -y ros2-testing-apt-source \
+    && apt update \
+    && apt install -y ros-$ROS_DISTRO-foxglove-bridge \
+    && rm -rf /var/lib/apt/lists/*

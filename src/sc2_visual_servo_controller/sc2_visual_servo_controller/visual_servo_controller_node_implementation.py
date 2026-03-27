@@ -1,13 +1,17 @@
 from typing import Optional
 import numpy as np
 
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, PoseStamped
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 from sensor_msgs.msg import CameraInfo
 from enum import Enum
+
+import tf2_ros
+import tf2_geometry_msgs 
+from geometry_msgs.msg import Vector3Stamped
 
 from .ibvs.controller_math import (
     clamp,
@@ -41,11 +45,13 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
+        self.declare_parameter('velocity_optical_topic', '/sc2/visual_servo/velocity_optical')
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
+        self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
@@ -77,13 +83,16 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('cx_px', 640.0)
         self.declare_parameter('cy_px', 360.0)
 
-        self._target_topic = str(self.get_parameter('target_bounding_box').value)
+        self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
+        self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
+        self._velocity_optical_topic = str(self.get_parameter('velocity_optical_topic').value)
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
+        self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._target_point_timeout_sec = float(self.get_parameter('target_point_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
@@ -160,6 +169,7 @@ class VisualServoControllerNode(Node):
         self.J_img = np.eye(2*self.center_box_corners.shape[0], 6)  # initialise the Jacobian based on the number of target points
 
         # DVL control parameters
+        self._latest_depth_measurement = 3.0
         self.dist_target = float(self.get_parameter('desired_target_distance_m').value) # desired vertical distance to target     
         self.kz = float(self.get_parameter('vertical_gain').value) # vertical gain
 
@@ -174,11 +184,16 @@ class VisualServoControllerNode(Node):
         #######################################################################################################################################################
 
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)
+        self._optical_vel_pub = self.create_publisher(TwistStamped, self._velocity_optical_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
-        self.create_subscription(Detection2D, self._target_topic, self._detection_cb, 10)
+        self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
+        self.create_subscription(PoseStamped, self._velocity_measurement_topic, self._target_pose_cb, 10)
+
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         rate_hz = float(self.get_parameter('rate_hz').value)
         self.create_timer(1.0 / max(1e-3, rate_hz), self._tick)
@@ -187,8 +202,13 @@ class VisualServoControllerNode(Node):
         self._publish_status(str(self.current_state.name))
 
         self.get_logger().info(
-            f'visual_servo_controller_node mode={self._controller_mode} target={self._target_topic} cmd={self._cmd_topic}'
+            f'visual_servo_controller_node mode={self._controller_mode} target={self._target_bbox_topic} cmd={self._cmd_topic}'
         )
+
+    def _target_pose_cb(self, msg: PoseStamped) -> None:
+        '''Extract the depth information from the latest Pose etimate.'''
+        latest_pose = msg.pose
+        self._latest_depth_measurement = latest_pose.position.z
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -281,7 +301,7 @@ class VisualServoControllerNode(Node):
         # --- 2. MATH UPDATE (Only if Locked) ---
         if is_locked:
             self.current_e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
-            Z = np.ones(len(self.latest_bbox_corners)) * 3.0 # Assume 3m depth
+            Z = np.ones(len(self.latest_bbox_corners)) * self._latest_depth_measurement # apply the latest depth measurement of the bbbox center
 
             if self.calibrated:
                 self.J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx, self.fy, self.cx, self.cy)
@@ -353,7 +373,54 @@ class VisualServoControllerNode(Node):
 
         self.v_last_valid = v_desired
         vx, vy, vz, _, _, yaw = v_desired.flatten()
-        self._publish_cmd_with_slew(vx, vy, vz, yaw, dt_ctrl)
+
+        # 1. Map IBVS output to the Camera's Optical Frame (Z-forward, Y-down)
+        # Based on your cable (Y) and down (Z) observations:
+        v_opt_msg = TwistStamped()
+        v_opt_msg.header.stamp = self.get_clock().now().to_msg()
+        v_opt_msg.header.frame_id = self._camera_optical_frame_id
+        
+        v_opt_msg.twist.linear.x = -vx    # Right
+        v_opt_msg.twist.linear.y = vz    # Down
+        v_opt_msg.twist.linear.z = -vy   # Forward (Away from cable)
+        v_opt_msg.twist.angular.y = yaw  # Optical Yaw is around Y-axis
+
+        # PUBLISH the optical debug velocity
+        self._optical_vel_pub.publish(v_opt_msg)
+
+        # 2. Prepare for TF Transformation (Linear and Angular separately)
+        v_lin_opt = Vector3Stamped()
+        v_lin_opt.header = v_opt_msg.header
+        v_lin_opt.vector = v_opt_msg.twist.linear
+
+        v_ang_opt = Vector3Stamped()
+        v_ang_opt.header = v_opt_msg.header
+        v_ang_opt.vector = v_opt_msg.twist.angular
+
+        try:
+            # Look up the transform from Optical Frame to ROV Body Frame
+            transform = self.tf_buffer.lookup_transform(
+                self._body_frame_id, 
+                self._camera_optical_frame_id, 
+                rclpy.time.Time()
+            )
+            
+            # Transform both vectors to the ROV's coordinate system
+            v_lin_body = tf2_geometry_msgs.do_transform_vector3(v_lin_opt, transform)
+            v_ang_body = tf2_geometry_msgs.do_transform_vector3(v_ang_opt, transform)
+            
+            # 3. Publish to BlueROV2 (MAVROS)
+            # We take the resulting Z-axis rotation as the ROV's Yaw
+            self._publish_cmd_with_slew(
+                v_lin_body.vector.x, 
+                v_lin_body.vector.y, 
+                v_lin_body.vector.z, 
+                v_ang_body.vector.z, 
+                dt_ctrl
+            )
+
+        except Exception as e:
+            self.get_logger().error(f"TF Transform failed: {e}", throttle_duration_sec=1.0)
 
     def set_state(self, new_state):
         if new_state != self.current_state:
