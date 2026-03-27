@@ -1,0 +1,14 @@
+On branch dnn_stereo_depth
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   src/depthai-ros (new commits)
+	modified:   src/oakd_isaac_ros/config/oak_d/oakd_dnn_depth.yaml
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	_artifacts/
+	connect_test.py
+	log.txt
+
+no changes added to commit (use "git add" and/or "git commit -a")
