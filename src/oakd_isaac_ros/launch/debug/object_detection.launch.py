@@ -1,5 +1,6 @@
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch_ros.actions import Node
 import os
@@ -14,12 +15,38 @@ import os
 
 
 def generate_launch_description():
+    # delcare the launch arguments
+    declared_arguments = [
+        DeclareLaunchArgument("name", default_value="oak"),
+        DeclareLaunchArgument("camera_model", default_value="OAK-D"),
+        DeclareLaunchArgument("parent_frame", default_value="oak-d-base-frame"),
+        DeclareLaunchArgument("cam_pos_x", default_value="0.0"),
+        DeclareLaunchArgument("cam_pos_y", default_value="0.0"),
+        DeclareLaunchArgument("cam_pos_z", default_value="0.0"),
+        DeclareLaunchArgument("cam_roll", default_value="0.0"),
+        DeclareLaunchArgument("cam_pitch", default_value="0.0"),
+        DeclareLaunchArgument("cam_yaw", default_value="0.0"),
+    ]
+
+    # 2. Define LaunchConfigurations to capture the values
+    name = LaunchConfiguration("name")
+    camera_model = LaunchConfiguration("camera_model")
+    parent_frame = LaunchConfiguration("parent_frame")
+    cam_pos_x = LaunchConfiguration("cam_pos_x")
+    cam_pos_y = LaunchConfiguration("cam_pos_y")
+    cam_pos_z = LaunchConfiguration("cam_pos_z")
+    cam_roll = LaunchConfiguration("cam_roll")
+    cam_pitch = LaunchConfiguration("cam_pitch")
+    cam_yaw = LaunchConfiguration("cam_yaw")
+    
+    
     # Path to the other launch file
     # Include another launch file
     oak_params_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
         'config', 'oak_d', 'oakd_dnn_depth.yaml'
-)
+    )
+
     # 2. Define the Camera Node
     camera_node = ComposableNode(
         package="depthai_ros_driver",
@@ -29,6 +56,28 @@ def generate_launch_description():
         remappings=[
             ("/oak/imu/data", "/sc2/imu/imu"), # Match your remapping from camera.launch.py
         ],
+    )
+
+    # launching the camera urdf
+    urdf_launch_dir = os.path.join(
+        get_package_share_directory("depthai_descriptions"), "launch"
+    )
+    
+    urdf_launch = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(urdf_launch_dir, 'urdf_launch.py')
+            ),
+            launch_arguments={
+                'name': name,
+                'camera_model': camera_model,
+                'parent_frame': parent_frame, # This links camera to your world/robot
+                'cam_pos_x': cam_pos_x,
+                'cam_pos_y': cam_pos_y,
+                'cam_pos_z': cam_pos_z,
+                'cam_roll': cam_roll,
+                'cam_pitch': cam_pitch,
+                'cam_yaw': cam_yaw,
+        }.items()
     )
 
     # 3. Define the Rectify Node (Optional but recommended if you need it)
@@ -158,7 +207,10 @@ def generate_launch_description():
         }.items()
     )
 
-    return LaunchDescription([
+    return LaunchDescription(
+        declared_arguments +
+    [
+        urdf_launch,
         detection_container,
         detection_include
     ])
