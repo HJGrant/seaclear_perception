@@ -1,3 +1,3 @@
 #! /bin/bash
 
-/mnt/orin_ssd/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir /mnt/orin_ssd/workspaces/oakd_isaac_ros/ -a '--env=ROS_DOMAIN_ID=8' -a "-v /mnt/orin_ssd/ros_bags_marseille_25/:/mnt/orin_ssd/ros_bags_marseille_25/" -a '--env=ROS_LOCALHOST_ONLY=0' -a '--env=FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml'
+/mnt/orin_ssd/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/run_dev.sh --skip_lfs_check --isaac_ros_dev_dir /mnt/orin_ssd/workspaces/oakd_isaac_ros/ -a '--env=ROS_DOMAIN_ID=8' -a "-v /mnt/orin_ssd/ros_bags_marseille_25/:/mnt/orin_ssd/ros_bags_marseille_25/" -a '--env=ROS_LOCALHOST_ONLY=0' -a '--env=FASTRTPS_DEFAULT_PROFILES_FILE=/workspaces/oakd_isaac_ros/config/fastdds_client_profile.xml'

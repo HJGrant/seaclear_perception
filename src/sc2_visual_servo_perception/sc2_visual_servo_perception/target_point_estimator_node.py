@@ -5,7 +5,7 @@ from cv_bridge import CvBridge
 from geometry_msgs.msg import PoseStamped
 import rclpy
 from rclpy.node import Node
-from sc2_visual_servo_interfaces.msg import TargetObservation
+from vision_msgs.msg import Detection2D
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
@@ -18,7 +18,7 @@ class TargetPointEstimatorNode(Node):
         super().__init__('target_point_estimator_node', parameter_overrides=parameter_overrides)
 
         self.declare_parameter('source_mode', 'bbox_depth_roi')
-        self.declare_parameter('target_obs_topic', '/sc2/visual_servo/target_obs')
+        self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('depth_topic', '/oak/stereo/image_raw')
         self.declare_parameter('camera_info_topic', '/oak/stereo/camera_info')
         self.declare_parameter('mask_topic', '')
@@ -54,7 +54,7 @@ class TargetPointEstimatorNode(Node):
             )
             self._source_mode = 'bbox_depth_roi'
 
-        self._target_obs_topic = str(self.get_parameter('target_obs_topic').value)
+        self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
         self._depth_topic = str(self.get_parameter('depth_topic').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._mask_topic = str(self.get_parameter('mask_topic').value)
@@ -98,7 +98,7 @@ class TargetPointEstimatorNode(Node):
         self._target_point_pub = self.create_publisher(PoseStamped, self._target_point_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
 
-        self.create_subscription(TargetObservation, self._target_obs_topic, self._target_obs_cb, 20)
+        self.create_subscription(Detection2D, self._target_bbox_topic, self._target_obs_cb, 20)
         self.create_subscription(Image, self._depth_topic, self._depth_cb, 20)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 20)
         if self._use_mask_gating and self._mask_topic:
@@ -106,7 +106,7 @@ class TargetPointEstimatorNode(Node):
 
         self.get_logger().info(
             'target_point_estimator_node: '
-            f'mode={self._source_mode}, target_obs={self._target_obs_topic}, depth={self._depth_topic}, '
+            f'mode={self._source_mode}, target_obs={self._target_bbox_topic}, depth={self._depth_topic}, '
             f'camera_info={self._camera_info_topic}, mask={self._mask_topic if self._use_mask_gating else "<disabled>"}, '
             f'out={self._target_point_topic}'
         )
@@ -174,13 +174,13 @@ class TargetPointEstimatorNode(Node):
         pose = PoseStamped()
         pose.header.stamp = stamp
         pose.header.frame_id = frame_id
-        pose.pose.position.x = float(x)
-        pose.pose.position.y = float(y)
-        pose.pose.position.z = float(z_rep)
+        pose.pose.position.x = float(y) # float(x) changed to match URDF optical frame convention
+        pose.pose.position.y = float(z_rep) # float(y) changed to match URDF optical frame convention
+        pose.pose.position.z = float(x) #float(z_rep) changed to match URDF optical frame convention
         pose.pose.orientation.w = 1.0
         return pose
 
-    def _target_obs_cb(self, msg: TargetObservation) -> None:
+    def _target_obs_cb(self, msg: Detection2D) -> None:
         if self._msg_age_ms(msg.header) > self._max_obs_age_ms:
             self._warn_throttle(
                 'stale_target_obs',
@@ -193,12 +193,18 @@ class TargetPointEstimatorNode(Node):
             depth = self._latest_depth
             mask = self._latest_mask if self._use_mask_gating else None
 
+        target_bbox = msg.bbox
+        u = target_bbox.center.position.x
+        v = target_bbox.center.position.y
+        w = target_bbox.size_x
+        h = target_bbox.size_y
+
         u_rep, v_rep, z_rep, valid_count = compute_representative_depth_near_uv_median(
             depth,
-            float(msg.u),
-            float(msg.v),
-            float(msg.w),
-            float(msg.h),
+            float(u),
+            float(v),
+            float(w),
+            float(h),
             min_depth_m=self._depth_min_m,
             max_depth_m=self._depth_max_m,
             min_valid_points=self._min_valid_points,

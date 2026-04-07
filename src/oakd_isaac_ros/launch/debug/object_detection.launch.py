@@ -44,7 +44,7 @@ def generate_launch_description():
     # Include another launch file
     oak_params_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
-        'config', 'oak_d', 'oakd_dnn_depth.yaml'
+        'config', 'oak_d', 'oakd_bluerov_vs.yaml'
     )
 
     # 2. Define the Camera Node
@@ -80,17 +80,23 @@ def generate_launch_description():
         }.items()
     )
 
-    # 3. Define the Rectify Node (Optional but recommended if you need it)
-    rectify_node = ComposableNode(
-        package="image_proc",
-        plugin="image_proc::RectifyNode",
-        name="rectify_color_node",
-        remappings=[
-            ("image", "oak/rgb/image_raw"),
-            ("camera_info", "oak/rgb/camera_info"),
-            ("image_rect", "oak/rgb/image_rect"),
-        ],
-    )
+    #publish a transform from the robot base_frame to the oak-d-base-frame
+    static_tf_node = Node(
+    package='tf2_ros',
+    executable='static_transform_publisher',
+    name='camera_base_link_broadcaster',
+    arguments=[
+        '--x', '0.0', 
+        '--y', '-0.17', 
+        '--z', '-0.275', 
+        '--yaw', '-1.5708',  # <--- 90 degrees Left around base_link Z
+        '--pitch', '0.0', 
+        '--roll', '0.0', 
+        '--frame-id', 'base_link', 
+        '--child-frame-id', 'oak-d-base-frame'
+    ]
+)
+
     
     encoder_node = ComposableNode(
         name='oak_rgb_encoder_node',
@@ -211,6 +217,7 @@ def generate_launch_description():
         declared_arguments +
     [
         urdf_launch,
+        static_tf_node,
         detection_container,
         detection_include
     ])

@@ -1,0 +1,17 @@
+/oak:
+  ros__parameters:
+    driver:
+      i_ip: "10.1.1.210"
+    pipeline_gen:
+      i_nn_type: none
+      i_enable_rgbd: true
+      i_pipeline_type: rgbd
+    stereo:
+      i_depth_preset: ROBOTICS
+      i_publish_topic: true
+      aligned: false
+      i_low_bandwidth: false
+    rgb:
+      i_fps: 30.0
+      i_publish_topic: true
+      i_low_bandwidth: true

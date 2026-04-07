@@ -122,7 +122,31 @@ class TargetObserverNode(Node):
 
         det = select_best_detection(msg, self._target_class, self._min_confidence, self._pick_strategy)
         if det is None:
+            total = len(msg.detections)
+            with_results = 0
+            best_cls = ''
+            best_score = float('-inf')
+            for candidate in msg.detections:
+                results = getattr(candidate, 'results', [])
+                if not results:
+                    continue
+                with_results += 1
+                cls_id, score = extract_hypothesis(results[0])
+                if score > best_score:
+                    best_score = score
+                    best_cls = cls_id
+            if best_score == float('-inf'):
+                best_summary = 'none'
+            else:
+                best_summary = f'{best_cls}:{best_score:.3f}'
             self._warn_throttle('no_match', 'No detection passed class/confidence filter')
+            self._warn_throttle(
+                'no_match_debug',
+                'Detection2DArray debug: '
+                f'age_ms={age_ms:.1f}, total={total}, with_results={with_results}, '
+                f'best={best_summary}, min_conf={self._min_confidence:.3f}, '
+                f'target_class={self._target_class!r}',
+            )
             return
 
         out = TargetObservation()
