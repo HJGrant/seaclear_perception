@@ -96,8 +96,21 @@ def generate_launch_description():
         '--roll', '0.0', 
         '--frame-id', 'base_link', 
         '--child-frame-id', 'oak-d-base-frame'
-    ]
-)
+        ]
+    )
+
+    # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
+    static_tf_map_to_base_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='map_to_base_link_static_tf',
+        arguments=[
+            '0', '0', '0',      # x, y, z (meters)
+            '1.5708', '0', '0', # yaw, pitch, roll (radians)
+            'map',               # frame_id
+            'base_link'          # child_frame_id
+        ]
+    )
 
     
     encoder_node = ComposableNode(
@@ -233,6 +246,7 @@ def generate_launch_description():
     [
         urdf_launch,
         foxglove_node,
+        static_tf_map_to_base_link,
         static_tf_node,
         detection_container,
         detection_include

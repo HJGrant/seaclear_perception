@@ -36,8 +36,8 @@ def generate_launch_description():
         'launch_foxglove': launch_foxglove_bool,
         'camera_model': 'OAK-D',
         'parent_frame': 'oak-d-base-frame'
-    }.items()
-)
+        }.items()
+    )
     
     target_pose_node = Node(
         package='sc2_visual_servo_perception',
@@ -83,11 +83,14 @@ def generate_launch_description():
             'max_vy': 0.25,
             'max_vz': 0.25,
             'max_yaw_rate': 0.35,
-            'image_width': 1280.0,
-            'image_height': 720.0,
-            'target_u': 640.0,
-            'target_v': 360.0,
-            'desired_target_distance_m': 1.0
+            'image_width': 640.0,
+            'image_height': 640.0,
+            'target_u': 320.0,
+            'target_v': 320.0,
+            'desired_target_distance_m': 1.0,
+            'ibvs_lambda': 0.3,
+            'alpha_1': 1.0,  #apply no filtering
+            'decay_rate': 0.2
         }],
     )
 

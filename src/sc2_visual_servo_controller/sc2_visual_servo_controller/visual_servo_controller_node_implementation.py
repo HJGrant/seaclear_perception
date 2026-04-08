@@ -1,16 +1,18 @@
 from typing import Optional
 import numpy as np
 
-from geometry_msgs.msg import TwistStamped, PoseStamped
+from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
 from sensor_msgs.msg import CameraInfo
 from enum import Enum
+from std_srvs.srv import SetBool
 
 import tf2_ros
 import tf2_geometry_msgs 
+from tf2_ros import TransformException
 from geometry_msgs.msg import Vector3Stamped
 
 from .ibvs.controller_math import (
@@ -50,6 +52,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
+        self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
         self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
         self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
@@ -61,7 +64,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('enable_dvl', False)
 
         self.declare_parameter('image_width', 1280.0)
-        self.declare_parameter('image_height', 720.0)
+        self.declare_parameter('image_height', 640.0)
         self.declare_parameter('target_u', 640.0)
         self.declare_parameter('target_v', 360.0)
         self.declare_parameter('desired_depth_m', 1.0)
@@ -82,6 +85,11 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('fy_px', 600.0)
         self.declare_parameter('cx_px', 640.0)
         self.declare_parameter('cy_px', 360.0)
+        
+        # IBVS control parameters
+        self.declare_parameter('ibvs_lambda', 0.2)
+        self.declare_parameter('alpha_1', 0.6)
+        self.declare_parameter('decay_rate', 0.95)
 
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
         self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
@@ -91,6 +99,7 @@ class VisualServoControllerNode(Node):
         self._velocity_optical_topic = str(self.get_parameter('velocity_optical_topic').value)
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
+        self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
         self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
@@ -107,6 +116,11 @@ class VisualServoControllerNode(Node):
         self._slew_vy = float(self.get_parameter('slew_vy').value)
         self._slew_vz = float(self.get_parameter('slew_vz').value)
         self._slew_yaw = float(self.get_parameter('slew_yaw_rate').value)
+
+        # IBVS paramters
+        self.ibvs_lmdba = float(self.get_parameter('ibvs_lambda').value)
+        self.alpha_1_val = float(self.get_parameter('alpha_1').value)
+        self.decay_rate_val = float(self.get_parameter('decay_rate').value)
 
         self.calibrated = bool(self.get_parameter('calibrated').value)
         self._fx = float(self.get_parameter('fx_px').value)
@@ -153,15 +167,16 @@ class VisualServoControllerNode(Node):
         self._first_seen_time = None
         self.target_min = 1
         self.center_min = 1
+        self.target_count = 0
 
         # IBVS parameters
         self.lmbda = 0          # the lambda control gain from the standard IBVS control law
-        self.lmbda_max = 0.1    # the maximum control gain that we can apply
+        self.lmbda_max = self.ibvs_lmdba    # the maximum control gain that we can apply
         self.v_prev = np.zeros(6)
         self.alpha_1 = 0.6
         self.alpha_2 = 0.1
         self.v_last_valid = np.zeros(6)
-        self.decay_rate = 0.95  # Drops 5% of speed per "blind" frame
+        self.decay_rate = self.decay_rate_val  # Drops 5% of speed per "blind" frame
         self.DoF_mask = [1, 1, 0, 0, 0, 1]
         self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
         self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
@@ -187,10 +202,15 @@ class VisualServoControllerNode(Node):
         self._optical_vel_pub = self.create_publisher(TwistStamped, self._velocity_optical_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
+        self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
         self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
+
+        #service for turning the IBVS control on or off 
+        self.control_enabled = False # Default to off
+        self.ibvs_switch_srv = self.create_service(SetBool, 'enable_ibvs_control', self.handle_control_switch)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -204,6 +224,13 @@ class VisualServoControllerNode(Node):
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} target={self._target_bbox_topic} cmd={self._cmd_topic}'
         )
+
+    def handle_control_switch(self, request, response):
+        '''Serice for turning the IBVS control on or off.'''
+        self.control_enabled = request.data
+        response.success = True
+        response.message = f"IBVS Control {'Enabled' if self.control_enabled else 'Disabled'}"
+        return response
 
     def _target_pose_cb(self, msg: PoseStamped) -> None:
         '''Extract the depth information from the latest Pose etimate.'''
@@ -269,11 +296,26 @@ class VisualServoControllerNode(Node):
 
         self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
 
+        self.get_logger().info()
+
+        centroid_err_x = self.latest_centroid[0] - self.target_centroid[0]
+        centroid_err_y = self.latest_centroid[1] - self.target_centroid[1]
+
+        err_summary = Vector3()
+        err_summary.x = float(centroid_err_x)
+        err_summary.y = float(centroid_err_y)
+        err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        self._centroid_error_publisher.publish(err_summary)
+
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
+
+        if not self.control_enabled:
+            self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
+            return
 
         # --- 1. SENSOR VALIDATION GATE ---
         is_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
@@ -303,6 +345,7 @@ class VisualServoControllerNode(Node):
             self.current_e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
             Z = np.ones(len(self.latest_bbox_corners)) * self._latest_depth_measurement # apply the latest depth measurement of the bbbox center
 
+            
             if self.calibrated:
                 self.J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx, self.fy, self.cx, self.cy)
             else:
@@ -463,11 +506,38 @@ class VisualServoControllerNode(Node):
 
         cmd = TwistStamped()
         cmd.header.stamp = self.get_clock().now().to_msg()
-        cmd.header.frame_id = self._body_frame_id
-        cmd.twist.linear.x = vx
-        cmd.twist.linear.y = vy
-        cmd.twist.linear.z = vz
-        cmd.twist.angular.z = yaw
+        
+        try:
+            # Use rclpy.time.Time() (zero-time) to get the latest transform 
+            # without waiting for exact synchronization
+            trans = self.tf_buffer.lookup_transform(
+                'map', 
+                self._body_frame_id, 
+                rclpy.time.Time() 
+            )
+
+            p_body = PointStamped()
+            p_body.point.x = vx
+            p_body.point.y = vy
+            p_body.point.z = vz
+
+            # Transform rotation from base_link to map
+            p_map = tf2_geometry_msgs.do_transform_point(p_body, trans)
+
+            cmd.header.frame_id = 'map'
+            cmd.twist.linear.x = p_map.point.x
+            cmd.twist.linear.y = p_map.point.y
+            cmd.twist.linear.z = p_map.point.z
+            cmd.twist.angular.z = yaw # Yaw rate is usually frame-invariant for Z-axis rotations
+
+        except (TransformException, Exception) as ex:
+            # Fallback to body frame if map isn't found
+            cmd.header.frame_id = self._body_frame_id
+            cmd.twist.linear.x = vx
+            cmd.twist.linear.y = vy
+            cmd.twist.linear.z = vz
+            cmd.twist.angular.z = yaw
+
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
 
