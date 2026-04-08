@@ -3,7 +3,7 @@ from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch_ros.actions import Node
-import os
+from launch.conditions import IfCondition
 from ament_index_python.packages import get_package_share_directory
 from launch.actions import ExecuteProcess
 from launch_ros.actions import ComposableNodeContainer
@@ -26,6 +26,7 @@ def generate_launch_description():
         DeclareLaunchArgument("cam_roll", default_value="0.0"),
         DeclareLaunchArgument("cam_pitch", default_value="0.0"),
         DeclareLaunchArgument("cam_yaw", default_value="0.0"),
+        DeclareLaunchArgument('launch_foxglove', default_value='true', description='Whether to start the Foxglove Bridge node')
     ]
 
     # 2. Define LaunchConfigurations to capture the values
@@ -39,7 +40,8 @@ def generate_launch_description():
     cam_pitch = LaunchConfiguration("cam_pitch")
     cam_yaw = LaunchConfiguration("cam_yaw")
     
-    
+    launch_foxglove_bool = LaunchConfiguration('launch_foxglove')
+
     # Path to the other launch file
     # Include another launch file
     oak_params_file = os.path.join(
@@ -87,7 +89,7 @@ def generate_launch_description():
     name='camera_base_link_broadcaster',
     arguments=[
         '--x', '0.0', 
-        '--y', '-0.17', 
+        '--y', '-0.115', 
         '--z', '-0.275', 
         '--yaw', '-1.5708',  # <--- 90 degrees Left around base_link Z
         '--pitch', '0.0', 
@@ -213,10 +215,24 @@ def generate_launch_description():
         }.items()
     )
 
+    foxglove_node = Node(
+        package='foxglove_bridge',
+        executable='foxglove_bridge',
+        name='foxglove_bridge_node',
+        condition=IfCondition(launch_foxglove_bool),
+        parameters=[{
+            'port': 8765,
+            'address': '0.0.0.0',
+            'tls': False,
+            'use_compression': True
+        }]
+    )
+
     return LaunchDescription(
         declared_arguments +
     [
         urdf_launch,
+        foxglove_node,
         static_tf_node,
         detection_container,
         detection_include

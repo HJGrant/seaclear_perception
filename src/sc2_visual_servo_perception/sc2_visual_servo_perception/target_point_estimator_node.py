@@ -174,9 +174,9 @@ class TargetPointEstimatorNode(Node):
         pose = PoseStamped()
         pose.header.stamp = stamp
         pose.header.frame_id = frame_id
-        pose.pose.position.x = float(y) # float(x) changed to match URDF optical frame convention
+        pose.pose.position.x = float(x) # float(x) changed to match URDF optical frame convention
         pose.pose.position.y = float(z_rep) # float(y) changed to match URDF optical frame convention
-        pose.pose.position.z = float(x) #float(z_rep) changed to match URDF optical frame convention
+        pose.pose.position.z = -float(y) #float(z_rep) changed to match URDF optical frame convention
         pose.pose.orientation.w = 1.0
         return pose
 

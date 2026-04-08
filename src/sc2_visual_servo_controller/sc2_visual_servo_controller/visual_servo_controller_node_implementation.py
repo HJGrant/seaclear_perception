@@ -151,8 +151,8 @@ class VisualServoControllerNode(Node):
         self.confirmation_time = 0.1  # Must see target for 0.1s to go VISUAL
         self.lost_timeout = 0.2        # Must lose target for 0.2s to go BREAK
         self._first_seen_time = None
-        self.target_min = 10
-        self.center_min = 10
+        self.target_min = 1
+        self.center_min = 1
 
         # IBVS parameters
         self.lmbda = 0          # the lambda control gain from the standard IBVS control law
@@ -162,7 +162,7 @@ class VisualServoControllerNode(Node):
         self.alpha_2 = 0.1
         self.v_last_valid = np.zeros(6)
         self.decay_rate = 0.95  # Drops 5% of speed per "blind" frame
-        self.DoF_mask = [1, 1, 1, 1, 1, 1]
+        self.DoF_mask = [1, 1, 0, 0, 0, 1]
         self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
         self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
         self.current_e = np.zeros(6)
@@ -190,7 +190,7 @@ class VisualServoControllerNode(Node):
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
-        self.create_subscription(PoseStamped, self._velocity_measurement_topic, self._target_pose_cb, 10)
+        self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -380,7 +380,7 @@ class VisualServoControllerNode(Node):
         v_opt_msg.header.stamp = self.get_clock().now().to_msg()
         v_opt_msg.header.frame_id = self._camera_optical_frame_id
         
-        v_opt_msg.twist.linear.x = -vx    # Right
+        v_opt_msg.twist.linear.x = vx    # Right
         v_opt_msg.twist.linear.y = vz    # Down
         v_opt_msg.twist.linear.z = -vy   # Forward (Away from cable)
         v_opt_msg.twist.angular.y = yaw  # Optical Yaw is around Y-axis

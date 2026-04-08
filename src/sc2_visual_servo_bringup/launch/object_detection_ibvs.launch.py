@@ -28,10 +28,16 @@ def generate_launch_description():
     oakd_isaac_ros_dir = get_package_share_directory('oakd_isaac_ros')
     
     oakd_object_detection_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(oakd_isaac_ros_dir, 'launch', 'debug', 'object_detection.launch.py')
-        )
-    )
+    PythonLaunchDescriptionSource(
+        os.path.join(oakd_isaac_ros_dir, 'launch', 'debug', 'object_detection.launch.py')
+    ),
+    # Add your arguments here
+    launch_arguments={
+        'launch_foxglove': launch_foxglove_bool,
+        'camera_model': 'OAK-D',
+        'parent_frame': 'oak-d-base-frame'
+    }.items()
+)
     
     target_pose_node = Node(
         package='sc2_visual_servo_perception',
@@ -67,9 +73,10 @@ def generate_launch_description():
         condition=IfCondition(launch_ibvs_bool), # <--- The Magic Line
         parameters=[{
             'target_topic': '/sc2/visual_servo/target_obs',
-            'cmd_topic': '/sc2/visual_servo/cmd_vel_body',
+            'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',
             'status_topic': '/sc2/visual_servo/status',
             'body_frame_id': 'base_link',
+            'rate_hz' : 10.0,
             'timeout_ms': 500,
             'target_point_timeout_ms': 500,
             'max_vx': 0.35,
@@ -84,24 +91,10 @@ def generate_launch_description():
         }],
     )
 
-    foxglove_node = Node(
-        package='foxglove_bridge',
-        executable='foxglove_bridge',
-        name='foxglove_bridge_node',
-        condition=IfCondition(launch_foxglove_bool),
-        parameters=[{
-            'port': 8765,
-            'address': '0.0.0.0',
-            'tls': False,
-            'use_compression': True
-        }]
-    )
-
     return LaunchDescription([
         declare_launch_ibvs_arg,
         declare_launch_foxglove_arg,
         oakd_object_detection_launch,
         target_pose_node,
-        ibvs_node,
-        foxglove_node
+        ibvs_node
     ])
