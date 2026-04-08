@@ -59,6 +59,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
+        self.declare_parameter('debug_state_machine', True)
 
         self.declare_parameter('image_width', 1280.0)
         self.declare_parameter('image_height', 720.0)
@@ -98,6 +99,7 @@ class VisualServoControllerNode(Node):
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
+        self.debug_state_machine = self.get_parameter('debug_state_machine').get_parameter_value().bool_value
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -124,6 +126,9 @@ class VisualServoControllerNode(Node):
         self._last_target_point_time = self.get_clock().now()
         self._last_tick_time = self.get_clock().now()
         self._last_cmd = (0.0, 0.0, 0.0, 0.0)
+        self.target_count = 0
+        self.center_count = 0
+        self._last_debug_snapshot = None
 
         ###########################################################################################################################################
         ################################## Here start the IBVS control parameters which were validated in simulation ##############################
@@ -190,7 +195,7 @@ class VisualServoControllerNode(Node):
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
-        self.create_subscription(PoseStamped, self._velocity_measurement_topic, self._target_pose_cb, 10)
+        self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -200,6 +205,7 @@ class VisualServoControllerNode(Node):
 
         self.current_state = self.ControllerState.BREAK
         self._publish_status(str(self.current_state.name))
+        self._log_subscription_summary()
 
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} target={self._target_bbox_topic} cmd={self._cmd_topic}'
@@ -223,6 +229,56 @@ class VisualServoControllerNode(Node):
         self.fy = k[4]
         self.cx = k[2]
         self.cy = k[5]
+
+    def _log_subscription_summary(self) -> None:
+        self.get_logger().info(
+            'Subscriptions: '
+            f'bbox={self._target_bbox_topic}, '
+            f'cam_info={self._camera_info_topic}, '
+            f'vel={self._velocity_measurement_topic}, '
+            f'pose_topic_param={self._target_pose_topic}, '
+            f'pose_cb_sub={self._target_pose_topic}'
+        )
+
+    def _log_debug_snapshot(
+        self,
+        *,
+        dt_obs: float,
+        is_fresh: bool,
+        in_roi: bool,
+        is_locked: bool,
+    ) -> None:
+        if not self.debug_state_machine:
+            return
+
+        snapshot = (
+            self.current_state.name,
+            round(dt_obs, 3),
+            is_fresh,
+            in_roi,
+            is_locked,
+            self.target_count,
+            self.center_count,
+        )
+
+        changed = snapshot != self._last_debug_snapshot
+        if changed:
+            self._last_debug_snapshot = snapshot
+
+        message = (
+            'Debug: '
+            f'state={self.current_state.name} '
+            f'dt_obs={dt_obs:.2f} '
+            f'is_fresh={is_fresh} '
+            f'in_roi={in_roi} '
+            f'locked={is_locked} '
+            f'target_count={self.target_count} '
+            f'center_count={self.center_count}'
+        )
+        if changed:
+            self.get_logger().info(message)
+        else:
+            self.get_logger().info(message, throttle_duration_sec=1.0)
     
     def _vel_measurement_cb(self, msg: TwistStamped) -> None:
         t = msg.twist
@@ -297,6 +353,12 @@ class VisualServoControllerNode(Node):
 
         # publish if the target is locked or not for debugging
         self._publish_is_locked(str(is_locked))
+        self._log_debug_snapshot(
+            dt_obs=dt_obs,
+            is_fresh=is_fresh,
+            in_roi=in_roi,
+            is_locked=is_locked,
+        )
 
         # --- 2. MATH UPDATE (Only if Locked) ---
         if is_locked:
@@ -441,6 +503,7 @@ class VisualServoControllerNode(Node):
 
             # Update the variable
             self.current_state = new_state
+            self._last_debug_snapshot = None
             
             # PUBLISH the new state name
             self._publish_status(str(self.current_state.name))

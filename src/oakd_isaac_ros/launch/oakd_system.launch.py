@@ -31,6 +31,7 @@ def generate_launch_description() -> LaunchDescription:
     camera_info_topic = LaunchConfiguration('camera_info_topic')
     mask_topic = LaunchConfiguration('mask_topic')
     target_topic = LaunchConfiguration('target_topic')
+    target_bounding_box_topic = LaunchConfiguration('target_bounding_box_topic')
     target_point_topic = LaunchConfiguration('target_point_topic')
     target_point_status_topic = LaunchConfiguration('target_point_status_topic')
     cmd_topic = LaunchConfiguration('cmd_topic')
@@ -51,6 +52,9 @@ def generate_launch_description() -> LaunchDescription:
     use_mask_gating = LaunchConfiguration('use_mask_gating')
     hold_last_valid = LaunchConfiguration('hold_last_valid')
     max_hold_ms = LaunchConfiguration('max_hold_ms')
+    target_point_source_mode = LaunchConfiguration('target_point_source_mode')
+    nvblox_depth_topic = LaunchConfiguration('nvblox_depth_topic')
+    nvblox_camera_info_topic = LaunchConfiguration('nvblox_camera_info_topic')
     controller_target_point_timeout_ms = LaunchConfiguration('controller_target_point_timeout_ms')
     desired_target_distance_m = LaunchConfiguration('desired_target_distance_m')
     k_target_distance = LaunchConfiguration('k_target_distance')
@@ -97,6 +101,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('camera_info_topic', default_value='/oak/stereo/camera_info'),
         DeclareLaunchArgument('mask_topic', default_value='/camera0/detection/mask'),
         DeclareLaunchArgument('target_topic', default_value='/sc2/visual_servo/target_obs'),
+        DeclareLaunchArgument('target_bounding_box_topic', default_value='/best_detection'),
         DeclareLaunchArgument('target_point_topic', default_value='/sc2/visual_servo/target_point'),
         DeclareLaunchArgument('target_point_status_topic', default_value='/sc2/visual_servo/target_point_status'),
         DeclareLaunchArgument('cmd_topic', default_value='/sc2/visual_servo/cmd_vel_body'),
@@ -128,6 +133,11 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('use_mask_gating', default_value='false'),
         DeclareLaunchArgument('hold_last_valid', default_value='true'),
         DeclareLaunchArgument('max_hold_ms', default_value='500.0'),
+        DeclareLaunchArgument('target_point_source_mode', default_value='bbox_depth_roi'),
+        DeclareLaunchArgument(
+            'nvblox_depth_topic',
+            default_value='/nvblox_node/back_projected_depth/oak_rgb_camera_optical_frame'),
+        DeclareLaunchArgument('nvblox_camera_info_topic', default_value='/left/resize_camera_info'),
         DeclareLaunchArgument('controller_target_point_timeout_ms', default_value='500'),
         DeclareLaunchArgument('desired_target_distance_m', default_value='0.6'),
         DeclareLaunchArgument('k_target_distance', default_value='0.6'),
@@ -219,10 +229,12 @@ def generate_launch_description() -> LaunchDescription:
             condition=visual_servo_and_target_point,
             output='screen',
             parameters=[{
-                'source_mode': 'bbox_depth_roi',
-                'target_obs_topic': target_topic,
+                'source_mode': target_point_source_mode,
+                'target_bounding_box': target_bounding_box_topic,
                 'depth_topic': depth_topic,
                 'camera_info_topic': camera_info_topic,
+                'nvblox_depth_topic': nvblox_depth_topic,
+                'nvblox_camera_info_topic': nvblox_camera_info_topic,
                 'mask_topic': mask_topic,
                 'target_point_topic': target_point_topic,
                 'status_topic': target_point_status_topic,

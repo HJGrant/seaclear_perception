@@ -66,7 +66,10 @@ def generate_launch_description():
         output='screen',
         condition=IfCondition(launch_ibvs_bool), # <--- The Magic Line
         parameters=[{
+            # Current intended controller path uses Detection2D from /best_detection.
+            'target_bounding_box': '/best_detection',
             'target_topic': '/sc2/visual_servo/target_obs',
+            'target_point_topic': '/sc2/visual_servo/target_point',
             'cmd_topic': '/sc2/visual_servo/cmd_vel_body',
             'status_topic': '/sc2/visual_servo/status',
             'body_frame_id': 'base_link',
