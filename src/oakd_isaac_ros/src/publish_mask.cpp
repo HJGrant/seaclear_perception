@@ -187,14 +187,20 @@ private:
       }
     }
 
-    cv::Mat overlay;
-    resized_image.copyTo(overlay);
+    cv::Mat overlay = resized_image.clone();
+    cv::Mat blended;
     double alpha = 0.5;
 
-    cv::Mat red_mask = cv::Mat::zeros(mask.size(), CV_8UC3);
-    red_mask.setTo(cv::Scalar(0, 0, 255), mask); // red where mask
+    // 1. Create a red image the same size as our frame
+    cv::Mat red_img = cv::Mat(mask.size(), CV_8UC3, cv::Scalar(0, 0, 255));
 
-    cv::addWeighted(red_mask, alpha, overlay, 1.0 - alpha, 0, overlay);
+    // 2. Blend the red image with the original image
+    // Note: We use 1.0 for the background to keep it at full brightness
+    cv::addWeighted(red_img, alpha, overlay, 1.0, 0, blended);
+
+    // 3. Only apply the "blended" version to the pixels where the mask exists
+    // This leaves the background (where mask == 0) completely untouched
+    blended.copyTo(overlay, mask);
 
     if (best_det) {
       const auto& bbox = best_det->bbox;

@@ -157,7 +157,9 @@ class VisualServoControllerNode(Node):
             [cx - h, cy + h]   # Bottom-Left
         ], dtype=np.float32)
 
-        self.target_centroid = np.mean(self.center_box_corners, axis=1)
+        #self.target_centroid = np.mean(self.center_box_corners, axis=1)
+        self.target_centroid = [cx, cy]
+
         self.prev_centroid = np.zeros(2)
         self.roi_w = 50
 
@@ -294,9 +296,8 @@ class VisualServoControllerNode(Node):
             (best_bbox.center.position.x - half_w, best_bbox.center.position.y + half_h)  # BL
         ]
 
-        self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
-
-        self.get_logger().info()
+        #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
+        self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
 
         centroid_err_x = self.latest_centroid[0] - self.target_centroid[0]
         centroid_err_y = self.latest_centroid[1] - self.target_centroid[1]
@@ -314,6 +315,7 @@ class VisualServoControllerNode(Node):
         self._last_tick_time = now
 
         if not self.control_enabled:
+            self._publish_cmd(0.0, 0.0, 0.0, 0.0)
             self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
             return
 

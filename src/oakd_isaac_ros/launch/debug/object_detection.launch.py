@@ -99,16 +99,36 @@ def generate_launch_description():
         ]
     )
 
+    optical_to_image_plane_tf = Node(
+    package='tf2_ros',
+    executable='static_transform_publisher',
+    name='optical_to_image_plane_tf',
+    arguments=[
+        '--x', '0.0', 
+        '--y', '0.0', 
+        '--z', '0.0', 
+        '--yaw', '0.0', 
+        '--pitch', '0.0', 
+        '--roll', '-1.5708', 
+        '--frame-id', 'oak_rgb_camera_optical_frame', 
+        '--child-frame-id', 'image_plane'
+        ]
+    )
+
     # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
     static_tf_map_to_base_link = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='map_to_base_link_static_tf',
         arguments=[
-            '0', '0', '0',      # x, y, z (meters)
-            '1.5708', '0', '0', # yaw, pitch, roll (radians)
-            'map',               # frame_id
-            'base_link'          # child_frame_id
+            '--x', '0.0', 
+            '--y', '0.0', 
+            '--z', '0.0', 
+            '--yaw', '1.5708', 
+            '--pitch', '0.0', 
+            '--roll', '0.0', 
+            '--frame-id', 'map', 
+            '--child-frame-id', 'base_link'
         ]
     )
 
@@ -248,6 +268,7 @@ def generate_launch_description():
         foxglove_node,
         static_tf_map_to_base_link,
         static_tf_node,
+        optical_to_image_plane_tf,
         detection_container,
         detection_include
     ])

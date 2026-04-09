@@ -9,6 +9,7 @@
     stereo:
       i_depth_preset: ROBOTICS
       i_publish_topic: true
+      i_fps: 10.0
       aligned: false
       i_low_bandwidth: false
     rgb:
