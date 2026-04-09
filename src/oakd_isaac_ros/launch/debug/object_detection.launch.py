@@ -46,7 +46,7 @@ def generate_launch_description():
     # Include another launch file
     oak_params_file = os.path.join(
         get_package_share_directory('oakd_isaac_ros'),
-        'config', 'oak_d', 'oakd_bluerov_vs.yaml'
+        'config', 'oak_d', 'oakd_dnn_depth.yaml'
     )
 
     # 2. Define the Camera Node
@@ -94,7 +94,7 @@ def generate_launch_description():
         '--yaw', '-1.5708',  # <--- 90 degrees Left around base_link Z
         '--pitch', '0.0', 
         '--roll', '0.0', 
-        '--frame-id', 'base_link', 
+        '--frame-id', 'sc2_base_link', 
         '--child-frame-id', 'oak-d-base-frame'
         ]
     )
@@ -124,11 +124,27 @@ def generate_launch_description():
             '--x', '0.0', 
             '--y', '0.0', 
             '--z', '0.0', 
-            '--yaw', '1.5708', 
+            '--yaw', '0.0', 
             '--pitch', '0.0', 
             '--roll', '0.0', 
             '--frame-id', 'map', 
             '--child-frame-id', 'base_link'
+        ]
+    )
+
+    static_tf_sc2_to_base_link = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='sc2_to_base_link_static_tf',
+        arguments=[
+            '--x', '0.0', 
+            '--y', '0.0', 
+            '--z', '0.0', 
+            '--yaw', '3.14159', # 180 degrees rotation
+            '--pitch', '0.0', 
+            '--roll', '0.0', 
+            '--frame-id', 'base_link', 
+            '--child-frame-id', 'sc2_base_link'
         ]
     )
 
@@ -269,6 +285,7 @@ def generate_launch_description():
         static_tf_map_to_base_link,
         static_tf_node,
         optical_to_image_plane_tf,
+        static_tf_sc2_to_base_link,
         detection_container,
         detection_include
     ])

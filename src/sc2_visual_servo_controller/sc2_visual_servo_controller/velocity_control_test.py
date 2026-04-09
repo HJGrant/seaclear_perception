@@ -1,21 +1,21 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped, PointStamped
+from geometry_msgs.msg import TwistStamped, Vector3Stamped
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
-import tf2_geometry_msgs  # Crucial: enables do_transform_point
+import tf2_geometry_msgs # Required for do_transform_vector3
 
-class VelocityPublisher(Node):
+class Sc2VelocityPublisher(Node):
     def __init__(self):
-        super().__init__('velocity_commander')
+        super().__init__('sc2_velocity_commander')
         
-        # 1. Declare Parameters
+        # 1. Parameters
         self.declare_parameter('velocity', 0.3)
         self.declare_parameter('axis', 'x')      
         self.declare_parameter('duration', 5.0)  
         
-        # 2. Setup TF Buffer and Listener
+        # 2. TF Setup
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         
@@ -25,76 +25,58 @@ class VelocityPublisher(Node):
             10
         )
         
-        self.timer_period = 0.05  # 20Hz
-        self.timer = self.create_timer(self.timer_period, self.publish_velocity)
+        self.timer = self.create_timer(0.05, self.publish_velocity)
         self.start_time = self.get_clock().now()
         
-        self.get_logger().info("Velocity Controller Node Initialized")
+        self.get_logger().info("SC2 to BaseLink Velocity Node Initialized")
 
     def publish_velocity(self):
-        # Calculate elapsed time
         curr_time = self.get_clock().now()
         elapsed_time = (curr_time - self.start_time).nanoseconds / 1e9
-        
-        # 3. Create a PointStamped for the body-frame velocity
-        # We use PointStamped because do_transform_point is the most reliable 
-        # way to rotate a 3D vector using the tf2_geometry_msgs library.
-        v_body = PointStamped()
-        v_body.header.frame_id = 'base_link'
-        v_body.header.stamp = curr_time.to_msg()
-
         duration = self.get_parameter('duration').value
-        
+
+        # 3. Define velocity in the SC2 frame
+        v_sc2 = Vector3Stamped()
+        v_sc2.header.frame_id = 'sc2_base_link'
+        v_sc2.header.stamp = curr_time.to_msg()
+
         if elapsed_time < duration:
             axis = self.get_parameter('axis').value.lower()
             vel = self.get_parameter('velocity').value
-            
-            if axis == 'x': v_body.point.x = vel
-            elif axis == 'y': v_body.point.y = vel
-            elif axis == 'z': v_body.point.z = vel
-        elif elapsed_time >= (duration + 2.0):
-            self.get_logger().info('Mission Complete. Shutting down.')
+            if axis == 'x': v_sc2.vector.x = vel
+            elif axis == 'y': v_sc2.vector.y = vel
+            elif axis == 'z': v_sc2.vector.z = vel
+        elif elapsed_time >= (duration + 1.0):
             raise SystemExit
 
-        # 4. Lookup the transform and transform the velocity
+        # 4. Transform SC2 velocity to BaseLink velocity
         try:
-            # Look up transform from map to base_link
-            # Using rclpy.time.Time() gets the latest available transform
-            trans = self.tf_buffer.lookup_transform(
-                'map', 
+            # We look up the transform that describes sc2_base_link relative to base_link
+            transform = self.tf_buffer.lookup_transform(
                 'base_link', 
+                'sc2_base_link', 
                 rclpy.time.Time()
             )
             
-            # Transform the body-frame point into the map-frame
-            v_map = tf2_geometry_msgs.do_transform_point(v_body, trans)
+            # Use Vector3 transformation so we only rotate the direction
+            v_base = tf2_geometry_msgs.do_transform_vector3(v_sc2, transform)
 
-            # 5. Prepare and publish the TwistStamped message
+            # 5. Publish in base_link frame
             msg = TwistStamped()
             msg.header.stamp = curr_time.to_msg()
-            msg.header.frame_id = "map"
-            
-            # Map the transformed points back to linear velocities
-            msg.twist.linear.x = v_map.point.x
-            msg.twist.linear.y = v_map.point.y
-            msg.twist.linear.z = v_map.point.z
+            msg.header.frame_id = 'base_link'
+            msg.twist.linear.x = v_base.vector.x
+            msg.twist.linear.y = v_base.vector.y
+            msg.twist.linear.z = v_base.vector.z
             
             self.vel_pub.publish(msg)
-            self.get_logger().info(
-                f'Moving {self.get_parameter("axis").value}: '
-                f'MapVel X={msg.twist.linear.x:.2f}, Y={msg.twist.linear.y:.2f}', 
-                throttle_duration_sec=1.0
-            )
 
         except TransformException as ex:
-            self.get_logger().warn(
-                f'Could not transform base_link to map (is your static_tf running?): {ex}', 
-                throttle_duration_sec=2.0
-            )
+            self.get_logger().warn(f'Waiting for TF: {ex}', throttle_duration_sec=2.0)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = VelocityPublisher()
+    node = Sc2VelocityPublisher()
     try:
         rclpy.spin(node)
     except (KeyboardInterrupt, SystemExit):

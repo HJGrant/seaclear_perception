@@ -79,8 +79,8 @@ def generate_launch_description():
             'rate_hz' : 10.0,
             'timeout_ms': 500,
             'target_point_timeout_ms': 500,
-            'max_vx': 0.15,
-            'max_vy': 0.15,
+            'max_vx': 0.20,
+            'max_vy': 0.20,
             'max_vz': 0.0,
             'max_yaw_rate': 0.35,
             'image_width': 640.0,
@@ -88,9 +88,10 @@ def generate_launch_description():
             'target_u': 320.0,
             'target_v': 320.0,
             'desired_target_distance_m': 1.0,
-            'ibvs_lambda': 0.3,
-            'alpha_1': 1.0,  #apply no filtering
-            'decay_rate': 0.2
+            'ibvs_lambda': 0.1,
+            'alpha_1': 0.5,  #apply no filtering
+            'decay_rate': 0.1,
+            'mavros_depth': True
         }],
     )
 

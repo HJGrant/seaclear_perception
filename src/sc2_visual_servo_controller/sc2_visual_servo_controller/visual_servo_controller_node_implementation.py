@@ -5,7 +5,7 @@ from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from sensor_msgs.msg import CameraInfo
 from enum import Enum
 from std_srvs.srv import SetBool
@@ -53,7 +53,8 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
-        self.declare_parameter('body_frame_id', 'base_link')    # body frame of the BlueROV2
+        self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
+        self.declare_parameter('body_frame_id', 'sc2_base_link')    # body frame of the BlueROV2
         self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # body frame of the BlueROV2
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
@@ -62,6 +63,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
+        self.declare_parameter('mavros_depth', False)
 
         self.declare_parameter('image_width', 1280.0)
         self.declare_parameter('image_height', 640.0)
@@ -92,7 +94,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('decay_rate', 0.95)
 
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
-        self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
@@ -107,6 +109,13 @@ class VisualServoControllerNode(Node):
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
+        self.enable_mavros_depth = self.get_parameter('mavros_depth').get_parameter_value().bool_value
+
+        # whether to use depth from the RGB-D data or from MAVROS 
+        if self.enable_mavros_depth:
+            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+        else:
+            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -208,7 +217,11 @@ class VisualServoControllerNode(Node):
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
-        self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
+
+        if self.enable_mavros_depth:
+            self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
+        else:
+            self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
 
         #service for turning the IBVS control on or off 
         self.control_enabled = False # Default to off
@@ -234,10 +247,15 @@ class VisualServoControllerNode(Node):
         response.message = f"IBVS Control {'Enabled' if self.control_enabled else 'Disabled'}"
         return response
 
-    def _target_pose_cb(self, msg: PoseStamped) -> None:
+    def _target_pose_cb(self, msg) -> None:
         '''Extract the depth information from the latest Pose etimate.'''
-        latest_pose = msg.pose
-        self._latest_depth_measurement = latest_pose.position.z
+
+        if self.enable_mavros_depth:
+            latest_depth = msg.data
+            self._latest_depth_measurement = np.abs(latest_depth)
+        else:
+            latest_pose = msg.pose
+            self._latest_depth_measurement = latest_pose.position.z
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -460,7 +478,7 @@ class VisualServoControllerNode(Node):
                 v_lin_body.vector.x, 
                 v_lin_body.vector.y, 
                 v_lin_body.vector.z, 
-                v_ang_body.vector.z, 
+                0.0,#v_ang_body.vector.z, 
                 dt_ctrl
             )
 
@@ -513,8 +531,8 @@ class VisualServoControllerNode(Node):
             # Use rclpy.time.Time() (zero-time) to get the latest transform 
             # without waiting for exact synchronization
             trans = self.tf_buffer.lookup_transform(
-                'map', 
-                self._body_frame_id, 
+                'base_link',                            # pixhawk base_link frame
+                self._body_frame_id,                    # our base_link frame
                 rclpy.time.Time() 
             )
 
@@ -526,7 +544,7 @@ class VisualServoControllerNode(Node):
             # Transform rotation from base_link to map
             p_map = tf2_geometry_msgs.do_transform_point(p_body, trans)
 
-            cmd.header.frame_id = 'map'
+            cmd.header.frame_id = 'base_link'
             cmd.twist.linear.x = p_map.point.x
             cmd.twist.linear.y = p_map.point.y
             cmd.twist.linear.z = p_map.point.z
