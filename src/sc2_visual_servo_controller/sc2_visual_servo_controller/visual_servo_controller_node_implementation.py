@@ -21,6 +21,7 @@ from .ibvs.controller_math import (
     get_image_jacobian,
     get_uncalibrated_jacobian
 )
+from .pid import PIDGains, PIDController
 
 class VisualServoControllerNode(Node):
     
@@ -85,6 +86,22 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('fy_px', 600.0)
         self.declare_parameter('cx_px', 640.0)
         self.declare_parameter('cy_px', 360.0)
+
+        self.declare_parameter('staged_pid_xy_kp', 0.0025)
+        self.declare_parameter('staged_pid_xy_ki', 0.0)
+        self.declare_parameter('staged_pid_xy_kd', 0.0008)
+        self.declare_parameter('staged_pid_xy_integral_limit', 200.0)
+        self.declare_parameter('staged_pid_z_kp', 0.8)
+        self.declare_parameter('staged_pid_z_ki', 0.0)
+        self.declare_parameter('staged_pid_z_kd', 0.10)
+        self.declare_parameter('staged_pid_z_integral_limit', 1.0)
+        self.declare_parameter('staged_pid_horizontal_tolerance_px', 25.0)
+        self.declare_parameter('staged_pid_vertical_tolerance_px', 25.0)
+        self.declare_parameter('staged_pid_distance_tolerance_m', 0.08)
+        self.declare_parameter('staged_pid_horizontal_hold_sec', 0.30)
+        self.declare_parameter('staged_pid_enable_yaw', False)
+        self.declare_parameter('desired_vertical_distance_m', 0.6)
+        self.declare_parameter('staged_pid_z_source', 'target_pose')
         
         # IBVS control parameters
         self.declare_parameter('ibvs_lambda', 0.2)
@@ -105,6 +122,9 @@ class VisualServoControllerNode(Node):
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._target_point_timeout_sec = float(self.get_parameter('target_point_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
+        if self._controller_mode not in {'ibvs', 'staged_pid'}:
+            self.get_logger().warn(f'Unknown controller_mode={self._controller_mode}; falling back to ibvs')
+            self._controller_mode = 'ibvs'
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
 
@@ -129,7 +149,16 @@ class VisualServoControllerNode(Node):
         self._cy = float(self.get_parameter('cy_px').value)
         self.image_height = float(self.get_parameter('image_height').value)
         self.image_width = float(self.get_parameter('image_width').value)
+        self._target_u = float(self.get_parameter('target_u').value)
+        self._target_v = float(self.get_parameter('target_v').value)
         self._desired_target_dist = float(self.get_parameter('desired_target_distance_m').value)
+        self._desired_vertical_dist = float(self.get_parameter('desired_vertical_distance_m').value)
+        self._staged_pid_z_source = str(self.get_parameter('staged_pid_z_source').value).strip().lower()
+        if self._staged_pid_z_source not in {'target_pose', 'dvl'}:
+            self.get_logger().warn(
+                f'Invalid staged_pid_z_source={self._staged_pid_z_source}; using target_pose'
+            )
+            self._staged_pid_z_source = 'target_pose'
 
         self._latest_obs: Optional[Detection2D] = None
 
@@ -138,6 +167,40 @@ class VisualServoControllerNode(Node):
         self._last_target_point_time = self.get_clock().now()
         self._last_tick_time = self.get_clock().now()
         self._last_cmd = (0.0, 0.0, 0.0, 0.0)
+        self._latest_target_point: Optional[PoseStamped] = None
+
+        # staged_pid directly commands map-frame velocities:
+        # - image x error (bbox_center.x - target_center.x) -> map y
+        # - image y error (bbox_center.y - target_center.y) -> map x
+        # - positive-down vertical distance error           -> map z
+        self._xy_pid_y = PIDController(PIDGains(
+            kp=float(self.get_parameter('staged_pid_xy_kp').value),
+            ki=float(self.get_parameter('staged_pid_xy_ki').value),
+            kd=float(self.get_parameter('staged_pid_xy_kd').value),
+            integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
+            output_limit=self._max_vy,
+        ))
+        self._xy_pid_z = PIDController(PIDGains(
+            kp=float(self.get_parameter('staged_pid_xy_kp').value),
+            ki=float(self.get_parameter('staged_pid_xy_ki').value),
+            kd=float(self.get_parameter('staged_pid_xy_kd').value),
+            integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
+            output_limit=self._max_vx,
+        ))
+        self._z_pid = PIDController(PIDGains(
+            kp=float(self.get_parameter('staged_pid_z_kp').value),
+            ki=float(self.get_parameter('staged_pid_z_ki').value),
+            kd=float(self.get_parameter('staged_pid_z_kd').value),
+            integral_limit=float(self.get_parameter('staged_pid_z_integral_limit').value),
+            output_limit=self._max_vz,
+        ))
+        self._staged_pid_enable_yaw = self._as_bool(self.get_parameter('staged_pid_enable_yaw').value)
+        self._staged_pid_horizontal_tol_px = float(self.get_parameter('staged_pid_horizontal_tolerance_px').value)
+        self._staged_pid_vertical_tol_px = float(self.get_parameter('staged_pid_vertical_tolerance_px').value)
+        self._staged_pid_distance_tol_m = float(self.get_parameter('staged_pid_distance_tolerance_m').value)
+        self._staged_pid_horizontal_hold_sec = float(self.get_parameter('staged_pid_horizontal_hold_sec').value)
+        self._staged_pid_phase = 'horizontal_only'
+        self._staged_pid_horizontal_ok_since = None
 
         ###########################################################################################################################################
         ################################## Here start the IBVS control parameters which were validated in simulation ##############################
@@ -157,9 +220,8 @@ class VisualServoControllerNode(Node):
             [cx - h, cy + h]   # Bottom-Left
         ], dtype=np.float32)
 
-        #self.target_centroid = np.mean(self.center_box_corners, axis=1)
         self.target_centroid = [cx, cy]
-
+        self._staged_pid_target_centroid = np.array([self._target_u, self._target_v], dtype=np.float32)
         self.prev_centroid = np.zeros(2)
         self.roi_w = 50
 
@@ -170,6 +232,7 @@ class VisualServoControllerNode(Node):
         self.target_min = 1
         self.center_min = 1
         self.target_count = 0
+        self.center_count = 0
 
         # IBVS parameters
         self.lmbda = 0          # the lambda control gain from the standard IBVS control law
@@ -236,8 +299,89 @@ class VisualServoControllerNode(Node):
 
     def _target_pose_cb(self, msg: PoseStamped) -> None:
         '''Extract the depth information from the latest Pose etimate.'''
+        self._latest_target_point = msg
+        self._last_target_point_time = self.get_clock().now()
         latest_pose = msg.pose
         self._latest_depth_measurement = latest_pose.position.z
+
+    def _reset_staged_pid_state(self) -> None:
+        self._xy_pid_y.reset()
+        self._xy_pid_z.reset()
+        self._z_pid.reset()
+        self._staged_pid_phase = 'horizontal_only'
+        self._staged_pid_horizontal_ok_since = None
+
+    def _resolve_vertical_measurement(self, dt_target_point: float) -> tuple[Optional[float], bool]:
+        # positive-down vertical distance [m]
+        if self._staged_pid_z_source == 'target_pose':
+            has_target_point = (
+                self._latest_target_point is not None and
+                dt_target_point <= self._target_point_timeout_sec
+            )
+            if has_target_point:
+                return float(self._latest_target_point.pose.position.z), True
+        if np.isfinite(self._latest_depth_measurement):
+            return float(self._latest_depth_measurement), False
+        return None, False
+
+    def _compute_staged_pid_command(self, dt_target_point: float, dt_ctrl: float) -> tuple[float, float, float, float, str]:
+        if not hasattr(self, 'latest_centroid'):
+            self._reset_staged_pid_state()
+            return 0.0, 0.0, 0.0, 0.0, 'NO_TARGET_TIMEOUT'
+
+        z_meas, used_target_point = self._resolve_vertical_measurement(dt_target_point)
+        if z_meas is None:
+            self._reset_staged_pid_state()
+            return 0.0, 0.0, 0.0, 0.0, 'NO_VERTICAL_MEASUREMENT'
+
+        centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
+        centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+        err_z_m = float(z_meas - self._desired_vertical_dist)
+
+        # image x error > 0 -> map y < 0
+        cmd_vx_map = 0.0
+        cmd_vy_map = -self._xy_pid_y.update(centroid_err_x, dt_ctrl)
+        # positive-down distance too large -> go downward -> map z negative
+        cmd_vz_map = -self._z_pid.update(err_z_m, dt_ctrl)
+        yaw = 0.0
+        if self._staged_pid_enable_yaw:
+            yaw = clamp(
+                0.8 * (centroid_err_x / max(1.0, self.image_width * 0.5)),
+                self._max_yaw,
+            )
+
+        # Stage 1: horizontal-only alignment. Vertical image motion stays disabled
+        # until the horizontal pixel error remains within tolerance long enough.
+        abs_u = abs(centroid_err_x)
+        if abs_u <= self._staged_pid_horizontal_tol_px:
+            if self._staged_pid_horizontal_ok_since is None:
+                self._staged_pid_horizontal_ok_since = self.get_clock().now()
+            held_sec = (
+                self.get_clock().now() - self._staged_pid_horizontal_ok_since
+            ).nanoseconds * 1e-9
+            if held_sec >= self._staged_pid_horizontal_hold_sec:
+                self._staged_pid_phase = 'vertical_enabled'
+        else:
+            self._staged_pid_phase = 'horizontal_only'
+            self._staged_pid_horizontal_ok_since = None
+            self._xy_pid_z.reset()
+
+        if self._staged_pid_phase == 'vertical_enabled':
+            # image y error > 0 -> map x < 0
+            cmd_vx_map = -self._xy_pid_z.update(centroid_err_y, dt_ctrl)
+            aligned = (
+                abs_u <= self._staged_pid_horizontal_tol_px and
+                abs(centroid_err_y) <= self._staged_pid_vertical_tol_px and
+                abs(err_z_m) <= self._staged_pid_distance_tol_m
+            )
+            status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
+        else:
+            status = 'TRACKING_STAGED_PID_HORIZONTAL'
+
+        if not used_target_point and status.startswith('TRACKING_STAGED_PID'):
+            status += '_FALLBACK_Z'
+
+        return cmd_vx_map, cmd_vy_map, cmd_vz_map, yaw, status
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -296,8 +440,7 @@ class VisualServoControllerNode(Node):
             (best_bbox.center.position.x - half_w, best_bbox.center.position.y + half_h)  # BL
         ]
 
-        #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
-        self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
+        self.latest_centroid = [best_bbox.center.position.x, best_bbox.center.position.y]
 
         centroid_err_x = self.latest_centroid[0] - self.target_centroid[0]
         centroid_err_y = self.latest_centroid[1] - self.target_centroid[1]
@@ -311,10 +454,12 @@ class VisualServoControllerNode(Node):
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
+        dt_target_point = (now - self._last_target_point_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
 
         if not self.control_enabled:
+            self._reset_staged_pid_state()
             self._publish_cmd(0.0, 0.0, 0.0, 0.0)
             self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
             return
@@ -385,6 +530,15 @@ class VisualServoControllerNode(Node):
         # --- 4. ACTION SELECTION (Mode-Specific) ---
         # Initialize raw target velocity
         v_raw_target = np.zeros(6)
+
+        if self.current_state == self.ControllerState.VISUAL and is_locked and self._controller_mode == 'staged_pid':
+            # staged_pid directly commands map-frame velocities and does not use
+            # the optical-frame TF path used by the IBVS controller below.
+            vx, vy, vz, yaw, status = self._compute_staged_pid_command(dt_target_point, dt_ctrl)
+            self.v_last_valid = np.array([vx, vy, vz, 0.0, 0.0, yaw])
+            self._publish_status(status)
+            self._publish_cmd_direct_map_with_slew(vx, vy, vz, yaw, dt_ctrl)
+            return
 
         if self.current_state == self.ControllerState.DVL:
             # DVL DESCENT LOGIC
@@ -543,6 +697,22 @@ class VisualServoControllerNode(Node):
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
 
+    def _publish_cmd_direct_map(self, vx: float, vy: float, vz: float, yaw: float) -> None:
+        vx = clamp(vx, self._max_vx)
+        vy = clamp(vy, self._max_vy)
+        vz = clamp(vz, self._max_vz)
+        yaw = clamp(yaw, self._max_yaw)
+
+        cmd = TwistStamped()
+        cmd.header.stamp = self.get_clock().now().to_msg()
+        cmd.header.frame_id = 'map'
+        cmd.twist.linear.x = vx
+        cmd.twist.linear.y = vy
+        cmd.twist.linear.z = vz
+        cmd.twist.angular.z = yaw
+        self._cmd_pub.publish(cmd)
+        self._last_cmd = (vx, vy, vz, yaw)
+
     @staticmethod
     def _slew_axis(target: float, prev: float, limit_per_s: float, dt: float) -> float:
         if limit_per_s <= 0.0 or dt <= 0.0:
@@ -562,6 +732,14 @@ class VisualServoControllerNode(Node):
         svz = self._slew_axis(vz, pvz, self._slew_vz, dt)
         syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
         self._publish_cmd(svx, svy, svz, syaw)
+
+    def _publish_cmd_direct_map_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
+        pvx, pvy, pvz, pyaw = self._last_cmd
+        svx = self._slew_axis(vx, pvx, self._slew_vx, dt)
+        svy = self._slew_axis(vy, pvy, self._slew_vy, dt)
+        svz = self._slew_axis(vz, pvz, self._slew_vz, dt)
+        syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
+        self._publish_cmd_direct_map(svx, svy, svz, syaw)
 
 def main(args=None):
     rclpy.init(args=args)
