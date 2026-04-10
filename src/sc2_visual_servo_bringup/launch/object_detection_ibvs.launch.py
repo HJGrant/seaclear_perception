@@ -73,6 +73,7 @@ def generate_launch_description():
         condition=IfCondition(launch_ibvs_bool), # <--- The Magic Line
         parameters=[{
             'target_topic': '/sc2/visual_servo/target_obs',
+            'controller_mode': 'staged_pid',
             'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',
             'status_topic': '/sc2/visual_servo/status',
             'body_frame_id': 'base_link',
