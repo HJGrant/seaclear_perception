@@ -107,7 +107,7 @@ def generate_launch_description():
             '--x', '0.0', 
             '--y', '0.0', 
             '--z', '0.0', 
-            '--yaw', '3.14159', # 180 degrees rotation
+            '--yaw', '0.0', # 180 degrees rotation 3.14159
             '--pitch', '0.0', 
             '--roll', '0.0', 
             '--frame-id', 'base_link', 

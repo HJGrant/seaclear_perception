@@ -474,7 +474,7 @@ class VisualServoControllerNode(Node):
         v_image_plane_msg.header.stamp = self.get_clock().now().to_msg()
         v_image_plane_msg.header.frame_id = self._camera_image_plane_frame_id
         
-        v_image_plane_msg.twist.linear.x = vx    
+        v_image_plane_msg.twist.linear.x = -vx    
         v_image_plane_msg.twist.linear.y = vy    
         v_image_plane_msg.twist.linear.z = vz   
         v_image_plane_msg.twist.angular.z = yaw  
