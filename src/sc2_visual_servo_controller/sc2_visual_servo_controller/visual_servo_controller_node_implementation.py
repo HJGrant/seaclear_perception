@@ -449,7 +449,9 @@ class VisualServoControllerNode(Node):
             try:
                 # Use Damped Least Squares inverse
                 inv_J = np.linalg.inv(self.J_img.T @ self.J_img + 1e-4 * np.eye(6)) @ self.J_img.T
-                v_raw_target = (-self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask
+                #v_raw_target = (-self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask
+                #NOTE: removed negative sign, according to Corke: Robotics, Vision and Control, must correspond to correct error computation order
+                v_raw_target = (self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask    
             except np.linalg.LinAlgError:
                 v_raw_target = self.v_last_valid * self.decay_rate
         
