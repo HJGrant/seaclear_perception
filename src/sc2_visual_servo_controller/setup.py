@@ -28,7 +28,8 @@ setup(
             'cmd_vel_to_mavlink_stub = sc2_visual_servo_controller.cmd_vel_to_mavlink_stub:main',
             'cmd_vel_to_mavros_bridge = sc2_visual_servo_controller.cmd_vel_to_mavros_bridge:main',
             'visual_servo_debug_viz_node = sc2_visual_servo_controller.visual_servo_debug_viz_node:main',
-            'velocity_control_test_node = sc2_visual_servo_controller.velocity_control_test:main'
+            'velocity_control_test_node = sc2_visual_servo_controller.velocity_control_test:main',
+            'axes_test = sc2_visual_servo_controller.axes_test:main',
         ],
     },
 )
