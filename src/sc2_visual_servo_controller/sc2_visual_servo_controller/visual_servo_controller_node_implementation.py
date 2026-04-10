@@ -43,19 +43,27 @@ class VisualServoControllerNode(Node):
     def __init__(self):
         super().__init__('visual_servo_controller_node')
 
+        # relevant data topics
         self.declare_parameter('target_topic', '/sc2/visual_servo/target_obs')
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
-        self.declare_parameter('velocity_optical_topic', '/sc2/visual_servo/velocity_optical')
+        self.declare_parameter('velocity_camera_image_plane_frame_topic', '/sc2/visual_servo/velocity_camera_image_plane_frame')    # DEBUG velocities published in the camera image plane frame 
+        self.declare_parameter('velocity_sc2_base_link_topic', '/sc2/visual_servo/velocity_sc2_base_link')     # DEBUG velocities published in the reference sc2_base_link frame
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
         self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
-        self.declare_parameter('body_frame_id', 'sc2_base_link')    # body frame of the BlueROV2
-        self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # body frame of the BlueROV2
+        
+        # relevant frames for transformations
+        self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
+        self.declare_parameter('sc2_base_link_frame_id', 'sc2_base_link')   # body frame used by us (SeaClear2)
+        self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # RGB camera optical frame
+        self.declare_parameter('camera_image_plane_frame_id', 'image_plane')                # image plane frame
+
+        # controller parameters 
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
@@ -64,16 +72,20 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
         self.declare_parameter('mavros_depth', False)
+        self.declare_parameter('yaw_control', False)    #turn yaw control on/off
 
+        # image data parameters
         self.declare_parameter('image_width', 1280.0)
         self.declare_parameter('image_height', 640.0)
         self.declare_parameter('target_u', 640.0)
         self.declare_parameter('target_v', 360.0)
-        self.declare_parameter('desired_depth_m', 1.0)
 
+        # vertical control parameters
+        self.declare_parameter('desired_depth_m', 1.0)
         self.declare_parameter('desired_target_distance_m', 0.6)
         self.declare_parameter('vertical_gain', 1.0)
 
+        # controller parameters
         self.declare_parameter('max_vx', 0.4)
         self.declare_parameter('max_vy', 0.3)
         self.declare_parameter('max_vz', 0.3)
@@ -83,6 +95,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('slew_vz', 2.0)
         self.declare_parameter('slew_yaw_rate', 2.0)
 
+        # camera parameters
         self.declare_parameter('fx_px', 600.0)
         self.declare_parameter('fy_px', 600.0)
         self.declare_parameter('cx_px', 640.0)
@@ -93,23 +106,33 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('alpha_1', 0.6)
         self.declare_parameter('decay_rate', 0.95)
 
+        # extract data topics
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
-
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
+
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
-        self._velocity_optical_topic = str(self.get_parameter('velocity_optical_topic').value)
+        self._velocity_image_plane_frame_topic = str(self.get_parameter('velocity_camera_image_plane_frame_topic').value)
+        self._velocity_sc2_base_link_topic = str(self.get_parameter('velocity_sc2_base_link_topic').value)
+        
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
-        self._body_frame_id = str(self.get_parameter('body_frame_id').value)
+
+        # extract frame IDs
+        self._mavros_base_link_frame_id = str(self.get_parameter('mavros_base_link_frame_id').value)
+        self._sc2_base_link_frame_id = str(self.get_parameter('sc2_base_link_frame_id').value)
         self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
+        self._camera_image_plane_frame_id = str(self.get_parameter('camera_image_plane_frame_id').value)
+
+        # extract parameters
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._target_point_timeout_sec = float(self.get_parameter('target_point_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
         self.enable_mavros_depth = self.get_parameter('mavros_depth').get_parameter_value().bool_value
+        self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
 
         # whether to use depth from the RGB-D data or from MAVROS 
         if self.enable_mavros_depth:
@@ -209,8 +232,10 @@ class VisualServoControllerNode(Node):
         ###################### Here end the IBVS controller parameters which were validated in simulation #####################################################
         #######################################################################################################################################################
 
-        self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)
-        self._optical_vel_pub = self.create_publisher(TwistStamped, self._velocity_optical_topic, 10)
+        self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)                            # the actual commanded velocity in the Pixhawk base_link frame        
+        self._image_plane_vel_pub = self.create_publisher(TwistStamped, self._velocity_image_plane_frame_topic, 10)       # the velocities w.r.t. to the 
+        self._sc2_base_link_vel_pub = self.create_pulisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
+
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
@@ -437,50 +462,65 @@ class VisualServoControllerNode(Node):
         self.v_last_valid = v_desired
         vx, vy, vz, _, _, yaw = v_desired.flatten()
 
-        # 1. Map IBVS output to the Camera's Optical Frame (Z-forward, Y-down)
-        # Based on your cable (Y) and down (Z) observations:
-        v_opt_msg = TwistStamped()
-        v_opt_msg.header.stamp = self.get_clock().now().to_msg()
-        v_opt_msg.header.frame_id = self._camera_optical_frame_id
+        # map the velocities computed in the image plane 
+        v_image_plane_msg = TwistStamped()
+        v_image_plane_msg.header.stamp = self.get_clock().now().to_msg()
+        v_image_plane_msg.header.frame_id = self._camera_image_plane_frame_id
         
-        v_opt_msg.twist.linear.x = vx    # Right
-        v_opt_msg.twist.linear.y = vz    # Down
-        v_opt_msg.twist.linear.z = -vy   # Forward (Away from cable)
-        v_opt_msg.twist.angular.y = yaw  # Optical Yaw is around Y-axis
+        v_image_plane_msg.twist.linear.x = vx    
+        v_image_plane_msg.twist.linear.y = vy    
+        v_image_plane_msg.twist.linear.z = vz   
+        v_image_plane_msg.twist.angular.z = yaw  
 
-        # PUBLISH the optical debug velocity
-        self._optical_vel_pub.publish(v_opt_msg)
+        # PUBLISH the camera frame debug velocity
+        self._image_plane_vel_pub.publish(v_image_plane_msg)
 
         # 2. Prepare for TF Transformation (Linear and Angular separately)
-        v_lin_opt = Vector3Stamped()
-        v_lin_opt.header = v_opt_msg.header
-        v_lin_opt.vector = v_opt_msg.twist.linear
+        v_lin_image_plane = Vector3Stamped()
+        v_lin_image_plane.header = v_image_plane_msg.header
+        v_lin_image_plane.vector = v_image_plane_msg.twist.linear
 
-        v_ang_opt = Vector3Stamped()
-        v_ang_opt.header = v_opt_msg.header
-        v_ang_opt.vector = v_opt_msg.twist.angular
+        v_ang_image_plane = Vector3Stamped()
+        v_ang_image_plane.header = v_image_plane_msg.header
+        v_ang_image_plane.vector = v_image_plane_msg.twist.angular
 
         try:
             # Look up the transform from Optical Frame to ROV Body Frame
             transform = self.tf_buffer.lookup_transform(
-                self._body_frame_id, 
-                self._camera_optical_frame_id, 
+                self._sc2_base_link_frame_id, 
+                self._camera_image_plane_frame_id, 
                 rclpy.time.Time()
             )
             
             # Transform both vectors to the ROV's coordinate system
-            v_lin_body = tf2_geometry_msgs.do_transform_vector3(v_lin_opt, transform)
-            v_ang_body = tf2_geometry_msgs.do_transform_vector3(v_ang_opt, transform)
-            
+            v_lin_sc2_base_link = tf2_geometry_msgs.do_transform_vector3(v_lin_image_plane, transform)
+            v_ang_sc2_base_link = tf2_geometry_msgs.do_transform_vector3(v_ang_image_plane, transform)
+
             # 3. Publish to BlueROV2 (MAVROS)
             # We take the resulting Z-axis rotation as the ROV's Yaw
+            if self._yaw_control_switch:
+                yaw_cmd = v_ang_sc2_base_link.vector.z
+            else:
+                yaw_cmd = 0.0 
+
             self._publish_cmd_with_slew(
-                v_lin_body.vector.x, 
-                v_lin_body.vector.y, 
-                v_lin_body.vector.z, 
-                0.0,#v_ang_body.vector.z, 
+                v_lin_sc2_base_link.vector.x, 
+                v_lin_sc2_base_link.vector.y, 
+                v_lin_sc2_base_link.vector.z, 
+                yaw_cmd,
                 dt_ctrl
             )
+
+            # publish the velocities in the reference sc2_base_link frame for debugging    
+            v_sc2_base_link_msg = TwistStamped()
+            v_sc2_base_link_msg.header = v_image_plane_msg.header
+            v_sc2_base_link_msg.header.frame_id = self._sc2_base_link_frame_id
+            v_sc2_base_link_msg.twist.linear.x = v_lin_sc2_base_link.vector.x
+            v_sc2_base_link_msg.twist.linear.y = v_lin_sc2_base_link.vector.y
+            v_sc2_base_link_msg.twist.linear.z = v_lin_sc2_base_link.vector.z
+            v_sc2_base_link_msg.twist.angular.z = v_ang_sc2_base_link.vector.z
+
+            self._sc2_base_link_vel_pub.publish(v_sc2_base_link_msg)
 
         except Exception as e:
             self.get_logger().error(f"TF Transform failed: {e}", throttle_duration_sec=1.0)
@@ -525,38 +565,12 @@ class VisualServoControllerNode(Node):
         yaw = clamp(yaw, self._max_yaw)
 
         cmd = TwistStamped()
-        cmd.header.stamp = self.get_clock().now().to_msg()
-        
-        try:
-            # Use rclpy.time.Time() (zero-time) to get the latest transform 
-            # without waiting for exact synchronization
-            trans = self.tf_buffer.lookup_transform(
-                'base_link',                            # pixhawk base_link frame
-                self._body_frame_id,                    # our base_link frame
-                rclpy.time.Time() 
-            )
-
-            p_body = PointStamped()
-            p_body.point.x = vx
-            p_body.point.y = vy
-            p_body.point.z = vz
-
-            # Transform rotation from base_link to map
-            p_map = tf2_geometry_msgs.do_transform_point(p_body, trans)
-
-            cmd.header.frame_id = 'base_link'
-            cmd.twist.linear.x = p_map.point.x
-            cmd.twist.linear.y = p_map.point.y
-            cmd.twist.linear.z = p_map.point.z
-            cmd.twist.angular.z = yaw # Yaw rate is usually frame-invariant for Z-axis rotations
-
-        except (TransformException, Exception) as ex:
-            # Fallback to body frame if map isn't found
-            cmd.header.frame_id = self._body_frame_id
-            cmd.twist.linear.x = vx
-            cmd.twist.linear.y = vy
-            cmd.twist.linear.z = vz
-            cmd.twist.angular.z = yaw
+        cmd.header.stamp = self.get_clock().now().to_msg()      
+        cmd.header.frame_id = self._mavros_base_link_frame_id
+        cmd.twist.linear.x = vx
+        cmd.twist.linear.y = vy
+        cmd.twist.linear.z = vz
+        cmd.twist.angular.z = yaw
 
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
@@ -574,10 +588,30 @@ class VisualServoControllerNode(Node):
         return target
 
     def _publish_cmd_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
+        
+        transform = self.tf_buffer.lookup_transform(
+                self-self._mavros_base_link_frame_id,              # pixhawk base_link frame
+                self._sc2_base_link_frame_id,                    # our base_link frame
+                rclpy.time.Time() 
+            )
+
+        vel_sc2_base_link = PointStamped()
+        vel_sc2_base_link.point.x = vx
+        vel_sc2_base_link.point.y = vy
+        vel_sc2_base_link.point.z = vz
+
+        vel_mavros_base_link = tf2_geometry_msgs.do_transform_point(vel_sc2_base_link, transform)
+
+        vx_mavros_base_link = vel_mavros_base_link.point.x
+        vy_mavros_base_link = vel_mavros_base_link.point.y
+        vz_mavros_base_link = vel_mavros_base_link.point.z
+
+        # NOTE: yaw stays the same in both frames
+
         pvx, pvy, pvz, pyaw = self._last_cmd
-        svx = self._slew_axis(vx, pvx, self._slew_vx, dt)
-        svy = self._slew_axis(vy, pvy, self._slew_vy, dt)
-        svz = self._slew_axis(vz, pvz, self._slew_vz, dt)
+        svx = self._slew_axis(vx_mavros_base_link, pvx, self._slew_vx, dt)
+        svy = self._slew_axis(vy_mavros_base_link, pvy, self._slew_vy, dt)
+        svz = self._slew_axis(vz_mavros_base_link, pvz, self._slew_vz, dt)
         syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
         self._publish_cmd(svx, svy, svz, syaw)
 

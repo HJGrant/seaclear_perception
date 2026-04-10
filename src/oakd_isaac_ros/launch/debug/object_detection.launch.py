@@ -82,40 +82,7 @@ def generate_launch_description():
         }.items()
     )
 
-    #publish a transform from the robot base_frame to the oak-d-base-frame
-    static_tf_node = Node(
-    package='tf2_ros',
-    executable='static_transform_publisher',
-    name='camera_base_link_broadcaster',
-    arguments=[
-        '--x', '0.0', 
-        '--y', '-0.115', 
-        '--z', '-0.275', 
-        '--yaw', '-1.5708',  # <--- 90 degrees Left around base_link Z
-        '--pitch', '0.0', 
-        '--roll', '0.0', 
-        '--frame-id', 'sc2_base_link', 
-        '--child-frame-id', 'oak-d-base-frame'
-        ]
-    )
-
-    optical_to_image_plane_tf = Node(
-    package='tf2_ros',
-    executable='static_transform_publisher',
-    name='optical_to_image_plane_tf',
-    arguments=[
-        '--x', '0.0', 
-        '--y', '0.0', 
-        '--z', '0.0', 
-        '--yaw', '0.0', 
-        '--pitch', '0.0', 
-        '--roll', '-1.5708', 
-        '--frame-id', 'oak_rgb_camera_optical_frame', 
-        '--child-frame-id', 'image_plane'
-        ]
-    )
-
-    # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
+        # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
     static_tf_map_to_base_link = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -145,6 +112,39 @@ def generate_launch_description():
             '--roll', '0.0', 
             '--frame-id', 'base_link', 
             '--child-frame-id', 'sc2_base_link'
+        ]
+    )
+
+    #publish a transform from the robot base_frame to the oak-d-base-frame
+    static_tf_node = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='camera_base_link_broadcaster',
+        arguments=[
+            '--x', '0.0', 
+            '--y', '-0.115', 
+            '--z', '-0.275', 
+            '--yaw', '-1.5708',  # <--- 90 degrees Left around base_link Z
+            '--pitch', '0.0', 
+            '--roll', '0.0', 
+            '--frame-id', 'sc2_base_link', 
+            '--child-frame-id', 'oak-d-base-frame'
+        ]
+    )
+
+    optical_to_image_plane_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='optical_to_image_plane_tf',
+        arguments=[
+            '--x', '0.0', 
+            '--y', '0.0', 
+            '--z', '0.0', 
+            '--yaw', '0.0', 
+            '--pitch', '0.0', 
+            '--roll', '-1.5708', 
+            '--frame-id', 'oak_rgb_camera_optical_frame', 
+            '--child-frame-id', 'image_plane'
         ]
     )
 
