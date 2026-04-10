@@ -61,6 +61,7 @@ class VisualServoControllerNode(Node):
         # relevant frames for transformations
         self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
         self.declare_parameter('sc2_base_link_frame_id', 'sc2_base_link')   # body frame used by us (SeaClear2)
+        self.declare_parameter('body_frame_id', 'base_link')                # frame used for direct body-frame commands
         self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # RGB camera optical frame
         self.declare_parameter('camera_image_plane_frame_id', 'image_plane')                # image plane frame
 
@@ -68,7 +69,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
-        self.declare_parameter('controller_mode', 'ibvs')
+        self.declare_parameter('controller_mode', 'staged_pid')
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
@@ -139,6 +140,7 @@ class VisualServoControllerNode(Node):
         # extract frame IDs
         self._mavros_base_link_frame_id = str(self.get_parameter('mavros_base_link_frame_id').value)
         self._sc2_base_link_frame_id = str(self.get_parameter('sc2_base_link_frame_id').value)
+        self._body_frame_id = str(self.get_parameter('body_frame_id').value)
         self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
         self._camera_image_plane_frame_id = str(self.get_parameter('camera_image_plane_frame_id').value)
 
