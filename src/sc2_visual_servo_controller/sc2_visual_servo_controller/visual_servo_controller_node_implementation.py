@@ -201,23 +201,21 @@ class VisualServoControllerNode(Node):
         self._last_cmd = (0.0, 0.0, 0.0, 0.0)
         self._latest_target_point: Optional[PoseStamped] = None
 
-        # staged_pid directly commands map-frame velocities:
-        # - image x error (bbox_center.x - target_center.x) -> map y
-        # - image y error (bbox_center.y - target_center.y) -> map x
-        # - positive-down vertical distance error           -> map z
+        # staged_pid writes image-space PID outputs directly into base_link
+        # commands with a fixed sign mapping.
+        self._xy_pid_x = PIDController(PIDGains(
+            kp=float(self.get_parameter('staged_pid_xy_kp').value),
+            ki=float(self.get_parameter('staged_pid_xy_ki').value),
+            kd=float(self.get_parameter('staged_pid_xy_kd').value),
+            integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
+            output_limit=self._max_vx,
+        ))
         self._xy_pid_y = PIDController(PIDGains(
             kp=float(self.get_parameter('staged_pid_xy_kp').value),
             ki=float(self.get_parameter('staged_pid_xy_ki').value),
             kd=float(self.get_parameter('staged_pid_xy_kd').value),
             integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
             output_limit=self._max_vy,
-        ))
-        self._xy_pid_z = PIDController(PIDGains(
-            kp=float(self.get_parameter('staged_pid_xy_kp').value),
-            ki=float(self.get_parameter('staged_pid_xy_ki').value),
-            kd=float(self.get_parameter('staged_pid_xy_kd').value),
-            integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
-            output_limit=self._max_vx,
         ))
         self._z_pid = PIDController(PIDGains(
             kp=float(self.get_parameter('staged_pid_z_kp').value),
@@ -347,8 +345,8 @@ class VisualServoControllerNode(Node):
             self._latest_depth_measurement = latest_pose.position.z
 
     def _reset_staged_pid_state(self) -> None:
+        self._xy_pid_x.reset()
         self._xy_pid_y.reset()
-        self._xy_pid_z.reset()
         self._z_pid.reset()
         self._staged_pid_phase = 'horizontal_only'
         self._staged_pid_horizontal_ok_since = None
@@ -380,11 +378,14 @@ class VisualServoControllerNode(Node):
         centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
         err_z_m = float(z_meas - self._desired_vertical_dist)
 
-        # image x error > 0 -> map y < 0
-        cmd_vx_map = 0.0
-        cmd_vy_map = -self._xy_pid_y.update(centroid_err_x, dt_ctrl)
-        # positive-down distance too large -> go downward -> map z negative
-        cmd_vz_map = -self._z_pid.update(err_z_m, dt_ctrl)
+        vel_x_im = self._xy_pid_x.update(centroid_err_x, dt_ctrl)
+        vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
+        vel_z_im = 0.0
+
+        cmd_vx_body = vel_x_im
+        cmd_vy_body = -vel_y_im
+        # Keep the requested simple mapping exactly as specified.
+        cmd_vz_body = 0.0
         yaw = 0.0
         if self._staged_pid_enable_yaw:
             yaw = clamp(
@@ -406,24 +407,19 @@ class VisualServoControllerNode(Node):
         else:
             self._staged_pid_phase = 'horizontal_only'
             self._staged_pid_horizontal_ok_since = None
-            self._xy_pid_z.reset()
+            self._z_pid.reset()
 
         if self._staged_pid_phase == 'vertical_enabled':
-            # image y error > 0 -> map x < 0
-            cmd_vx_map = -self._xy_pid_z.update(centroid_err_y, dt_ctrl)
-            aligned = (
-                abs_u <= self._staged_pid_horizontal_tol_px and
-                abs(centroid_err_y) <= self._staged_pid_vertical_tol_px and
-                abs(err_z_m) <= self._staged_pid_distance_tol_m
-            )
+            # TODO implement
             status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
+            pass
         else:
             status = 'TRACKING_STAGED_PID_HORIZONTAL'
 
         if not used_target_point and status.startswith('TRACKING_STAGED_PID'):
             status += '_FALLBACK_Z'
 
-        return cmd_vx_map, cmd_vy_map, cmd_vz_map, yaw, status
+        return cmd_vx_body, cmd_vy_body, cmd_vz_body, yaw, status
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -574,12 +570,10 @@ class VisualServoControllerNode(Node):
         v_raw_target = np.zeros(6)
 
         if self.current_state == self.ControllerState.VISUAL and is_locked and self._controller_mode == 'staged_pid':
-            # staged_pid directly commands map-frame velocities and does not use
-            # the optical-frame TF path used by the IBVS controller below.
-            vx, vy, vz, yaw, status = self._compute_staged_pid_command(dt_target_point, dt_ctrl)
-            self.v_last_valid = np.array([vx, vy, vz, 0.0, 0.0, yaw])
+            vx_body, vy_body, vz_body, yaw, status = self._compute_staged_pid_command(dt_target_point, dt_ctrl)
+            self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
             self._publish_status(status)
-            self._publish_cmd_direct_map_with_slew(vx, vy, vz, yaw, dt_ctrl)
+            self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
             return
 
         if self.current_state == self.ControllerState.DVL:
@@ -728,7 +722,7 @@ class VisualServoControllerNode(Node):
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
 
-    def _publish_cmd_direct_map(self, vx: float, vy: float, vz: float, yaw: float) -> None:
+    def _publish_cmd_direct_body(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)
         vy = clamp(vy, self._max_vy)
         vz = clamp(vz, self._max_vz)
@@ -736,7 +730,7 @@ class VisualServoControllerNode(Node):
 
         cmd = TwistStamped()
         cmd.header.stamp = self.get_clock().now().to_msg()
-        cmd.header.frame_id = 'map'
+        cmd.header.frame_id = self._body_frame_id
         cmd.twist.linear.x = vx
         cmd.twist.linear.y = vy
         cmd.twist.linear.z = vz
@@ -784,13 +778,13 @@ class VisualServoControllerNode(Node):
         syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
         self._publish_cmd(svx, svy, svz, syaw)
 
-    def _publish_cmd_direct_map_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
+    def _publish_cmd_direct_body_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
         pvx, pvy, pvz, pyaw = self._last_cmd
         svx = self._slew_axis(vx, pvx, self._slew_vx, dt)
         svy = self._slew_axis(vy, pvy, self._slew_vy, dt)
         svz = self._slew_axis(vz, pvz, self._slew_vz, dt)
         syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
-        self._publish_cmd_direct_map(svx, svy, svz, syaw)
+        self._publish_cmd_direct_body(svx, svy, svz, syaw)
 
 def main(args=None):
     rclpy.init(args=args)
