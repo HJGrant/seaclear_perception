@@ -384,8 +384,8 @@ class VisualServoControllerNode(Node):
         vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
         vel_z_im = 0.0
 
-        cmd_vx_body = vel_x_im
-        cmd_vy_body = -vel_y_im
+        cmd_vx_body = -vel_x_im
+        cmd_vy_body = vel_y_im
         # Keep the requested simple mapping exactly as specified.
         cmd_vz_body = 0.0
         yaw = 0.0
