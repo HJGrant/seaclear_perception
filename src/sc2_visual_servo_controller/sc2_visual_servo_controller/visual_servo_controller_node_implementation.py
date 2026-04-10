@@ -234,7 +234,7 @@ class VisualServoControllerNode(Node):
 
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)                            # the actual commanded velocity in the Pixhawk base_link frame        
         self._image_plane_vel_pub = self.create_publisher(TwistStamped, self._velocity_image_plane_frame_topic, 10)       # the velocities w.r.t. to the 
-        self._sc2_base_link_vel_pub = self.create_pulisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
+        self._sc2_base_link_vel_pub = self.create_publisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
 
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
@@ -342,8 +342,13 @@ class VisualServoControllerNode(Node):
         #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
         self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
 
-        centroid_err_x = self.latest_centroid[0] - self.target_centroid[0]
-        centroid_err_y = self.latest_centroid[1] - self.target_centroid[1]
+        self.get_logger().info(f'self.latest_centroid: {self.latest_centroid}')
+        self.get_logger().info(f'self.target_centroid: {self.target_centroid}')
+
+        centroid_err_x = self.target_centroid[0] - self.latest_centroid[0]
+        centroid_err_y = self.target_centroid[1] - self.latest_centroid[1]
+
+        self.get_logger().info(f'error = center - bbox_centroid: {[centroid_err_x, centroid_err_y]}')
 
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
@@ -387,7 +392,7 @@ class VisualServoControllerNode(Node):
 
         # --- 2. MATH UPDATE (Only if Locked) ---
         if is_locked:
-            self.current_e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
+            self.current_e = (self.center_box_corners - self.latest_bbox_corners).flatten(order="F") 
             Z = np.ones(len(self.latest_bbox_corners)) * self._latest_depth_measurement # apply the latest depth measurement of the bbbox center
 
             
@@ -590,7 +595,7 @@ class VisualServoControllerNode(Node):
     def _publish_cmd_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
         
         transform = self.tf_buffer.lookup_transform(
-                self-self._mavros_base_link_frame_id,              # pixhawk base_link frame
+                self._mavros_base_link_frame_id,              # pixhawk base_link frame
                 self._sc2_base_link_frame_id,                    # our base_link frame
                 rclpy.time.Time() 
             )
