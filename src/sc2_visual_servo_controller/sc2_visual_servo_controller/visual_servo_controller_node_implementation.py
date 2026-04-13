@@ -293,8 +293,8 @@ class VisualServoControllerNode(Node):
         k = _camera_info_msg.k  # extract the intrinsic camera matrix
         self.fx = k[0]
         self.fy = k[4]
-        self.cx = k[2]
-        self.cy = k[5]
+        self.cx = 320 #k[2]
+        self.cy = 320 #k[5]
     
     def _vel_measurement_cb(self, msg: TwistStamped) -> None:
         t = msg.twist
@@ -474,10 +474,10 @@ class VisualServoControllerNode(Node):
         v_image_plane_msg.header.stamp = self.get_clock().now().to_msg()
         v_image_plane_msg.header.frame_id = self._camera_image_plane_frame_id
         
-        v_image_plane_msg.twist.linear.x = vx    
-        v_image_plane_msg.twist.linear.y = vy    
-        v_image_plane_msg.twist.linear.z = vz   
-        v_image_plane_msg.twist.angular.z = yaw  
+        v_image_plane_msg.twist.linear.x = -vx * 0.6 # vx    
+        v_image_plane_msg.twist.linear.y = vy * 0.6     
+        v_image_plane_msg.twist.linear.z = 0.0 #vz   
+        v_image_plane_msg.twist.angular.z = 0.0 #yaw  
 
         # PUBLISH the camera frame debug velocity
         self._image_plane_vel_pub.publish(v_image_plane_msg)
@@ -616,6 +616,7 @@ class VisualServoControllerNode(Node):
         # NOTE: yaw stays the same in both frames
 
         pvx, pvy, pvz, pyaw = self._last_cmd
+        
         svx = self._slew_axis(vx_mavros_base_link, pvx, self._slew_vx, dt)
         svy = self._slew_axis(vy_mavros_base_link, pvy, self._slew_vy, dt)
         svz = self._slew_axis(vz_mavros_base_link, pvz, self._slew_vz, dt)
