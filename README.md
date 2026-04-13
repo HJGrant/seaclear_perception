@@ -2,26 +2,10 @@
 
 This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
 
-## TODO
-- [ ] Find a way to turn off the static TSDF layer and only compute the dynamic layer
-- [ ] Interface the vision pipeline with the grasp detection pipeline
-
-
-## Requirements
- - For x86_64: Ubuntu 22.04+ and CUDA 12.6+ 
- - For Jetson: Jetpack 6.1 or 6.2
- - DepthAI
- - Foxglove for visualization
-
-Install DepthAI: 
-```bash
-sudo wget -qO- https://docs.luxonis.com/install_dependencies.sh | bash && \
-python3 -m pip install depthai
-```
 
 ## Launching nvBlox with the OAK-D PoE
 ## Step 1 
-Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97 ` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected by running: 
+Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected by running: 
 
 ```bash
 ping 192.168.2.97
@@ -51,8 +35,14 @@ git lfs install --skip-repo
 
 Run the following script to build and launch the Docker container:
 
+Jetson: 
 ```bash
-~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/run_dev.sh --isaac_ros_dev_dir ~/workspaces/oakd_isaac_ros/
+oakd_isaac_ros/my_ws/scripts/launch_container.sh
+```
+
+Laptop (x86_64): 
+```bash
+oakd_isaac_ros/my_ws/scripts/launch_container_x86_64.sh
 ```
 
 ## Step 4
@@ -60,13 +50,19 @@ Inside the container, set the ISAAC_ROS_WS variable and build the workspace:
 
 ```bash
 export ISAAC_ROS_WS=/workspaces/oakd_isaac_ros/ && \
-colcon build --merge-install
+colcon build --merge-install --packages-skip ros_deep_learning --cmake-args -DBUILD_TESTING=OFF
 ```
-
-Note: the option `--merge-install` is important for deployment. 
 
 ## Step 5
 After the build has completed, source the ROS2 environment and run the launch file to run nvBlox with the OAK-D PoE:
+
+
+Object detection only: 
+```bash
+source install/setup.bash && \
+ros2 launch oakd_isaac_ros object_detection.launch.py
+```
+
 
 ```bash
 source install/setup.bash && \
@@ -77,29 +73,6 @@ Specifying the 'people_detection' mode will enable selective 3D reconstruction o
 
 ## Step 6
 Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detect objects by subscribing to `/nvblox_node/color_layer` and '/nvblox_node/dynamic_occupancy_layer', respectively. Diplay these topics in a 3D panel in Foxglove. 
-
-
-## Building a Deployment Docker
-If you would like to deploy this pipeline as a 1-click solution, that launches a Docker containter and automatically launches the correct ROS2 launch file, run the following command OUTSIDE of the docker container: 
-
-```bash
-~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "x86_64.ros2_humble.oakd" --ros_ws ~/workspaces/oakd_isaac_ros --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd" 
-```
-
-For Jetson Devices run (not tested):
-
-```bash
-~/workspaces/oakd_isaac_ros/src/isaac_ros_common/scripts/docker_deploy.sh --base_image_key "aarch64.ros2_humble.oakd" --ros_ws ~/workspaces/isaac_ros-dev --launch_package "oakd_isaac_ros" --launch_file "oakd_nvblox.launch.py" -n "<my_username>/nvblox_dynamics_oakd_jetson_aarch64" 
-```
-Now you should see the image when you run `docker images` and you can then launch the pipeline by runnning: 
-
-```bash
-docker run --rm -it --gpus all --network host <my_username>/nvblox_dynamics_oakd 
-```
-To run the deployment docker on Jetson use the following command: 
-```bash
-docker run --rm -it --runtime=nvidia --network host <my_username>/nvblox_dynamics_oakd_jetson_aarch64 
-```
 
 ## Result 
 
