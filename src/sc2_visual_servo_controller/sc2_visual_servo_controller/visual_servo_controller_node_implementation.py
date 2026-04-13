@@ -755,7 +755,7 @@ class VisualServoControllerNode(Node):
     def _publish_cmd_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
         
         transform = self.tf_buffer.lookup_transform(
-                self-self._mavros_base_link_frame_id,              # pixhawk base_link frame
+                self._mavros_base_link_frame_id,              # pixhawk base_link frame
                 self._sc2_base_link_frame_id,                    # our base_link frame
                 rclpy.time.Time() 
             )
