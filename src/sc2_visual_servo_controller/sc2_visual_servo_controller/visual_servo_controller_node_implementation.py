@@ -404,8 +404,8 @@ class VisualServoControllerNode(Node):
             held_sec = (
                 self.get_clock().now() - self._staged_pid_horizontal_ok_since
             ).nanoseconds * 1e-9
-            if held_sec >= self._staged_pid_horizontal_hold_sec:
-                self._staged_pid_phase = 'vertical_enabled'
+            #if held_sec >= self._staged_pid_horizontal_hold_sec:
+            #    self._staged_pid_phase = 'vertical_enabled'
         else:
             self._staged_pid_phase = 'horizontal_only'
             self._staged_pid_horizontal_ok_since = None
@@ -575,7 +575,7 @@ class VisualServoControllerNode(Node):
             vx_body, vy_body, vz_body, yaw, status = self._compute_staged_pid_command(dt_target_point, dt_ctrl)
             self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
             self._publish_status(status)
-            self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+            self._publish_cmd_direct_body_with_slew(-vx_body, -vy_body, vz_body, yaw, dt_ctrl)
             return
 
         if self.current_state == self.ControllerState.DVL:

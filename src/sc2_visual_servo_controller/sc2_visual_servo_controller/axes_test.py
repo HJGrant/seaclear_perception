@@ -19,7 +19,7 @@ class Sc2VelocityPublisher(Node):
         self.declare_parameter('velocity', 0.5)
         self.declare_parameter('axis', 'x')
         self.declare_parameter('duration', 1.0)
-        self.declare_parameter('sequence', 'x:1.0,y:1.0')
+        self.declare_parameter('sequence', 'x:1.0,x:1.0')
 
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
