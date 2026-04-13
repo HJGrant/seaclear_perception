@@ -24,7 +24,6 @@ RUN apt-get update && \
 #Install depthai ros package for the OAK-D ROS driver
 RUN rm -f /etc/apt/sources.list.d/yarn.list && \
     apt-get update --allow-releaseinfo-change && \
-    wget -qO- https://docs.luxonis.com/install_dependencies.sh | bash && \
     python3 -m pip install -U depthai && \
     python3 -m pip install --no-cache-dir --force-reinstall 'numpy<2' && \
     apt-get install -y ros-humble-depthai-ros && \
