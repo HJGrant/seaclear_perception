@@ -4,8 +4,8 @@ from geometry_msgs.msg import TwistStamped
 
 """
 usage examples:
-`ros2 run sc2_visual_servo_controller velocity_control_test_node --ros-args -p velocity:=0.3 -p sequence:="x:1.0,y:1.0"`
-`ros2 run sc2_visual_servo_controller velocity_control_test_node --ros-args -p velocity:=0.3 -p sequence:="x:1.0,-x:1.0,y:1.0,-y:1.0"`
+`ros2 run sc2_visual_servo_controller axes_test --ros-args -p velocity:=0.3 -p sequence:="x:1.0,y:1.0"`
+`ros2 run sc2_visual_servo_controller axes_test --ros-args -p velocity:=0.3 -p sequence:="x:1.0,-x:1.0,y:1.0,-y:1.0"`
 """
 
 
@@ -14,7 +14,7 @@ class Sc2VelocityPublisher(Node):
         super().__init__('sc2_velocity_commander')
         
         # 1. Parameters
-        self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel')
+        self.declare_parameter('cmd_topic', '/sc2/visual_servo/cmd_vel_body')
         self.declare_parameter('body_frame_id', 'base_link')
         self.declare_parameter('velocity', 0.5)
         self.declare_parameter('axis', 'x')

@@ -21,7 +21,7 @@ class Sc2VelocityPublisher(Node):
         
         self.vel_pub = self.create_publisher(
             TwistStamped, 
-            '/mavros/setpoint_velocity/cmd_vel', 
+            '/sc2/visual_servo/cmd_vel_body',
             10
         )
         
