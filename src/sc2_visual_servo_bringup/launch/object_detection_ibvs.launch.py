@@ -73,8 +73,10 @@ def generate_launch_description():
         condition=IfCondition(launch_ibvs_bool), # <--- The Magic Line
         parameters=[{
             'target_topic': '/sc2/visual_servo/target_obs',
-            'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',
+            'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',           # velocity command for MAVROS
+            'cmd_topic_vec_6': '/sc2/setpoint_velocity/cmd_vel_vec6', # velocity command for SC2 (msg type: Vector6)
             'status_topic': '/sc2/visual_servo/status',
+            'dvl_altitude_topic' : '/sc2/velocity_report',  #TODO: check the topic of the DVL altitude data 
             'body_frame_id': 'base_link',
             'rate_hz' : 10.0,
             'timeout_ms': 500,
@@ -88,10 +90,10 @@ def generate_launch_description():
             'target_u': 320.0,
             'target_v': 320.0,
             'desired_target_distance_m': 1.0,
-            'ibvs_lambda': 0.1,
-            'alpha_1': 0.5,  #apply no filtering
-            'decay_rate': 0.1,
-            'mavros_depth': True
+            'ibvs_lambda': 0.1, # IBVS gain parameter 
+            'alpha_1': 0.5, # EMA filter coefficient 
+            'decay_rate': 0.1, # decay rate, how fast to shut down the control signal
+            'depth_estimation_mode': 'DVL' # depth estimation mode to use for IBVS, choose from: DVL, RGBD, MAVROS
         }],
     )
 

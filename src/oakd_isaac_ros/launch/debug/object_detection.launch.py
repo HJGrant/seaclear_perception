@@ -82,7 +82,8 @@ def generate_launch_description():
         }.items()
     )
 
-        # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
+    # NOTE: the static transform publishers are removed from the launch file, since they are handled by the transform tree package in SC2
+    # static transform for BlueROV/MAVROS tests, the velocities are commanded in the base_link frame, but need to be published in the 'map' frame for MAVROS
     static_tf_map_to_base_link = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -282,10 +283,10 @@ def generate_launch_description():
     [
         urdf_launch,
         foxglove_node,
-        static_tf_map_to_base_link,
-        static_tf_node,
-        optical_to_image_plane_tf,
-        static_tf_sc2_to_base_link,
+        #static_tf_map_to_base_link,
+        #static_tf_node,
+        #optical_to_image_plane_tf,
+        #static_tf_sc2_to_base_link,
         detection_container,
         detection_include
     ])

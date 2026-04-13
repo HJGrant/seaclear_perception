@@ -1,7 +1,7 @@
 from typing import Optional
 import numpy as np
 
-from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3
+from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3, Vector3Stamped
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
@@ -13,7 +13,8 @@ from std_srvs.srv import SetBool
 import tf2_ros
 import tf2_geometry_msgs 
 from tf2_ros import TransformException
-from geometry_msgs.msg import Vector3Stamped
+from state_estimation.msg import Vector6
+from marine_acoustic_msgs.msg import Dvl
 
 from .ibvs.controller_math import (
     clamp,
@@ -48,6 +49,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
+        self.declare_parameter('cmd_topic_vec_6', '/sc2/setpoint_velocity/cmd_vel_vec6') #the 
         self.declare_parameter('velocity_camera_image_plane_frame_topic', '/sc2/visual_servo/velocity_camera_image_plane_frame')    # DEBUG velocities published in the camera image plane frame 
         self.declare_parameter('velocity_sc2_base_link_topic', '/sc2/visual_servo/velocity_sc2_base_link')     # DEBUG velocities published in the reference sc2_base_link frame
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
@@ -55,7 +57,8 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
-        self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
+        self.declare_parameter('dvl_altitude_topic', '/sc2/velocity_report')
+        self.declare_parameter('mavros_altitude_topic','/mavros/global_position/rel_alt')
         
         # relevant frames for transformations
         self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
@@ -71,8 +74,8 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
-        self.declare_parameter('mavros_depth', False)
         self.declare_parameter('yaw_control', False)    #turn yaw control on/off
+        self.declare_parameter('depth_estimation_mode', 'RGBD') # choose from: MAVROS, DVL or RGBD
 
         # image data parameters
         self.declare_parameter('image_width', 1280.0)
@@ -112,6 +115,7 @@ class VisualServoControllerNode(Node):
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
 
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
+        self._sc2_cmd_topic_vec_6 = str(self.get_parameter('cmd_topic_vec_6').value)
         self._velocity_image_plane_frame_topic = str(self.get_parameter('velocity_camera_image_plane_frame_topic').value)
         self._velocity_sc2_base_link_topic = str(self.get_parameter('velocity_sc2_base_link_topic').value)
         
@@ -131,14 +135,18 @@ class VisualServoControllerNode(Node):
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
-        self.enable_mavros_depth = self.get_parameter('mavros_depth').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
+        
+        self._depth_mode = str(self.get_parameter('depth_estimation_mode').get_parameter_value().value)
 
-        # whether to use depth from the RGB-D data or from MAVROS 
-        if self.enable_mavros_depth:
-            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
-        else:
-            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+        # which depth estimation mode to use for IBVS
+        match self._depth_mode:
+            case 'RGBD':
+                self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+            case 'DVL':
+                self._target_pose_topic = str(self.get_parameter('dvl_altitude_topic').value)
+            case 'MAVROS':
+                self._target_pose_topic = str(self.get_parameter('mavros_altitude_topic').value)
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -232,18 +240,23 @@ class VisualServoControllerNode(Node):
         ###################### Here end the IBVS controller parameters which were validated in simulation #####################################################
         #######################################################################################################################################################
 
+        # data publishers
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)                            # the actual commanded velocity in the Pixhawk base_link frame        
+        self._sc2_cmd_pub_vec_6 = self.create_publisher(Vector6, self._sc2_cmd_topic_vec_6, 10)   
+        
+        # debug publishers 
         self._image_plane_vel_pub = self.create_publisher(TwistStamped, self._velocity_image_plane_frame_topic, 10)       # the velocities w.r.t. to the 
         self._sc2_base_link_vel_pub = self.create_publisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
-
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
+
+        # subscribers
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
-        if self.enable_mavros_depth:
+        if self.enable_dvl_altitude_depth:
             self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
         else:
             self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
@@ -266,7 +279,7 @@ class VisualServoControllerNode(Node):
         )
 
     def handle_control_switch(self, request, response):
-        '''Serice for turning the IBVS control on or off.'''
+        '''Service for turning the IBVS control on or off.'''
         self.control_enabled = request.data
         response.success = True
         response.message = f"IBVS Control {'Enabled' if self.control_enabled else 'Disabled'}"
@@ -275,12 +288,16 @@ class VisualServoControllerNode(Node):
     def _target_pose_cb(self, msg) -> None:
         '''Extract the depth information from the latest Pose etimate.'''
 
-        if self.enable_mavros_depth:
-            latest_depth = msg.data
-            self._latest_depth_measurement = np.abs(latest_depth)
-        else:
-            latest_pose = msg.pose
-            self._latest_depth_measurement = latest_pose.position.z
+        match self._depth_mode:
+            case 'RGBD':
+                latest_pose = msg.pose
+                self._latest_depth_measurement = latest_pose.position.z
+            case 'DVL':
+                latest_depth = msg.altitude # get the altitude reading from the velocity report
+                self._latest_depth_measurement = np.abs(latest_depth)   # take the absoloute value, since depth w.r.t. the camera can only be positive
+            case 'MAVROS':
+                latest_depth = msg.data
+                self._latest_depth_measurement = np.abs(latest_depth)
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -581,6 +598,22 @@ class VisualServoControllerNode(Node):
 
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
+
+        # publish the topic for SC2 as a custom Vector6 type, defined in the state_machine package
+        sc2_cmd_linear = Vector3()
+        sc2_cmd_linear.x = vx
+        sc2_cmd_linear.y = vy
+        sc2_cmd_linear.z = vz
+
+        sc2_cmd_angular = Vector3()
+        sc2_cmd_angular.x = 0.0 # assuiming no roll control
+        sc2_cmd_angular.y = 0.0 # assuming no pitch control
+        sc2_cmd_angular.z = yaw
+
+        cmd_vec_6 = Vector6()
+        cmd_vec_6.linear = sc2_cmd_linear
+        cmd_vec_6.angular = sc2_cmd_angular   
+        self._sc2_cmd_pub_vec_6.publish(cmd_vec_6)
 
     @staticmethod
     def _slew_axis(target: float, prev: float, limit_per_s: float, dt: float) -> float:
