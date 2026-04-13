@@ -89,7 +89,7 @@ def generate_launch_description():
             'target_v': 320.0,
             'desired_target_distance_m': 1.0,
             'ibvs_lambda': 0.1,
-            'alpha_1': 0.0,  #apply no filtering
+            'alpha_1': 1.0,  #apply no filtering
             'decay_rate': 0.0,
             'mavros_depth': True
         }],
