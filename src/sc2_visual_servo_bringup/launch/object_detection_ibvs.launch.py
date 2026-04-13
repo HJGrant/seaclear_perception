@@ -29,7 +29,7 @@ def generate_launch_description():
     
     oakd_object_detection_launch = IncludeLaunchDescription(
     PythonLaunchDescriptionSource(
-        os.path.join(oakd_isaac_ros_dir, 'launch', 'debug', 'object_detection.launch.py')
+        os.path.join(oakd_isaac_ros_dir, 'launch', 'debug', 'object_detection.launch.py')   
     ),
     # Add your arguments here
     launch_arguments={
