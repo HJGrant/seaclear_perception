@@ -363,6 +363,16 @@ def case_definitions() -> list[Case]:
             bbox_size=lambda _t: (80.0, 100.0),
             description="Dropout followed by reacquire and convergence.",
         ),
+        Case(
+            name="case_f_horizontal_only",
+            duration_s=4.0,
+            detection_hz=10.0,
+            pose_hz=20.0,
+            detection_active=lambda t: True,
+            centroid=lambda _t: (380.0, 420.0),
+            bbox_size=lambda _t: (80.0, 100.0),
+            description="Stable detections with persistent vertical misalignment to stay in HORIZONTAL.",
+        ),
     ]
 
 
@@ -450,6 +460,7 @@ def run_case(module, case: Case) -> list[dict[str, object]]:
                 "status": latest_publisher_string(node, "_status_topic"),
                 "state": node.current_state.name,
                 "phase": getattr(node, "_staged_pid_phase", ""),
+                "staged_pid_state": getattr(getattr(node, "_staged_pid_state", None), "value", ""),
                 "obs_fresh": str(node._latest_obs is not None and ((node.get_clock().now() - node._last_obs_time).nanoseconds * 1e-9) <= node._timeout_sec),
             }
         )
@@ -500,6 +511,17 @@ def summarize_case(old_rows: list[dict[str, object]], new_rows: list[dict[str, o
                 if first_locked_signal_diff is None:
                     first_locked_signal_diff = {"tick": old["tick"], "time_s": old["time_s"]}
 
+    horizontal_samples = 0
+    horizontal_signal_mismatches = 0
+    first_horizontal_signal_diff = None
+    for old, new in zip(old_rows, new_rows):
+        if new["staged_pid_state"] == "HORIZONTAL":
+            horizontal_samples += 1
+            if any(abs(float(new[k]) - float(old[k])) > EPS for k in ["vx", "vy", "yaw"]):
+                horizontal_signal_mismatches += 1
+                if first_horizontal_signal_diff is None:
+                    first_horizontal_signal_diff = {"tick": old["tick"], "time_s": old["time_s"]}
+
     return {
         "exact_match_all_fields": len(diffs) == 0,
         "vx_exact_match": first_signal_diff("vx") is None,
@@ -512,6 +534,10 @@ def summarize_case(old_rows: list[dict[str, object]], new_rows: list[dict[str, o
         "locked_signal_mismatch_count": locked_mismatches,
         "locked_signals_exact_match": locked_mismatches == 0,
         "first_locked_signal_diff": first_locked_signal_diff,
+        "horizontal_state_samples": horizontal_samples,
+        "horizontal_state_signals_exact_match": horizontal_signal_mismatches == 0,
+        "horizontal_state_signal_mismatch_count": horizontal_signal_mismatches,
+        "first_horizontal_state_signal_diff": first_horizontal_signal_diff,
         "lock_trace_exact_match": all(old["is_locked"] == new["is_locked"] for old, new in zip(old_rows, new_rows)),
         "status_exact_match": all(old["status"] == new["status"] for old, new in zip(old_rows, new_rows)),
         "phase_exact_match": all(old["phase"] == new["phase"] for old, new in zip(old_rows, new_rows)),

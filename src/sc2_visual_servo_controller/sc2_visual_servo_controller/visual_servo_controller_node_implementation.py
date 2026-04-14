@@ -451,6 +451,7 @@ class VisualServoControllerNode(Node):
             self._set_staged_pid_state(self.StagedPIDState.HORIZONTAL)
             self._reset_vertical_gate()
         else:
+            self._tracking_valid_observation_history.clear()
             self._set_staged_pid_state(self.StagedPIDState.SEARCH_HOLD)
             self._reset_vertical_gate()
 
@@ -462,6 +463,10 @@ class VisualServoControllerNode(Node):
             self._last_accepted_target_centroid is None or
             is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
         )
+        # NOTE:
+        # valid_target_observation here does NOT mean centered/aligned detection.
+        # It is a tracking-continuity signal: an ROI-consistent target-like observation.
+        # A target near the image edge can still be valid for tracking entry.
         valid_target_observation = bool(roi_consistent)
         self._tracking_valid_observation_history.append(valid_target_observation)
         if valid_target_observation:
