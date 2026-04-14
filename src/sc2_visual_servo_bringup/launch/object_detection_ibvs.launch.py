@@ -74,9 +74,9 @@ def generate_launch_description():
         parameters=[{
             'target_topic': '/sc2/visual_servo/target_obs',
             'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',           # velocity command for MAVROS
-            'cmd_topic_vec_6': '/sc2/setpoint_velocity/cmd_vel_vec6', # velocity command for SC2 (msg type: Vector6)
+            'cmd_topic_vec_6': '/sc2/velocity_controller_node/outer/console_signals', # velocity command for SC2 (msg type: Vector6)
             'status_topic': '/sc2/visual_servo/status',
-            'dvl_altitude_topic' : '/sc2/velocity_report',  #TODO: check the topic of the DVL altitude data 
+            'dvl_altitude_topic' : '/waterlinked_dvl_driver/velocity_report',
             'body_frame_id': 'base_link',
             'rate_hz' : 10.0,
             'timeout_ms': 500,
