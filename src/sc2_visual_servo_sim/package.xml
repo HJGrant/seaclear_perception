@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>sc2_visual_servo_sim</name>
+  <version>0.1.0</version>
+  <description>Phase 1 simulator nodes and launches for SC2 visual servo validation.</description>
+  <maintainer email="noreply@seaclear2.local">SeaClear2</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>vision_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>sc2_visual_servo_controller</exec_depend>
+  <exec_depend>sc2_visual_servo_perception</exec_depend>
+  <exec_depend>sc2_visual_servo_synth</exec_depend>
+
+  <test_depend>ament_pytest</test_depend>
+  <test_depend>launch_testing</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

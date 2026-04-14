@@ -14,6 +14,7 @@ class SyntheticBBoxPublisherNode(Node):
         super().__init__('synthetic_bbox_publisher_node')
 
         self.declare_parameter('detections_topic', '/detections_output')
+        self.declare_parameter('best_detection_topic', '/best_detection')
         self.declare_parameter('target_obs_topic', '/sc2/visual_servo/target_obs')
         self.declare_parameter('publish_target_obs_direct', False)
         self.declare_parameter('pattern', 'fixed_offsets')
@@ -56,6 +57,7 @@ class SyntheticBBoxPublisherNode(Node):
         self.declare_parameter('reacquire_duration_s', 4.0)
 
         self._detections_topic = str(self.get_parameter('detections_topic').value)
+        self._best_detection_topic = str(self.get_parameter('best_detection_topic').value)
         self._target_obs_topic = str(self.get_parameter('target_obs_topic').value)
         self._publish_direct = self._as_bool(self.get_parameter('publish_target_obs_direct').value)
         self._pattern = str(self.get_parameter('pattern').value).strip().lower()
@@ -98,6 +100,7 @@ class SyntheticBBoxPublisherNode(Node):
         self._reacq_duration = max(0.0, float(self.get_parameter('reacquire_duration_s').value))
 
         self._det_pub = self.create_publisher(Detection2DArray, self._detections_topic, 10)
+        self._best_pub = self.create_publisher(Detection2D, self._best_detection_topic, 10)
         self._obs_pub = self.create_publisher(TargetObservation, self._target_obs_topic, 10)
 
         self._rng = random.Random(7)
@@ -230,6 +233,10 @@ class SyntheticBBoxPublisherNode(Node):
         u, v, w, h = self._pattern_bbox()
         det_msg = self._build_detection_array(u, v, w, h)
         self._det_pub.publish(det_msg)
+        if det_msg.detections:
+            best = det_msg.detections[0]
+            best.header = det_msg.header
+            self._best_pub.publish(best)
 
         if self._publish_direct:
             self._obs_pub.publish(self._build_target_obs(det_msg.header.stamp, u, v, w, h))

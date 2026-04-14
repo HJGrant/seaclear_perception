@@ -60,6 +60,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
         self.declare_parameter('controller_mode', 'ibvs')
+        self.declare_parameter('start_enabled', False)
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
@@ -272,7 +273,7 @@ class VisualServoControllerNode(Node):
         self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
 
         #service for turning the IBVS control on or off 
-        self.control_enabled = False # Default to off
+        self.control_enabled = self._as_bool(self.get_parameter('start_enabled').value)
         self.ibvs_switch_srv = self.create_service(SetBool, 'enable_ibvs_control', self.handle_control_switch)
 
         self.tf_buffer = tf2_ros.Buffer()
@@ -368,9 +369,14 @@ class VisualServoControllerNode(Node):
             self._z_pid.reset()
 
         if self._staged_pid_phase == 'vertical_enabled':
-            # TODO implement
+            vel_z_im = self._z_pid.update(err_z_m, dt_ctrl)
+            cmd_vz_body = -vel_z_im
+            aligned = (
+                abs_u <= self._staged_pid_horizontal_tol_px and
+                abs(centroid_err_y) <= self._staged_pid_vertical_tol_px and
+                abs(err_z_m) <= self._staged_pid_distance_tol_m
+            )
             status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
-            pass
         else:
             status = 'TRACKING_STAGED_PID_HORIZONTAL'
 
