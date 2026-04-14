@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920">
+  <rect width="1400" height="920" fill="#f2f5f1"/>
+  <rect x="70" y="70" width="1260" height="780" rx="28" fill="#ffffff" stroke="#234d3d" stroke-width="4"/>
+  <text x="110" y="130" font-family="Arial, sans-serif" font-size="34" fill="#17362b">Simulator Phase 1 MVP Overview</text>
+  <text x="110" y="168" font-family="Arial, sans-serif" font-size="18" fill="#45675b">TwistStamped is the fixed top-level control interface. Backend owns velocity tracking.</text>
+
+  <rect x="120" y="220" width="300" height="118" rx="16" fill="#d9efe7" stroke="#2b6b56" stroke-width="3"/>
+  <text x="150" y="268" font-family="Arial, sans-serif" font-size="24" fill="#17362b">sim_downward_camera_node</text>
+  <text x="150" y="300" font-family="Arial, sans-serif" font-size="18" fill="#17362b">RGB + depth + camera_info</text>
+
+  <rect x="120" y="390" width="300" height="118" rx="16" fill="#d9efe7" stroke="#2b6b56" stroke-width="3"/>
+  <text x="150" y="438" font-family="Arial, sans-serif" font-size="24" fill="#17362b">Detector Path</text>
+  <text x="150" y="470" font-family="Arial, sans-serif" font-size="18" fill="#17362b">synthetic or rendered RGB</text>
+
+  <rect x="520" y="305" width="340" height="118" rx="16" fill="#eef2d5" stroke="#74852b" stroke-width="3"/>
+  <text x="550" y="353" font-family="Arial, sans-serif" font-size="24" fill="#32400d">target_point_estimator_node</text>
+  <text x="550" y="385" font-family="Arial, sans-serif" font-size="18" fill="#32400d">best_detection + depth -> target_point</text>
+
+  <rect x="970" y="220" width="280" height="118" rx="16" fill="#fde5c9" stroke="#b36d12" stroke-width="3"/>
+  <text x="1000" y="268" font-family="Arial, sans-serif" font-size="24" fill="#623800">visual_servo_controller</text>
+  <text x="1000" y="300" font-family="Arial, sans-serif" font-size="18" fill="#623800">outputs /cmd_vel_body</text>
+
+  <rect x="970" y="410" width="280" height="118" rx="16" fill="#f9d7d7" stroke="#9b3636" stroke-width="3"/>
+  <text x="1000" y="458" font-family="Arial, sans-serif" font-size="24" fill="#5e1d1d">dynamic_velocity_backend</text>
+  <text x="1000" y="490" font-family="Arial, sans-serif" font-size="18" fill="#5e1d1d">/sim/odom + /sim/backend/wrench</text>
+
+  <rect x="970" y="580" width="280" height="96" rx="16" fill="#f3e3fb" stroke="#7a44a1" stroke-width="3"/>
+  <text x="1000" y="623" font-family="Arial, sans-serif" font-size="24" fill="#4c2a66">direct_velocity_backend</text>
+  <text x="1000" y="652" font-family="Arial, sans-serif" font-size="18" fill="#4c2a66">debug-only path</text>
+
+  <rect x="520" y="570" width="340" height="118" rx="16" fill="#dde8fb" stroke="#3e67aa" stroke-width="3"/>
+  <text x="550" y="618" font-family="Arial, sans-serif" font-size="24" fill="#203961">odom_to_body_twist_node</text>
+  <text x="550" y="650" font-family="Arial, sans-serif" font-size="18" fill="#203961">/sim/odom -> /sim/body_velocity</text>
+
+  <line x1="420" y1="280" x2="520" y2="345" stroke="#2b6b56" stroke-width="4"/>
+  <line x1="420" y1="450" x2="520" y2="383" stroke="#2b6b56" stroke-width="4"/>
+  <line x1="860" y1="364" x2="970" y2="278" stroke="#74852b" stroke-width="4"/>
+  <line x1="1110" y1="338" x2="1110" y2="410" stroke="#b36d12" stroke-width="4"/>
+  <line x1="1110" y1="338" x2="1110" y2="580" stroke="#b36d12" stroke-width="2" stroke-dasharray="10 8"/>
+  <line x1="970" y1="469" x2="860" y2="628" stroke="#9b3636" stroke-width="4"/>
+  <line x1="860" y1="628" x2="520" y2="628" stroke="#3e67aa" stroke-width="4"/>
+  <line x1="860" y1="628" x2="420" y2="280" stroke="#3e67aa" stroke-width="4"/>
+
+  <text x="454" y="282" font-family="Arial, sans-serif" font-size="18" fill="#17362b">image/depth</text>
+  <text x="448" y="420" font-family="Arial, sans-serif" font-size="18" fill="#17362b">best_detection</text>
+  <text x="876" y="334" font-family="Arial, sans-serif" font-size="18" fill="#32400d">target_point</text>
+  <text x="1128" y="382" font-family="Arial, sans-serif" font-size="18" fill="#623800">TwistStamped</text>
+  <text x="875" y="604" font-family="Arial, sans-serif" font-size="18" fill="#5e1d1d">odom</text>
+  <text x="286" y="640" font-family="Arial, sans-serif" font-size="18" fill="#203961">body velocity feedback</text>
+
+  <text x="120" y="770" font-family="Arial, sans-serif" font-size="22" fill="#17362b">Frame chain: odom -> base_link -> down_camera_link -> down_camera_optical_frame</text>
+  <text x="120" y="810" font-family="Arial, sans-serif" font-size="22" fill="#17362b">Optical mapping: x_opt=-y_body, y_opt=-x_body, z_opt=-z_body</text>
+</svg>
