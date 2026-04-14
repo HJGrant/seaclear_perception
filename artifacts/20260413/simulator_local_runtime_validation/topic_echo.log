@@ -1,0 +1,1 @@
+NOT RUN: ros2 topic echo /sc2/visual_servo/cmd_vel_body --once

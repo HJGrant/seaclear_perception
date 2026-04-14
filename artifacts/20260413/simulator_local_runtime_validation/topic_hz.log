@@ -1,0 +1,1 @@
+NOT RUN: ros2 topic hz /sim/down/image_raw
