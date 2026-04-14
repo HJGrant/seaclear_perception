@@ -33,6 +33,14 @@ class VisualServoControllerNode(Node):
         VISUAL = 3
         DVL = 4 
         COMPLETE = 5
+
+    class StagedPIDState(Enum):
+        HORIZONTAL = 'HORIZONTAL'
+        HORIZONTAL_AND_VERTICAL = 'HORIZONTAL_AND_VERTICAL'
+        SEARCH_HOLD = 'SEARCH_HOLD'
+        SEARCH_SCAN = 'SEARCH_SCAN'
+        SEARCH_RECOVERY = 'SEARCH_RECOVERY'
+        HOLD_ZERO_VELOCITY = 'HOLD_ZERO_VELOCITY'
     
     @staticmethod
     def _as_bool(value) -> bool:
@@ -67,7 +75,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('camera_image_plane_frame_id', 'image_plane')                # image plane frame
 
         # controller parameters 
-        self.declare_parameter('timeout_ms', 500)
+        self.declare_parameter('timeout_ms', 200)
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
         self.declare_parameter('controller_mode', 'staged_pid')
@@ -126,6 +134,15 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('staged_pid_enable_yaw', False)
         self.declare_parameter('desired_vertical_distance_m', 0.6)
         self.declare_parameter('staged_pid_z_source', 'target_pose')
+        self.declare_parameter('tracked_enter_window_obs', 10)
+        self.declare_parameter('tracked_enter_min_obs', 2)
+        self.declare_parameter('tracked_exit_no_obs_sec', 0.6)
+        self.declare_parameter('search_hold_sec', 0.4)
+        self.declare_parameter('search_scan_sec', 3.0)
+        self.declare_parameter('search_yaw_rate', 0.15)
+        self.declare_parameter('search_recovery_vz', 0.05)
+        self.declare_parameter('search_recovery_sec', 2.0)
+        self.declare_parameter('staged_pid_hold_zero_distance_m', 0.5)
         
         # IBVS control parameters
         self.declare_parameter('ibvs_lambda', 0.2)
@@ -257,6 +274,21 @@ class VisualServoControllerNode(Node):
         self._staged_pid_vertical_exit_hold_ticks = max(
             1, int(self.get_parameter('staged_pid_vertical_exit_hold_ticks').value)
         )
+        self._tracked_enter_window_obs = max(
+            1, int(self.get_parameter('tracked_enter_window_obs').value)
+        )
+        self._tracked_enter_min_obs = max(
+            1, int(self.get_parameter('tracked_enter_min_obs').value)
+        )
+        self._tracked_exit_no_obs_sec = float(self.get_parameter('tracked_exit_no_obs_sec').value)
+        self._search_hold_sec = float(self.get_parameter('search_hold_sec').value)
+        self._search_scan_sec = float(self.get_parameter('search_scan_sec').value)
+        self._search_yaw_rate = float(self.get_parameter('search_yaw_rate').value)
+        self._search_recovery_vz = float(self.get_parameter('search_recovery_vz').value)
+        self._search_recovery_sec = float(self.get_parameter('search_recovery_sec').value)
+        self._staged_pid_hold_zero_distance_m = float(
+            self.get_parameter('staged_pid_hold_zero_distance_m').value
+        )
         self._staged_pid_phase = 'horizontal_only'
         self._staged_pid_recent_horizontal_ok = deque(
             maxlen=self._staged_pid_vertical_gate_window_ticks
@@ -268,6 +300,13 @@ class VisualServoControllerNode(Node):
         self._staged_pid_vertical_scale = 0.0
         self._staged_pid_last_obs_fresh = False
         self._staged_pid_last_horizontal_aligned = False
+        self._staged_pid_state = self.StagedPIDState.SEARCH_HOLD
+        self._staged_pid_state_since = self.get_clock().now()
+        self._target_tracked = False
+        self._latest_detection_time = None
+        self._last_valid_target_observation_time = None
+        self._last_accepted_target_centroid: Optional[np.ndarray] = None
+        self._tracking_valid_observation_history = deque(maxlen=self._tracked_enter_window_obs)
 
         ###########################################################################################################################################
         ################################## Here start the IBVS control parameters which were validated in simulation ##############################
@@ -380,11 +419,8 @@ class VisualServoControllerNode(Node):
         self._latest_depth_measurement = float(np.abs(msg.data))
         self._last_depth_time = self.get_clock().now()
 
-    def _reset_staged_pid_state(self) -> None:
-        self._xy_pid_x.reset()
-        self._xy_pid_y.reset()
+    def _reset_vertical_gate(self) -> None:
         self._z_pid.reset()
-        self._staged_pid_phase = 'horizontal_only'
         self._staged_pid_recent_horizontal_ok.clear()
         self._staged_pid_vertical_enabled = False
         self._staged_pid_enter_counter = 0
@@ -392,6 +428,85 @@ class VisualServoControllerNode(Node):
         self._staged_pid_horizontal_ok_ratio = 0.0
         self._staged_pid_vertical_scale = 0.0
         self._staged_pid_last_horizontal_aligned = False
+        self._staged_pid_phase = 'horizontal_only'
+
+    def _reset_staged_pid_state(self) -> None:
+        self._xy_pid_x.reset()
+        self._xy_pid_y.reset()
+        self._reset_vertical_gate()
+
+    def _set_staged_pid_state(self, new_state: "VisualServoControllerNode.StagedPIDState") -> None:
+        if new_state != self._staged_pid_state:
+            self.get_logger().info(
+                f'Staged PID state transition: {self._staged_pid_state.value} -> {new_state.value}'
+            )
+            self._staged_pid_state = new_state
+            self._staged_pid_state_since = self.get_clock().now()
+
+    def _set_target_tracked(self, tracked: bool) -> None:
+        if tracked == self._target_tracked:
+            return
+        self._target_tracked = tracked
+        if tracked:
+            self._set_staged_pid_state(self.StagedPIDState.HORIZONTAL)
+            self._reset_vertical_gate()
+        else:
+            self._set_staged_pid_state(self.StagedPIDState.SEARCH_HOLD)
+            self._reset_vertical_gate()
+
+    def _update_target_tracking_from_detection(self, now) -> bool:
+        if not hasattr(self, 'latest_centroid'):
+            return False
+        centroid = np.array(self.latest_centroid, dtype=np.float32)
+        roi_consistent = (
+            self._last_accepted_target_centroid is None or
+            is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
+        )
+        valid_target_observation = bool(roi_consistent)
+        self._tracking_valid_observation_history.append(valid_target_observation)
+        if valid_target_observation:
+            self._last_accepted_target_centroid = centroid
+            self._last_valid_target_observation_time = now
+        if (
+            not self._target_tracked and
+            sum(self._tracking_valid_observation_history) >= self._tracked_enter_min_obs
+        ):
+            self._set_target_tracked(True)
+        return valid_target_observation
+
+    def _update_target_tracked_from_tick(self, now) -> None:
+        if (
+            self._target_tracked and
+            not self._is_timestamp_fresh(self._last_valid_target_observation_time, self._tracked_exit_no_obs_sec)
+        ):
+            self._set_target_tracked(False)
+
+    def _tracked_horizontal_stale_command(self) -> tuple[float, float, float, float]:
+        # Short stale gaps keep decaying the last horizontal command while forcing z=0.
+        return (
+            float(self.v_last_valid[0] * self.decay_rate),
+            float(self.v_last_valid[1] * self.decay_rate),
+            0.0,
+            float(self.v_last_valid[5] * self.decay_rate),
+        )
+
+    def _compute_search_command(self, now) -> tuple[float, float, float, float, str]:
+        elapsed = (now - self._staged_pid_state_since).nanoseconds * 1e-9
+        if self._staged_pid_state == self.StagedPIDState.SEARCH_HOLD and elapsed >= self._search_hold_sec:
+            self._set_staged_pid_state(self.StagedPIDState.SEARCH_SCAN)
+            elapsed = 0.0
+        if self._staged_pid_state == self.StagedPIDState.SEARCH_SCAN and elapsed >= self._search_scan_sec:
+            self._set_staged_pid_state(self.StagedPIDState.SEARCH_RECOVERY)
+            elapsed = 0.0
+
+        if self._staged_pid_state == self.StagedPIDState.SEARCH_HOLD:
+            return 0.0, 0.0, 0.0, 0.0, 'TRACKING_STAGED_PID_SEARCH_HOLD'
+        if self._staged_pid_state == self.StagedPIDState.SEARCH_SCAN:
+            return 0.0, 0.0, 0.0, self._search_yaw_rate, 'TRACKING_STAGED_PID_SEARCH_SCAN'
+        if self._staged_pid_state == self.StagedPIDState.SEARCH_RECOVERY:
+            vz_cmd = self._search_recovery_vz if elapsed <= self._search_recovery_sec else 0.0
+            return 0.0, 0.0, vz_cmd, 0.0, 'TRACKING_STAGED_PID_SEARCH_RECOVERY'
+        return 0.0, 0.0, 0.0, 0.0, 'TRACKING_STAGED_PID_SEARCH_HOLD'
 
     def _is_timestamp_fresh(self, stamp, timeout_sec: float) -> bool:
         if stamp is None:
@@ -461,10 +576,14 @@ class VisualServoControllerNode(Node):
 
         return None, None, False
 
-    def _compute_staged_pid_command(self, obs_fresh: bool, dt_ctrl: float) -> tuple[float, float, float, float, str]:
+    def _compute_staged_pid_command(
+        self,
+        obs_fresh: bool,
+        dt_ctrl: float,
+    ) -> tuple[float, float, float, float, str, bool, Optional[float]]:
         if not hasattr(self, 'latest_centroid'):
             self._reset_staged_pid_state()
-            return 0.0, 0.0, 0.0, 0.0, 'NO_TARGET_TIMEOUT'
+            return 0.0, 0.0, 0.0, 0.0, 'NO_TARGET_TIMEOUT', False, None
 
         z_meas, z_source, z_fresh = self._resolve_vertical_measurement()
 
@@ -511,10 +630,12 @@ class VisualServoControllerNode(Node):
                 abs(err_z_m) <= self._staged_pid_distance_tol_m
             )
             base_status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
+            self._set_staged_pid_state(self.StagedPIDState.HORIZONTAL_AND_VERTICAL)
         else:
             self._z_pid.reset()
             if not obs_fresh:
-                base_status = 'TRACKING_STAGED_PID_HORIZONTAL_NO_OBS'
+                cmd_vx_body, cmd_vy_body, cmd_vz_body, yaw = self._tracked_horizontal_stale_command()
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL_STALE'
             elif not z_fresh:
                 base_status = 'TRACKING_STAGED_PID_HORIZONTAL_Z_STALE'
             elif self._staged_pid_vertical_enabled and not horizontal_aligned_now:
@@ -523,11 +644,14 @@ class VisualServoControllerNode(Node):
                 base_status = 'TRACKING_STAGED_PID_HORIZONTAL_READY'
             else:
                 base_status = 'TRACKING_STAGED_PID_HORIZONTAL'
+            self._set_staged_pid_state(self.StagedPIDState.HORIZONTAL)
 
         self._staged_pid_last_obs_fresh = obs_fresh
         self.get_logger().info(
             'staged_pid'
+            f' state={self._staged_pid_state.value}'
             f' phase={self._staged_pid_phase}'
+            f' target_tracked={self._target_tracked}'
             f' obs_fresh={obs_fresh}'
             f' horizontal_ok_ratio={horizontal_ok_ratio:.2f}'
             f' vertical_scale={self._staged_pid_vertical_scale:.2f}'
@@ -544,7 +668,7 @@ class VisualServoControllerNode(Node):
         elif z_source == 'target_pose' and status.startswith('TRACKING_STAGED_PID'):
             status += '_TARGET_POSE'
 
-        return cmd_vx_body, cmd_vy_body, cmd_vz_body, yaw, status
+        return cmd_vx_body, cmd_vy_body, cmd_vz_body, yaw, status, allow_z, z_meas
 
     def _camera_info_cb(self, msg: CameraInfo) -> None:
         '''
@@ -588,7 +712,9 @@ class VisualServoControllerNode(Node):
 
         self.get_logger().info(f'Detection Recieved!', throttle_duration_sec=2.0)
 
-        self._last_obs_time = self.get_clock().now()
+        now = self.get_clock().now()
+        self._last_obs_time = now
+        self._latest_detection_time = now
         self._latest_obs = detection_2D_msg.bbox
         best_bbox = self._latest_obs
         
@@ -618,6 +744,9 @@ class VisualServoControllerNode(Node):
         )
         self._centroid_error_publisher.publish(err_summary)
 
+        if self._controller_mode == 'staged_pid':
+            self._update_target_tracking_from_detection(now)
+
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
@@ -630,10 +759,12 @@ class VisualServoControllerNode(Node):
             self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
             return
 
+        if self._controller_mode == 'staged_pid':
+            self._tick_staged_pid(now, dt_ctrl, dt_obs)
+            return
+
         # --- 1. SENSOR VALIDATION GATE ---
         is_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
-        if self._controller_mode == 'staged_pid':
-            self._update_staged_pid_vertical_gate(is_fresh)
         
         # ROI check against the LAST VALID centroid we trusted
         in_roi = True
@@ -653,7 +784,7 @@ class VisualServoControllerNode(Node):
         is_locked = (self.target_count > self.target_min)
 
         # publish if the target is locked or not for debugging
-        self._publish_is_locked(str(is_locked))
+        self._publish_target_tracked(str(is_locked))
 
         # --- 2. MATH UPDATE (Only if Locked) ---
         if is_locked:
@@ -703,31 +834,6 @@ class VisualServoControllerNode(Node):
         # --- 4. ACTION SELECTION (Mode-Specific) ---
         # Initialize raw target velocity
         v_raw_target = np.zeros(6)
-
-        if self._controller_mode == 'staged_pid' and self.current_state == self.ControllerState.VISUAL:
-            if is_locked and hasattr(self, 'latest_centroid'):
-                vx_body, vy_body, vz_body, yaw, status = self._compute_staged_pid_command(is_fresh, dt_ctrl)
-            else:
-                self._z_pid.reset()
-                self._staged_pid_vertical_enabled = False
-                self._staged_pid_vertical_scale = 0.0
-                self._staged_pid_phase = 'horizontal_only'
-                vx_body, vy_body, vz_body, yaw = 0.0, 0.0, 0.0, 0.0
-                status = 'TRACKING_STAGED_PID_HORIZONTAL_NO_OBS'
-
-            self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
-            self._publish_status(status)
-            self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
-            return
-
-        if self._controller_mode == 'staged_pid':
-            # Do not let stale staged-PID vertical commands leak into the generic
-            # decay/glide path when this mode is active but not commanding.
-            self._z_pid.reset()
-            self._staged_pid_vertical_enabled = False
-            self._staged_pid_vertical_scale = 0.0
-            self._staged_pid_phase = 'horizontal_only'
-            self.v_last_valid[2] = 0.0
 
         if self.current_state == self.ControllerState.DVL:
             # DVL DESCENT LOGIC
@@ -825,6 +931,54 @@ class VisualServoControllerNode(Node):
         except Exception as e:
             self.get_logger().error(f"TF Transform failed: {e}", throttle_duration_sec=1.0)
 
+    def _tick_staged_pid(self, now, dt_ctrl: float, dt_obs: float) -> None:
+        if self._staged_pid_state == self.StagedPIDState.HOLD_ZERO_VELOCITY:
+            self._publish_target_tracked(str(self._target_tracked))
+            self._publish_status(self._staged_pid_state.value)
+            self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+            self.v_last_valid = np.zeros(6)
+            return
+
+        obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
+        self._update_target_tracked_from_tick(now)
+        self._publish_target_tracked(str(self._target_tracked))
+
+        if self._target_tracked:
+            self.set_state(self.ControllerState.VISUAL)
+            self._update_staged_pid_vertical_gate(obs_fresh)
+            if obs_fresh and hasattr(self, 'latest_centroid'):
+                vx_body, vy_body, vz_body, yaw, status, allow_z, z_meas = self._compute_staged_pid_command(
+                    obs_fresh,
+                    dt_ctrl,
+                )
+                if (
+                    allow_z and
+                    z_meas is not None and
+                    z_meas <= self._staged_pid_hold_zero_distance_m
+                ):
+                    self._set_staged_pid_state(self.StagedPIDState.HOLD_ZERO_VELOCITY)
+                    self._publish_status(self._staged_pid_state.value)
+                    self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+                    self.v_last_valid = np.zeros(6)
+                    return
+            else:
+                self._set_staged_pid_state(self.StagedPIDState.HORIZONTAL)
+                self._reset_vertical_gate()
+                vx_body, vy_body, vz_body, yaw = self._tracked_horizontal_stale_command()
+                status = 'TRACKING_STAGED_PID_HORIZONTAL_STALE'
+
+            self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
+            self._publish_status(status)
+            self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+            return
+
+        self.set_state(self.ControllerState.BREAK)
+        self._reset_vertical_gate()
+        vx_body, vy_body, vz_body, yaw, status = self._compute_search_command(now)
+        self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
+        self._publish_status(status)
+        self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+
     def set_state(self, new_state):
         if new_state != self.current_state:
             # Logging the change
@@ -853,7 +1007,7 @@ class VisualServoControllerNode(Node):
         msg.data = text
         self._status_pub.publish(msg)
 
-    def _publish_is_locked(self, text: str) -> None:
+    def _publish_target_tracked(self, text: str) -> None:
         msg = String()
         msg.data = text
         self._target_locked_pub.publish(msg)
