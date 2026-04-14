@@ -1,3 +1,4 @@
+from collections import deque
 from typing import Optional
 import numpy as np
 
@@ -77,10 +78,10 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('yaw_control', False)    #turn yaw control on/off
 
         # image data parameters
-        self.declare_parameter('image_width', 1280.0)
+        self.declare_parameter('image_width', 640.0) # output image from yolo is squeezed in u-direction
         self.declare_parameter('image_height', 640.0)
-        self.declare_parameter('target_u', 640.0)
-        self.declare_parameter('target_v', 360.0)
+        self.declare_parameter('target_u', 320.0)
+        self.declare_parameter('target_v', 320.0)
 
         # vertical control parameters
         self.declare_parameter('desired_depth_m', 1.0)
@@ -112,9 +113,16 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('staged_pid_z_kd', 0.10)
         self.declare_parameter('staged_pid_z_integral_limit', 1.0)
         self.declare_parameter('staged_pid_horizontal_tolerance_px', 25.0)
+        self.declare_parameter('staged_pid_horizontal_tolerance_x_px', 25.0)
+        self.declare_parameter('staged_pid_horizontal_tolerance_y_px', 25.0)
         self.declare_parameter('staged_pid_vertical_tolerance_px', 25.0)
         self.declare_parameter('staged_pid_distance_tolerance_m', 0.08)
         self.declare_parameter('staged_pid_horizontal_hold_sec', 0.30)
+        self.declare_parameter('staged_pid_vertical_gate_window_ticks', 10)
+        self.declare_parameter('staged_pid_vertical_enter_ratio', 0.8)
+        self.declare_parameter('staged_pid_vertical_exit_ratio', 0.4)
+        self.declare_parameter('staged_pid_vertical_enter_hold_ticks', 2)
+        self.declare_parameter('staged_pid_vertical_exit_hold_ticks', 2)
         self.declare_parameter('staged_pid_enable_yaw', False)
         self.declare_parameter('desired_vertical_distance_m', 0.6)
         self.declare_parameter('staged_pid_z_source', 'target_pose')
@@ -156,11 +164,8 @@ class VisualServoControllerNode(Node):
         self.enable_mavros_depth = self.get_parameter('mavros_depth').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
 
-        # whether to use depth from the RGB-D data or from MAVROS 
-        if self.enable_mavros_depth:
-            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
-        else:
-            self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+        self._target_pose_topic = str(self.get_parameter('target_point_topic').value)
+        self._mavros_depth_topic = str(self.get_parameter('mavros_depth_topic').value)
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -188,7 +193,9 @@ class VisualServoControllerNode(Node):
         self._desired_target_dist = float(self.get_parameter('desired_target_distance_m').value)
         self._desired_vertical_dist = float(self.get_parameter('desired_vertical_distance_m').value)
         self._staged_pid_z_source = str(self.get_parameter('staged_pid_z_source').value).strip().lower()
-        if self._staged_pid_z_source not in {'target_pose', 'dvl'}:
+        if self._staged_pid_z_source == 'dvl':
+            self._staged_pid_z_source = 'mavros_depth'
+        if self._staged_pid_z_source not in {'target_pose', 'mavros_depth'}:
             self.get_logger().warn(
                 f'Invalid staged_pid_z_source={self._staged_pid_z_source}; using target_pose'
             )
@@ -227,12 +234,40 @@ class VisualServoControllerNode(Node):
             output_limit=self._max_vz,
         ))
         self._staged_pid_enable_yaw = self._as_bool(self.get_parameter('staged_pid_enable_yaw').value)
-        self._staged_pid_horizontal_tol_px = float(self.get_parameter('staged_pid_horizontal_tolerance_px').value)
+        horizontal_tol_px = float(self.get_parameter('staged_pid_horizontal_tolerance_px').value)
+        horizontal_tol_x_px = float(self.get_parameter('staged_pid_horizontal_tolerance_x_px').value)
+        horizontal_tol_y_px = float(self.get_parameter('staged_pid_horizontal_tolerance_y_px').value)
+        if horizontal_tol_x_px == 25.0 and horizontal_tol_px != 25.0:
+            horizontal_tol_x_px = horizontal_tol_px
+        if horizontal_tol_y_px == 25.0 and horizontal_tol_px != 25.0:
+            horizontal_tol_y_px = horizontal_tol_px
+        self._staged_pid_horizontal_tol_x_px = horizontal_tol_x_px
+        self._staged_pid_horizontal_tol_y_px = horizontal_tol_y_px
         self._staged_pid_vertical_tol_px = float(self.get_parameter('staged_pid_vertical_tolerance_px').value)
         self._staged_pid_distance_tol_m = float(self.get_parameter('staged_pid_distance_tolerance_m').value)
         self._staged_pid_horizontal_hold_sec = float(self.get_parameter('staged_pid_horizontal_hold_sec').value)
+        self._staged_pid_vertical_gate_window_ticks = max(
+            1, int(self.get_parameter('staged_pid_vertical_gate_window_ticks').value)
+        )
+        self._staged_pid_vertical_enter_ratio = float(self.get_parameter('staged_pid_vertical_enter_ratio').value)
+        self._staged_pid_vertical_exit_ratio = float(self.get_parameter('staged_pid_vertical_exit_ratio').value)
+        self._staged_pid_vertical_enter_hold_ticks = max(
+            1, int(self.get_parameter('staged_pid_vertical_enter_hold_ticks').value)
+        )
+        self._staged_pid_vertical_exit_hold_ticks = max(
+            1, int(self.get_parameter('staged_pid_vertical_exit_hold_ticks').value)
+        )
         self._staged_pid_phase = 'horizontal_only'
-        self._staged_pid_horizontal_ok_since = None
+        self._staged_pid_recent_horizontal_ok = deque(
+            maxlen=self._staged_pid_vertical_gate_window_ticks
+        )
+        self._staged_pid_vertical_enabled = False
+        self._staged_pid_enter_counter = 0
+        self._staged_pid_exit_counter = 0
+        self._staged_pid_horizontal_ok_ratio = 0.0
+        self._staged_pid_vertical_scale = 0.0
+        self._staged_pid_last_obs_fresh = False
+        self._staged_pid_last_horizontal_aligned = False
 
         ###########################################################################################################################################
         ################################## Here start the IBVS control parameters which were validated in simulation ##############################
@@ -243,7 +278,7 @@ class VisualServoControllerNode(Node):
         # TODO: validate whether these target corners suffice 
         side_length = 100
         h = side_length / 2.0
-        cx, cy = self.image_height / 2.0, self.image_height / 2.0
+        cx, cy = self.image_width / 2.0, self.image_height / 2.0
 
         self.center_box_corners = np.array([
             [cx - h, cy - h],  # Top-Left
@@ -281,7 +316,8 @@ class VisualServoControllerNode(Node):
         self.J_img = np.eye(2*self.center_box_corners.shape[0], 6)  # initialise the Jacobian based on the number of target points
 
         # DVL control parameters
-        self._latest_depth_measurement = 3.0
+        self._latest_depth_measurement: Optional[float] = None
+        self._last_depth_time = None
         self.dist_target = float(self.get_parameter('desired_target_distance_m').value) # desired vertical distance to target     
         self.kz = float(self.get_parameter('vertical_gain').value) # vertical gain
 
@@ -306,10 +342,9 @@ class VisualServoControllerNode(Node):
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
+        self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
         if self.enable_mavros_depth:
-            self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
-        else:
-            self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
+            self.create_subscription(Float64, self._mavros_depth_topic, self._depth_measurement_cb, 10)
 
         #service for turning the IBVS control on or off 
         self.control_enabled = False # Default to off
@@ -336,57 +371,118 @@ class VisualServoControllerNode(Node):
         return response
 
     def _target_pose_cb(self, msg) -> None:
-        '''Extract the depth information from the latest Pose etimate.'''
-        if self.enable_mavros_depth:
-            latest_depth = msg.data
-            self._latest_depth_measurement = np.abs(latest_depth)
-        else:
-            self._latest_target_point = msg
-            self._last_target_point_time = self.get_clock().now()
-            latest_pose = msg.pose
-            self._latest_depth_measurement = latest_pose.position.z
+        '''Extract the latest target pose estimate and its timestamp.'''
+        self._latest_target_point = msg
+        self._last_target_point_time = self.get_clock().now()
+
+    def _depth_measurement_cb(self, msg: Float64) -> None:
+        '''Store the latest MAVROS/DVL-like vertical distance measurement.'''
+        self._latest_depth_measurement = float(np.abs(msg.data))
+        self._last_depth_time = self.get_clock().now()
 
     def _reset_staged_pid_state(self) -> None:
         self._xy_pid_x.reset()
         self._xy_pid_y.reset()
         self._z_pid.reset()
         self._staged_pid_phase = 'horizontal_only'
-        self._staged_pid_horizontal_ok_since = None
+        self._staged_pid_recent_horizontal_ok.clear()
+        self._staged_pid_vertical_enabled = False
+        self._staged_pid_enter_counter = 0
+        self._staged_pid_exit_counter = 0
+        self._staged_pid_horizontal_ok_ratio = 0.0
+        self._staged_pid_vertical_scale = 0.0
+        self._staged_pid_last_horizontal_aligned = False
 
-    def _resolve_vertical_measurement(self, dt_target_point: float) -> tuple[Optional[float], bool]:
-        # positive-down vertical distance [m]
-        if self._staged_pid_z_source == 'target_pose':
-            has_target_point = (
-                self._latest_target_point is not None and
-                dt_target_point <= self._target_point_timeout_sec
+    def _is_timestamp_fresh(self, stamp, timeout_sec: float) -> bool:
+        if stamp is None:
+            return False
+        return ((self.get_clock().now() - stamp).nanoseconds * 1e-9) <= timeout_sec
+
+    def _update_staged_pid_vertical_gate(self, obs_fresh: bool) -> tuple[bool, float]:
+        horizontal_aligned = False
+        if obs_fresh and hasattr(self, 'latest_centroid'):
+            centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
+            centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+            horizontal_aligned = (
+                abs(centroid_err_x) <= self._staged_pid_horizontal_tol_x_px and
+                abs(centroid_err_y) <= self._staged_pid_horizontal_tol_y_px
             )
-            if has_target_point:
-                return float(self._latest_target_point.pose.position.z), True
-        if np.isfinite(self._latest_depth_measurement):
-            return float(self._latest_depth_measurement), False
-        return None, False
 
-    def _compute_staged_pid_command(self, dt_target_point: float, dt_ctrl: float) -> tuple[float, float, float, float, str]:
+        self._staged_pid_recent_horizontal_ok.append(horizontal_aligned)
+        ok_count = sum(self._staged_pid_recent_horizontal_ok)
+        horizontal_ok_ratio = ok_count / float(self._staged_pid_vertical_gate_window_ticks)
+
+        if horizontal_ok_ratio >= self._staged_pid_vertical_enter_ratio:
+            self._staged_pid_enter_counter += 1
+        else:
+            self._staged_pid_enter_counter = 0
+
+        if horizontal_ok_ratio <= self._staged_pid_vertical_exit_ratio:
+            self._staged_pid_exit_counter += 1
+        else:
+            self._staged_pid_exit_counter = 0
+
+        if (not self._staged_pid_vertical_enabled and
+                self._staged_pid_enter_counter >= self._staged_pid_vertical_enter_hold_ticks):
+            self._staged_pid_vertical_enabled = True
+            self._staged_pid_exit_counter = 0
+        elif (self._staged_pid_vertical_enabled and
+              self._staged_pid_exit_counter >= self._staged_pid_vertical_exit_hold_ticks):
+            self._staged_pid_vertical_enabled = False
+            self._staged_pid_enter_counter = 0
+            self._z_pid.reset()
+
+        self._staged_pid_phase = 'vertical_enabled' if self._staged_pid_vertical_enabled else 'horizontal_only'
+        self._staged_pid_horizontal_ok_ratio = horizontal_ok_ratio
+        self._staged_pid_vertical_scale = horizontal_ok_ratio if self._staged_pid_vertical_enabled else 0.0
+        self._staged_pid_last_horizontal_aligned = horizontal_aligned
+        return horizontal_aligned, horizontal_ok_ratio
+
+    def _resolve_vertical_measurement(self) -> tuple[Optional[float], Optional[str], bool]:
+        # positive-down vertical distance [m]
+        target_pose_fresh = (
+            self._latest_target_point is not None and
+            self._is_timestamp_fresh(self._last_target_point_time, self._target_point_timeout_sec)
+        )
+        depth_fresh = (
+            self._latest_depth_measurement is not None and
+            self._is_timestamp_fresh(self._last_depth_time, self._target_point_timeout_sec)
+        )
+
+        if self._staged_pid_z_source == 'target_pose':
+            if target_pose_fresh:
+                return float(self._latest_target_point.pose.position.z), 'target_pose', True
+            return None, 'target_pose', False
+
+        if self._staged_pid_z_source == 'mavros_depth':
+            if depth_fresh:
+                return float(self._latest_depth_measurement), 'mavros_depth', True
+            return None, 'mavros_depth', False
+
+        return None, None, False
+
+    def _compute_staged_pid_command(self, obs_fresh: bool, dt_ctrl: float) -> tuple[float, float, float, float, str]:
         if not hasattr(self, 'latest_centroid'):
             self._reset_staged_pid_state()
             return 0.0, 0.0, 0.0, 0.0, 'NO_TARGET_TIMEOUT'
 
-        z_meas, used_target_point = self._resolve_vertical_measurement(dt_target_point)
-        if z_meas is None:
-            self._reset_staged_pid_state()
-            return 0.0, 0.0, 0.0, 0.0, 'NO_VERTICAL_MEASUREMENT'
+        z_meas, z_source, z_fresh = self._resolve_vertical_measurement()
 
         centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
         centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
-        err_z_m = float(z_meas - self._desired_vertical_dist)
+        err_z_m = (
+            float(z_meas - self._desired_vertical_dist)
+            if z_meas is not None else
+            float('nan')
+        )
 
         vel_x_im = self._xy_pid_x.update(centroid_err_x, dt_ctrl)
         vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
-        vel_z_im = 0.0
 
-        cmd_vx_body = -vel_x_im
-        cmd_vy_body = vel_y_im
-        # Keep the requested simple mapping exactly as specified.
+        # Keep the current effective hardware behavior while removing the publish-side
+        # double inversion: the body-frame command returned here is the final sign.
+        cmd_vx_body = vel_x_im
+        cmd_vy_body = -vel_y_im
         cmd_vz_body = 0.0
         yaw = 0.0
         if self._staged_pid_enable_yaw:
@@ -395,31 +491,58 @@ class VisualServoControllerNode(Node):
                 self._max_yaw,
             )
 
-        # Stage 1: horizontal-only alignment. Vertical image motion stays disabled
-        # until the horizontal pixel error remains within tolerance long enough.
         abs_u = abs(centroid_err_x)
-        if abs_u <= self._staged_pid_horizontal_tol_px:
-            if self._staged_pid_horizontal_ok_since is None:
-                self._staged_pid_horizontal_ok_since = self.get_clock().now()
-            held_sec = (
-                self.get_clock().now() - self._staged_pid_horizontal_ok_since
-            ).nanoseconds * 1e-9
-            #if held_sec >= self._staged_pid_horizontal_hold_sec:
-            #    self._staged_pid_phase = 'vertical_enabled'
+        abs_v = abs(centroid_err_y)
+        horizontal_aligned_now = self._staged_pid_last_horizontal_aligned
+        horizontal_ok_ratio = self._staged_pid_horizontal_ok_ratio
+        allow_z = (
+            self._staged_pid_vertical_enabled and
+            horizontal_aligned_now and
+            z_fresh and
+            z_meas is not None
+        )
+
+        if allow_z:
+            vz_raw = self._z_pid.update(err_z_m, dt_ctrl)
+            cmd_vz_body = self._staged_pid_vertical_scale * vz_raw
+            aligned = (
+                abs_u <= self._staged_pid_horizontal_tol_x_px and
+                abs_v <= self._staged_pid_vertical_tol_px and
+                abs(err_z_m) <= self._staged_pid_distance_tol_m
+            )
+            base_status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
         else:
-            self._staged_pid_phase = 'horizontal_only'
-            self._staged_pid_horizontal_ok_since = None
             self._z_pid.reset()
+            if not obs_fresh:
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL_NO_OBS'
+            elif not z_fresh:
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL_Z_STALE'
+            elif self._staged_pid_vertical_enabled and not horizontal_aligned_now:
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL'
+            elif horizontal_aligned_now:
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL_READY'
+            else:
+                base_status = 'TRACKING_STAGED_PID_HORIZONTAL'
 
-        if self._staged_pid_phase == 'vertical_enabled':
-            # TODO implement
-            status = 'TRACKING_STAGED_PID_ALIGNED' if aligned else 'TRACKING_STAGED_PID_VERTICAL'
-            pass
-        else:
-            status = 'TRACKING_STAGED_PID_HORIZONTAL'
+        self._staged_pid_last_obs_fresh = obs_fresh
+        self.get_logger().info(
+            'staged_pid'
+            f' phase={self._staged_pid_phase}'
+            f' obs_fresh={obs_fresh}'
+            f' horizontal_ok_ratio={horizontal_ok_ratio:.2f}'
+            f' vertical_scale={self._staged_pid_vertical_scale:.2f}'
+            f' allow_z={allow_z}'
+            f' z_source={z_source or "none"}'
+            f' z_fresh={z_fresh}',
+            throttle_duration_sec=0.5,
+        )
 
-        if not used_target_point and status.startswith('TRACKING_STAGED_PID'):
-            status += '_FALLBACK_Z'
+        status = base_status
+
+        if z_source == 'mavros_depth' and status.startswith('TRACKING_STAGED_PID'):
+            status += '_MAVROS_Z'
+        elif z_source == 'target_pose' and status.startswith('TRACKING_STAGED_PID'):
+            status += '_TARGET_POSE'
 
         return cmd_vx_body, cmd_vy_body, cmd_vz_body, yaw, status
 
@@ -488,13 +611,16 @@ class VisualServoControllerNode(Node):
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
         err_summary.y = float(centroid_err_y)
-        err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        err_summary.z = (
+            float(self._latest_depth_measurement - self._desired_target_dist)
+            if self._latest_depth_measurement is not None else
+            float('nan')
+        )
         self._centroid_error_publisher.publish(err_summary)
 
     def _tick(self) -> None:
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
-        dt_target_point = (now - self._last_target_point_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
 
@@ -506,6 +632,8 @@ class VisualServoControllerNode(Node):
 
         # --- 1. SENSOR VALIDATION GATE ---
         is_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
+        if self._controller_mode == 'staged_pid':
+            self._update_staged_pid_vertical_gate(is_fresh)
         
         # ROI check against the LAST VALID centroid we trusted
         in_roi = True
@@ -530,7 +658,12 @@ class VisualServoControllerNode(Node):
         # --- 2. MATH UPDATE (Only if Locked) ---
         if is_locked:
             self.current_e = (self.latest_bbox_corners - self.center_box_corners).flatten(order="F") 
-            Z = np.ones(len(self.latest_bbox_corners)) * self._latest_depth_measurement # apply the latest depth measurement of the bbbox center
+            jacobian_depth = (
+                float(self._latest_depth_measurement)
+                if self._latest_depth_measurement is not None else
+                max(1e-3, self._desired_target_dist)
+            )
+            Z = np.ones(len(self.latest_bbox_corners)) * jacobian_depth
 
             
             if self.calibrated:
@@ -571,12 +704,30 @@ class VisualServoControllerNode(Node):
         # Initialize raw target velocity
         v_raw_target = np.zeros(6)
 
-        if self.current_state == self.ControllerState.VISUAL and is_locked and self._controller_mode == 'staged_pid':
-            vx_body, vy_body, vz_body, yaw, status = self._compute_staged_pid_command(dt_target_point, dt_ctrl)
+        if self._controller_mode == 'staged_pid' and self.current_state == self.ControllerState.VISUAL:
+            if is_locked and hasattr(self, 'latest_centroid'):
+                vx_body, vy_body, vz_body, yaw, status = self._compute_staged_pid_command(is_fresh, dt_ctrl)
+            else:
+                self._z_pid.reset()
+                self._staged_pid_vertical_enabled = False
+                self._staged_pid_vertical_scale = 0.0
+                self._staged_pid_phase = 'horizontal_only'
+                vx_body, vy_body, vz_body, yaw = 0.0, 0.0, 0.0, 0.0
+                status = 'TRACKING_STAGED_PID_HORIZONTAL_NO_OBS'
+
             self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
             self._publish_status(status)
-            self._publish_cmd_direct_body_with_slew(-vx_body, -vy_body, vz_body, yaw, dt_ctrl)
+            self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
             return
+
+        if self._controller_mode == 'staged_pid':
+            # Do not let stale staged-PID vertical commands leak into the generic
+            # decay/glide path when this mode is active but not commanding.
+            self._z_pid.reset()
+            self._staged_pid_vertical_enabled = False
+            self._staged_pid_vertical_scale = 0.0
+            self._staged_pid_phase = 'horizontal_only'
+            self.v_last_valid[2] = 0.0
 
         if self.current_state == self.ControllerState.DVL:
             # DVL DESCENT LOGIC
