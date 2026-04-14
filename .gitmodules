@@ -10,3 +10,6 @@
 [submodule "src/webrtc_ros"]
 	path = src/webrtc_ros
 	url = https://github.com/RobotWebTools/webrtc_ros.git
+[submodule "src/state_estimation"]
+	path = src/state_estimation
+	url = git@gitlab.lrz.de:itr-seaclear/tum/sc2/development/state_estimation.git

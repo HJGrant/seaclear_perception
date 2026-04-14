@@ -137,7 +137,7 @@ class VisualServoControllerNode(Node):
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
         
-        self._depth_mode = str(self.get_parameter('depth_estimation_mode').get_parameter_value().value)
+        self._depth_mode = str(self.get_parameter('depth_estimation_mode').get_parameter_value().string_value)
 
         # which depth estimation mode to use for IBVS
         match self._depth_mode:
@@ -256,11 +256,15 @@ class VisualServoControllerNode(Node):
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
-        if self.enable_dvl_altitude_depth:
-            self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
-        else:
-            self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
+        match self._depth_mode:
+            case 'RGBD':
+                self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
+            case 'DVL':
+                self.create_subscription(Dvl, self._target_pose_topic, self._target_pose_cb, 10)
+            case 'MAVROS':
+                self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
 
+        
         #service for turning the IBVS control on or off 
         self.control_enabled = False # Default to off
         self.ibvs_switch_srv = self.create_service(SetBool, 'enable_ibvs_control', self.handle_control_switch)
@@ -359,13 +363,8 @@ class VisualServoControllerNode(Node):
         #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
         self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
 
-        self.get_logger().info(f'self.latest_centroid: {self.latest_centroid}')
-        self.get_logger().info(f'self.target_centroid: {self.target_centroid}')
-
         centroid_err_x = self.target_centroid[0] - self.latest_centroid[0]
         centroid_err_y = self.target_centroid[1] - self.latest_centroid[1]
-
-        self.get_logger().info(f'error = center - bbox_centroid: {[centroid_err_x, centroid_err_y]}')
 
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
