@@ -169,6 +169,28 @@ def test_large_depth_jump_is_rejected_and_holds_last_valid_pose():
     _shutdown(node)
 
 
+def test_large_bbox_jump_is_rejected_and_holds_last_valid_pose():
+    rclpy.init()
+    node = _make_node(_base_params() + [
+        Parameter('hold_last_valid', value=True),
+        Parameter('enable_temporal_filter', value=True),
+        Parameter('reject_large_jumps', value=True),
+        Parameter('max_uv_jump_px', value=30.0),
+    ])
+    node._camera_info_cb(_camera_info_msg())
+    node._depth_cb(_depth_msg(np.full((120, 160), 1500, dtype=np.uint16)))
+
+    node._target_obs_cb(_detection_msg(80.0, 60.0))
+    node._target_obs_cb(_detection_msg(130.0, 60.0))
+
+    poses = _pose_messages(node)
+    assert len(poses) == 2
+    assert abs(poses[-1].pose.position.z - poses[-2].pose.position.z) < 0.05
+    assert _status_texts(node)[-1] == 'REJECTED_LARGE_JUMP'
+
+    _shutdown(node)
+
+
 def test_invalid_depth_short_gap_holds_last_valid_pose():
     rclpy.init()
     node = _make_node(_base_params() + [
@@ -187,6 +209,29 @@ def test_invalid_depth_short_gap_holds_last_valid_pose():
     assert len(poses) == 2
     assert abs(poses[-1].pose.position.z - poses[-2].pose.position.z) < 0.05
     assert _status_texts(node)[-1] == 'HOLD_LAST_VALID'
+
+    _shutdown(node)
+
+
+def test_stale_depth_short_gap_holds_last_valid_pose():
+    rclpy.init()
+    node = _make_node(_base_params() + [
+        Parameter('hold_last_valid', value=True),
+        Parameter('max_hold_ms', value=500.0),
+        Parameter('max_depth_age_ms', value=1.0),
+        Parameter('enable_temporal_filter', value=False),
+    ])
+    node._camera_info_cb(_camera_info_msg())
+
+    node._depth_cb(_depth_msg(np.full((120, 160), 1500, dtype=np.uint16)))
+    node._target_obs_cb(_detection_msg(80.0, 60.0))
+    time.sleep(0.01)
+    node._target_obs_cb(_detection_msg(80.0, 60.0))
+
+    poses = _pose_messages(node)
+    assert len(poses) == 2
+    assert abs(poses[-1].pose.position.z - poses[-2].pose.position.z) < 0.05
+    assert _status_texts(node)[-1] == 'HOLD_LAST_VALID_DEPTH_STALE'
 
     _shutdown(node)
 
