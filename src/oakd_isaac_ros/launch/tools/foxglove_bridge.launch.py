@@ -87,7 +87,7 @@ MY_TOPIC_LIST = [
     '/sc2/imu/imu',    #remapped topic from /oak/imu/data 
     '/imu/data',
     #'/oak/imu/data',
-    #'/oak/rgb/camera_info',
+    '/oak/rgb/camera_info',
     '/oak/stereo/image_raw',
     '/oak/stereo/image_raw/compressed',
     #'/oak/stereo/camera_info',
@@ -107,6 +107,8 @@ MY_TOPIC_LIST = [
     '/oak/left/image_raw/compressed',
     '/oak/rgb/image_raw/resize',
     '/oak/rgb/video',
+    '/oak/start_camera',
+    '/oak/stop_camera',
     
 
     #visual servoing
@@ -116,7 +118,8 @@ MY_TOPIC_LIST = [
     '~/current_state_name',
     '/control_loop_frequency',
     '/data_frequency',
-
+    '/sc2/visual_servo/centroid_error',
+    '/enable_ibvs_control',
 
     #YOLOv8
     #'/camera0/detection/mask',
@@ -224,7 +227,7 @@ def add_foxglove(args: lu.ArgumentContainer) -> list[lut.Action]:
         'send_buffer_limit': int(args.send_buffer_limit),
         'max_qos_depth': 30,
         'use_compression': True,
-        'capabilities': ['clientPublish', 'connectionGraph', 'assets'],
+        'capabilities': ['clientPublish', 'connectionGraph', 'assets', 'services'],
     }]
 
     if lu.is_true(args.use_foxglove_whitelist):

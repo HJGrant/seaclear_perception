@@ -155,8 +155,13 @@ def generate_launch_description():
         package='isaac_ros_h264_encoder',
         plugin='nvidia::isaac_ros::h264_encoder::EncoderNode',
         parameters=[{
-            'input_height': 360, 
-            'input_width': 640
+            'input_height': 720, 
+            'input_width': 1280,
+            'qp': 25,           # The encoder constant QP value.
+            'hw_preset': 0,     # The encoder hardware preset type. The value can be an integer from 0 to 3, representing Ultrafast, Fast, Medium and, Slow, respectively.
+            'profile': 1,       # The profile to be used for encoding. The value can be an integer from 0 to 2, representing Main, Baseline, and High, respectively.
+            'iframe_interval': 1,   # Interval between two I frames, in number of frames. E.g., iframe_interval=5 represents IPPPPI..., iframe_interval=1 represents I frame only
+            'config': 'custom'      # A preset combination of qp, hw_preset, profile and iframe_interval. The value can be iframe_cqp, pframe_cqp or custom. When iframe_cqp or pframe_cqp is used, the default value of these four parameters will be applied. Only when this field is custom will the custom values will be used.
         }],
         remappings=[
             ('image_raw', '/oak/rgb/image_raw_rgb8/resize'),
@@ -185,8 +190,8 @@ def generate_launch_description():
         parameters=[{
             'input_width': 1280,
             'input_height': 720,
-            'output_width': 640,
-            'output_height': 360,
+            'output_width': 1280,
+            'output_height': 720,
             'encoding_desired': 'rgb8'
         }],
         remappings=[
@@ -281,8 +286,8 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments +
     [
-        urdf_launch,
-        foxglove_node,
+        #urdf_launch,
+        #foxglove_node,
         #static_tf_map_to_base_link,
         #static_tf_node,
         #optical_to_image_plane_tf,
