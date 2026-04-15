@@ -1,8 +1,9 @@
 import threading
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 from cv_bridge import CvBridge
 from geometry_msgs.msg import PoseStamped
+import math
 import rclpy
 from rclpy.node import Node
 from vision_msgs.msg import Detection2D
@@ -14,11 +15,24 @@ from .conversion import compute_representative_depth_near_uv_median
 
 
 class TargetPointEstimatorNode(Node):
+    """Estimate a target-relative point from the selected bbox and local depth.
+
+    `/sc2/visual_servo/target_point` is published as a PoseStamped in the camera
+    optical frame convention used by the depth image:
+      position.x: metric horizontal offset from optical center, meters
+      position.y: metric vertical offset from optical center, meters
+      position.z: target-relative range/depth, meters
+
+    The staged PID controller consumes position.z as its primary vertical
+    target-relative distance source.
+    """
+
     def __init__(self, *, parameter_overrides=None):
         super().__init__('target_point_estimator_node', parameter_overrides=parameter_overrides)
 
         self.declare_parameter('source_mode', 'bbox_depth_roi')
         self.declare_parameter('target_bounding_box', '/best_detection')
+        self.declare_parameter('target_obs_topic', '')
         self.declare_parameter('depth_topic', '/oak/stereo/image_raw')
         self.declare_parameter('camera_info_topic', '/oak/stereo/camera_info')
         self.declare_parameter('mask_topic', '')
@@ -27,6 +41,7 @@ class TargetPointEstimatorNode(Node):
         self.declare_parameter('status_topic', '/sc2/visual_servo/target_point_status')
 
         self.declare_parameter('max_obs_age_ms', 300.0)
+        self.declare_parameter('max_depth_age_ms', 300.0)
         self.declare_parameter('depth_min_m', 0.2)
         self.declare_parameter('depth_max_m', 20.0)
         self.declare_parameter('min_valid_points', 20)
@@ -39,6 +54,13 @@ class TargetPointEstimatorNode(Node):
         self.declare_parameter('hold_last_valid', True)
         self.declare_parameter('max_hold_ms', 500.0)
         self.declare_parameter('default_frame_id', 'oak_rgb_camera_optical_frame')
+        self.declare_parameter('enable_temporal_filter', True)
+        self.declare_parameter('filter_alpha_uv', 0.4)
+        self.declare_parameter('filter_alpha_depth', 0.3)
+        self.declare_parameter('filter_alpha_size', 0.3)
+        self.declare_parameter('max_uv_jump_px', 80.0)
+        self.declare_parameter('max_depth_jump_m', 0.5)
+        self.declare_parameter('reject_large_jumps', True)
 
         # Fallback intrinsics when camera_info is unavailable
         self.declare_parameter('fx_px', 600.0)
@@ -55,12 +77,18 @@ class TargetPointEstimatorNode(Node):
             self._source_mode = 'bbox_depth_roi'
 
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
+        legacy_target_obs_topic = str(self.get_parameter('target_obs_topic').value)
         self._depth_topic = str(self.get_parameter('depth_topic').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
         self._mask_topic = str(self.get_parameter('mask_topic').value)
         self._target_point_topic = str(self.get_parameter('target_point_topic').value)
         legacy_grasp_pose_topic = str(self.get_parameter('grasp_pose_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
+        if legacy_target_obs_topic:
+            self.get_logger().warn(
+                'Parameter target_obs_topic is deprecated; use target_bounding_box instead.'
+            )
+            self._target_bbox_topic = legacy_target_obs_topic
         if legacy_grasp_pose_topic:
             self.get_logger().warn(
                 'Parameter grasp_pose_topic is deprecated; use target_point_topic instead.'
@@ -68,6 +96,7 @@ class TargetPointEstimatorNode(Node):
             self._target_point_topic = legacy_grasp_pose_topic
 
         self._max_obs_age_ms = float(self.get_parameter('max_obs_age_ms').value)
+        self._max_depth_age_ms = float(self.get_parameter('max_depth_age_ms').value)
         self._depth_min_m = float(self.get_parameter('depth_min_m').value)
         self._depth_max_m = float(self.get_parameter('depth_max_m').value)
         self._min_valid_points = int(self.get_parameter('min_valid_points').value)
@@ -79,6 +108,13 @@ class TargetPointEstimatorNode(Node):
         self._hold_last_valid = self._as_bool(self.get_parameter('hold_last_valid').value)
         self._max_hold_ms = float(self.get_parameter('max_hold_ms').value)
         self._default_frame_id = str(self.get_parameter('default_frame_id').value)
+        self._enable_temporal_filter = self._as_bool(self.get_parameter('enable_temporal_filter').value)
+        self._filter_alpha_uv = float(self.get_parameter('filter_alpha_uv').value)
+        self._filter_alpha_depth = float(self.get_parameter('filter_alpha_depth').value)
+        self._filter_alpha_size = float(self.get_parameter('filter_alpha_size').value)
+        self._max_uv_jump_px = float(self.get_parameter('max_uv_jump_px').value)
+        self._max_depth_jump_m = float(self.get_parameter('max_depth_jump_m').value)
+        self._reject_large_jumps = self._as_bool(self.get_parameter('reject_large_jumps').value)
 
         self._fx = float(self.get_parameter('fx_px').value)
         self._fy = float(self.get_parameter('fy_px').value)
@@ -89,11 +125,14 @@ class TargetPointEstimatorNode(Node):
         self._bridge = CvBridge()
         self._data_lock = threading.Lock()
         self._latest_depth = None
+        self._latest_depth_time = None
         self._latest_mask = None
 
         self._last_valid_pose: Optional[PoseStamped] = None
         self._last_valid_pose_time = self.get_clock().now()
         self._warn_timestamps: Dict[str, float] = {}
+        self._filtered_bbox: Optional[Tuple[float, float, float, float]] = None
+        self._filtered_rep_uvz: Optional[Tuple[float, float, float]] = None
 
         self._target_point_pub = self.create_publisher(PoseStamped, self._target_point_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
@@ -138,6 +177,91 @@ class TargetPointEstimatorNode(Node):
         now_ns = self.get_clock().now().nanoseconds
         return max(0.0, (now_ns - stamp_ns) * 1e-6)
 
+    @staticmethod
+    def _ema(prev: float, value: float, alpha: float) -> float:
+        alpha = max(0.0, min(1.0, float(alpha)))
+        return (alpha * float(value)) + ((1.0 - alpha) * float(prev))
+
+    def _depth_age_ms(self) -> Optional[float]:
+        if self._latest_depth_time is None:
+            return None
+        return (self.get_clock().now() - self._latest_depth_time).nanoseconds * 1e-6
+
+    def _depth_is_fresh(self) -> bool:
+        age_ms = self._depth_age_ms()
+        return age_ms is not None and age_ms <= self._max_depth_age_ms
+
+    def _reset_filters(self) -> None:
+        self._filtered_bbox = None
+        self._filtered_rep_uvz = None
+
+    def _hold_last_valid_pose(self, stamp, status: str) -> bool:
+        if not (self._hold_last_valid and self._last_valid_pose is not None):
+            return False
+
+        hold_age_ms = (self.get_clock().now() - self._last_valid_pose_time).nanoseconds * 1e-6
+        if hold_age_ms > self._max_hold_ms:
+            return False
+
+        held = PoseStamped()
+        held.header.stamp = stamp
+        held.header.frame_id = self._last_valid_pose.header.frame_id
+        held.pose = self._last_valid_pose.pose
+        self._target_point_pub.publish(held)
+        self._publish_status(status)
+        return True
+
+    def _filter_bbox(self, u: float, v: float, w: float, h: float) -> Tuple[Tuple[float, float, float, float], bool]:
+        raw = (float(u), float(v), float(w), float(h))
+        if not self._enable_temporal_filter:
+            self._filtered_bbox = raw
+            return raw, False
+        if self._filtered_bbox is None:
+            self._filtered_bbox = raw
+            return raw, False
+
+        prev = self._filtered_bbox
+        if self._reject_large_jumps:
+            uv_jump = max(abs(raw[0] - prev[0]), abs(raw[1] - prev[1]))
+            size_jump = max(abs(raw[2] - prev[2]), abs(raw[3] - prev[3]))
+            if uv_jump > self._max_uv_jump_px or size_jump > self._max_uv_jump_px:
+                return prev, True
+
+        filtered = (
+            self._ema(prev[0], raw[0], self._filter_alpha_uv),
+            self._ema(prev[1], raw[1], self._filter_alpha_uv),
+            self._ema(prev[2], raw[2], self._filter_alpha_size),
+            self._ema(prev[3], raw[3], self._filter_alpha_size),
+        )
+        self._filtered_bbox = filtered
+        return filtered, False
+
+    def _filter_representative_uvz(
+        self, u_rep: float, v_rep: float, z_rep: float
+    ) -> Tuple[Tuple[float, float, float], bool]:
+        raw = (float(u_rep), float(v_rep), float(z_rep))
+        if not self._enable_temporal_filter:
+            self._filtered_rep_uvz = raw
+            return raw, False
+        if self._filtered_rep_uvz is None:
+            self._filtered_rep_uvz = raw
+            return raw, False
+
+        prev = self._filtered_rep_uvz
+        if self._reject_large_jumps:
+            uv_jump = max(abs(raw[0] - prev[0]), abs(raw[1] - prev[1]))
+            depth_jump = abs(raw[2] - prev[2])
+            if uv_jump > self._max_uv_jump_px or depth_jump > self._max_depth_jump_m:
+                return prev, True
+
+        filtered = (
+            self._ema(prev[0], raw[0], self._filter_alpha_uv),
+            self._ema(prev[1], raw[1], self._filter_alpha_uv),
+            self._ema(prev[2], raw[2], self._filter_alpha_depth),
+        )
+        self._filtered_rep_uvz = filtered
+        return filtered, False
+
     def _depth_cb(self, msg: Image) -> None:
         try:
             depth = self._bridge.imgmsg_to_cv2(msg, desired_encoding='passthrough')
@@ -146,6 +270,7 @@ class TargetPointEstimatorNode(Node):
             return
         with self._data_lock:
             self._latest_depth = depth
+            self._latest_depth_time = self.get_clock().now()
 
     def _mask_cb(self, msg: Image) -> None:
         try:
@@ -174,9 +299,9 @@ class TargetPointEstimatorNode(Node):
         pose = PoseStamped()
         pose.header.stamp = stamp
         pose.header.frame_id = frame_id
-        pose.pose.position.x = float(x) # float(x) changed to match URDF optical frame convention
-        pose.pose.position.y = float(z_rep) # float(y) changed to match URDF optical frame convention
-        pose.pose.position.z = -float(y) #float(z_rep) changed to match URDF optical frame convention
+        pose.pose.position.x = float(x)
+        pose.pose.position.y = float(y)
+        pose.pose.position.z = float(z_rep)
         pose.pose.orientation.w = 1.0
         return pose
 
@@ -191,13 +316,36 @@ class TargetPointEstimatorNode(Node):
 
         with self._data_lock:
             depth = self._latest_depth
+            depth_fresh = self._depth_is_fresh()
             mask = self._latest_mask if self._use_mask_gating else None
 
+        if depth is None:
+            self._reset_filters()
+            self._publish_status('NO_DEPTH')
+            return
+        if not depth_fresh:
+            if self._hold_last_valid_pose(msg.header.stamp, 'HOLD_LAST_VALID_DEPTH_STALE'):
+                return
+            self._reset_filters()
+            self._publish_status('STALE_DEPTH')
+            return
+
         target_bbox = msg.bbox
-        u = target_bbox.center.position.x
-        v = target_bbox.center.position.y
-        w = target_bbox.size_x
-        h = target_bbox.size_y
+        (u, v, w, h), bbox_rejected = self._filter_bbox(
+            target_bbox.center.position.x,
+            target_bbox.center.position.y,
+            target_bbox.size_x,
+            target_bbox.size_y,
+        )
+        if bbox_rejected:
+            self._warn_throttle(
+                'target_bbox_jump',
+                'Rejected target bbox jump and held the last valid target_point',
+            )
+            if self._hold_last_valid_pose(msg.header.stamp, 'REJECTED_LARGE_JUMP'):
+                return
+            self._publish_status('REJECTED_LARGE_JUMP')
+            return
 
         u_rep, v_rep, z_rep, valid_count = compute_representative_depth_near_uv_median(
             depth,
@@ -215,23 +363,27 @@ class TargetPointEstimatorNode(Node):
             mask_threshold=self._mask_threshold,
         )
 
-        if not (z_rep == z_rep):  # NaN check
-            if self._hold_last_valid and self._last_valid_pose is not None:
-                hold_age_ms = (self.get_clock().now() - self._last_valid_pose_time).nanoseconds * 1e-6
-                if hold_age_ms <= self._max_hold_ms:
-                    held = PoseStamped()
-                    held.header.stamp = msg.header.stamp
-                    held.header.frame_id = self._last_valid_pose.header.frame_id
-                    held.pose = self._last_valid_pose.pose
-                    self._target_point_pub.publish(held)
-                    self._publish_status('HOLD_LAST_VALID')
-                    return
+        if not math.isfinite(z_rep):
+            if self._hold_last_valid_pose(msg.header.stamp, 'HOLD_LAST_VALID'):
+                return
 
             self._warn_throttle(
                 'target_point_invalid',
                 f'No valid representative depth (valid_points={valid_count}, min_required={self._min_valid_points})',
             )
+            self._reset_filters()
             self._publish_status('NO_VALID_TARGET_POINT')
+            return
+
+        (u_rep, v_rep, z_rep), rep_rejected = self._filter_representative_uvz(u_rep, v_rep, z_rep)
+        if rep_rejected:
+            self._warn_throttle(
+                'target_point_jump',
+                'Rejected representative target_point jump and held the last valid target_point',
+            )
+            if self._hold_last_valid_pose(msg.header.stamp, 'REJECTED_LARGE_JUMP'):
+                return
+            self._publish_status('REJECTED_LARGE_JUMP')
             return
 
         frame_id = self._frame_id_from_cam or msg.header.frame_id or self._default_frame_id

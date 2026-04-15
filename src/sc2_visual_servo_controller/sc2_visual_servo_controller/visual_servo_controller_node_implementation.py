@@ -18,8 +18,9 @@ Current staged PID behavior notes:
   command using `decay_rate`.
 - The command adapter keeps the grapple IF and publishes both
   `TwistStamped` and `state_estimation/msg/Vector6`.
-- Before hardware testing, verify the `target_point.pose.position.z` sign/frame
-  convention against the vehicle's positive-z command convention.
+- `target_point.pose.position.z` is expected to be target-relative range in
+  meters. Before hardware testing, still verify the resulting positive-z command
+  convention against the vehicle frame.
 
 Not implemented in this file yet: search scan/recovery and terminal hold/zero
 behavior. The hold-distance check is only exposed as a status hook.

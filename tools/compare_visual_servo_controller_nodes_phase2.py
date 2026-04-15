@@ -8,8 +8,9 @@ This harness compares:
 - new: the current worktree Phase 2 `VisualServoControllerNode`
 
 Case A is an exact Phase 1 horizontal-only regression check. Cases B/C validate
-the new target_pose-sourced vertical behavior without treating the Phase 1
-baseline as a vertical reference.
+the new target_point-sourced vertical behavior without treating the Phase 1
+baseline as a vertical reference. Synthetic PoseStamped inputs put the
+target-relative range in `pose.position.z`, matching the perception convention.
 """
 
 from __future__ import annotations
@@ -106,7 +107,7 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         name="case_b_vertical_entry",
-        description="Aligned observations plus fresh target_pose enable z control.",
+        description="Aligned observations plus fresh target_point enable z control.",
         mode="vertical_entry",
         steps=tuple(
             Step(round(i * 0.10, 2), 322.0, 318.0, 1.40)
@@ -115,7 +116,7 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         name="case_c_z_stale",
-        description="Vertical gate is enabled, then target_pose becomes stale while detections stay fresh.",
+        description="Vertical gate is enabled, then target_point becomes stale while detections stay fresh.",
         mode="z_stale",
         steps=tuple(
             [Step(round(i * 0.10, 2), 322.0, 318.0, 1.40) for i in range(11)] +
@@ -467,9 +468,9 @@ def write_reports(rows: list[dict[str, Any]], failures: list[dict[str, Any]], ou
             "`yaw`, `target_tracked`, and status on horizontal-scope ticks.",
             "",
             "Case B passed: `allow_z=True`, `HORIZONTAL_AND_VERTICAL`, and non-zero "
-            "`vz` were observed with fresh target_pose after the horizontal gate.",
+            "`vz` were observed with fresh target_point after the horizontal gate.",
             "",
-            "Case C passed: stale target_pose forced `allow_z=False` and `vz=0` while "
+            "Case C passed: stale target_point forced `allow_z=False` and `vz=0` while "
             "horizontal `vx/vy/yaw` matched the Phase 1 baseline on the stale tick.",
             "",
             "Cases D/E passed: a single-axis error greater than 150 px forced "

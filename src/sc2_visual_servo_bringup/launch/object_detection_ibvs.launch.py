@@ -45,6 +45,9 @@ def generate_launch_description():
         name='target_point_estimator_node',
         output='screen',
         parameters=[{
+            # target_point PoseStamped convention for staged PID:
+            #   position.x/y = metric target offset in the camera optical frame
+            #   position.z   = target-relative range/depth in meters
             'target_bounding_box': '/best_detection',
             'depth_topic': '/oak/stereo/image_raw',
             'camera_info_topic': '/oak/stereo/camera_info',
@@ -53,6 +56,7 @@ def generate_launch_description():
             'max_hold_ms': 500.0,
             'hold_last_valid': True,
             'max_obs_age_ms': 300.0,
+            'max_depth_age_ms': 300.0,
             'depth_min_m': 0.2,
             'depth_max_m': 20.0,
             'min_valid_points': 20,
@@ -60,7 +64,14 @@ def generate_launch_description():
             'max_search_radius_px': 40.0,
             'use_uv_median_depth': True,
             'use_mask_gating': False,
-            'mask_threshold': 1
+            'mask_threshold': 1,
+            'enable_temporal_filter': True,
+            'filter_alpha_uv': 0.4,
+            'filter_alpha_depth': 0.3,
+            'filter_alpha_size': 0.3,
+            'max_uv_jump_px': 80.0,
+            'max_depth_jump_m': 0.5,
+            'reject_large_jumps': True
         }],
     )
 

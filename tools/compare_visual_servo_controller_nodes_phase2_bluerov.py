@@ -102,7 +102,7 @@ def aligned_steps(count: int, z: float, start: float = 0.0) -> tuple[Step, ...]:
 CASES: tuple[Case, ...] = (
     Case(
         name="case_a_horizontal_only_regression",
-        description="Fresh target_pose is present, but the target never enters the horizontal alignment gate.",
+        description="Fresh target_point is present, but the target never enters the horizontal alignment gate.",
         mode="exact",
         steps=(
             Step(0.00, 500.0, 300.0, 1.40),
@@ -120,13 +120,13 @@ CASES: tuple[Case, ...] = (
     ),
     Case(
         name="case_c_z_stale",
-        description="target_pose becomes stale after vertical is enabled; horizontal remains fresh.",
+        description="target_point becomes stale after vertical is enabled; horizontal remains fresh.",
         mode="exact",
         steps=aligned_steps(11, 1.40) + (Step(1.60, 322.0, 318.0, None),),
     ),
     Case(
         name="case_d_vertical_stay",
-        description="Target remains aligned with fresh target_pose for several ticks after vertical entry.",
+        description="Target remains aligned with fresh target_point for several ticks after vertical entry.",
         mode="exact",
         steps=aligned_steps(20, 1.30),
     ),
@@ -796,7 +796,7 @@ def write_reports(
         "",
         "Current grapple Phase 2 default vertical source behavior is `target_point` primary plus DVL fallback.",
         "The controller uses `/sc2/visual_servo/target_point` while it is fresh, uses DVL altitude only while target_point is stale/unavailable, and returns to target_point when it recovers.",
-        "The latest `bluerov_pid` reference does not implement this combined primary/fallback selector; it supports target_pose or MAVROS-depth source modes. Cases G/H therefore record the new fallback behavior as expected differences.",
+        "The latest `bluerov_pid` reference does not implement this combined primary/fallback selector; it supports target_pose/target_point or MAVROS-depth source modes. Cases G/H therefore record the new fallback behavior as expected differences.",
         "",
         "## Compare Semantics",
         "",
@@ -805,7 +805,7 @@ def write_reports(
         "- Cases A-E require exact numeric/controller-state/source match with normalized status.",
         "- Cases I/J additionally verify that either axis exceeding 150 px gates z off immediately.",
         "- Case F is an expected design difference: BlueROV enters `HOLD_ZERO_VELOCITY`, while current grapple Phase 2 exposes only a status hook.",
-        "- Cases G/H are expected differences because current grapple adds DVL fallback and target_point recovery on top of the BlueROV target_pose-only mode.",
+        "- Cases G/H are expected differences because current grapple adds DVL fallback and target_point recovery on top of the BlueROV target_point-only mode.",
         "",
         "## Launch Parameter Alignment",
         "",
@@ -857,7 +857,7 @@ def write_reports(
         "",
         "## Residual Risks",
         "",
-        "- Verify `target_pose.pose.position.z` sign and frame convention before hardware tests.",
+        "- Perception now defines `target_point.pose.position.z` as target-relative range; verify the vehicle positive-z command convention before hardware tests.",
         "- Define DVL fallback/safety policy separately.",
         "- Search/recovery and final hold-zero behavior remain Phase 3+ work.",
     ])
