@@ -5,7 +5,7 @@ from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float64
+from std_msgs.msg import String, Float64, Float64MultiArray, MultiArrayDimension
 from sensor_msgs.msg import CameraInfo
 from enum import Enum
 from std_srvs.srv import SetBool
@@ -56,6 +56,9 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
         self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
+        self.declare_parameter('image_jacobian_topic', '/image_jacobian')
+        self.declare_parameter('jacobian_condition_number_topic', '/condition_numebr')
+        self.declare_parameter('uncalibrated_ibvs_covariance_mat_topic', '/uncalibrated_ibvs_covariance')
         
         # relevant frames for transformations
         self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
@@ -119,6 +122,11 @@ class VisualServoControllerNode(Node):
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
 
+        #IBVS topics
+        self._jacobian_topic = str(self.get_parameter('image_jacobian_topic').value)
+        self._condition_nr_topic = str(self.get_parameter('jacobian_condition_number_topic').value)
+        self._covariance_mat_topic = str(self.get_parameter('uncalibrated_ibvs_covariance_mat_topic').value)
+
         # extract frame IDs
         self._mavros_base_link_frame_id = str(self.get_parameter('mavros_base_link_frame_id').value)
         self._sc2_base_link_frame_id = str(self.get_parameter('sc2_base_link_frame_id').value)
@@ -133,6 +141,7 @@ class VisualServoControllerNode(Node):
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
         self.enable_mavros_depth = self.get_parameter('mavros_depth').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
+        self._calibrated = self.get_parameter('calibrated').get_parameter_value().bool_value
 
         # whether to use depth from the RGB-D data or from MAVROS 
         if self.enable_mavros_depth:
@@ -239,6 +248,12 @@ class VisualServoControllerNode(Node):
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
+
+        # IBVS analysis topics 
+        self._jacobian_publisher = self.create_publisher(Float64MultiArray, self._jacobian_topic, 10)
+        self._condition_nr_publisher = self.create_publisher(Float64, self._condition_nr_topic, 10)
+        self._covariance_mat_publisher = self.create_publisher(Float64MultiArray, self._covariance_mat_topic, 10)
+
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
@@ -398,6 +413,9 @@ class VisualServoControllerNode(Node):
             
             if self.calibrated:
                 self.J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx, self.fy, self.cx, self.cy)
+                # publish the Jacobian and condition number
+                self._publish_jacobian(self.J_img.copy())
+
             else:
                 # UNCALIBRATED MODE: Update RLS Jacobian estimate
                 self.J_hat, self.Pk, self.delta_e = get_uncalibrated_jacobian(
@@ -405,6 +423,8 @@ class VisualServoControllerNode(Node):
                     self.J_hat, self.Pk, self.lmbda_rls, dt_ctrl
                 )
                 self.J_img = self.J_hat
+                # publish the Jacobian, condition number and the covariance matrix
+                self._publish_jacobian(self.J_img.copy(), Pk=self.Pk.copy())
 
             # Update history for next iteration
             self.prev_e = self.current_e.copy()
@@ -474,7 +494,7 @@ class VisualServoControllerNode(Node):
         v_image_plane_msg.header.stamp = self.get_clock().now().to_msg()
         v_image_plane_msg.header.frame_id = self._camera_image_plane_frame_id
         
-        v_image_plane_msg.twist.linear.x = -vx * 0.6 # vx    
+        v_image_plane_msg.twist.linear.x = -vx * 0.6 # vx #TODO: turn the transformation of the image plane by 180 degrees
         v_image_plane_msg.twist.linear.y = vy * 0.6     
         v_image_plane_msg.twist.linear.z = 0.0 #vz   
         v_image_plane_msg.twist.angular.z = 0.0 #yaw  
@@ -581,6 +601,49 @@ class VisualServoControllerNode(Node):
 
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
+    
+    def _publish_jacobian(self, Jacobian, Pk=None):
+        ''' 
+        Publishes the Jacobian matrix, its condition number, and optionally the RLS covariance matrix (Pk) 
+        '''
+
+        # 1. Calculate and publish Condition Number (Standard Float64)
+        # This is the easiest way to monitor 'Jacobian Health' in rqt_plot
+        cond_number = np.linalg.cond(Jacobian)
+        cond_msg = Float64()
+        cond_msg.data = float(cond_number)
+        self._condition_nr_publisher.publish(cond_msg)
+
+        # 2. Publish the Jacobian (MultiArray)
+        j_msg = self._matrix_to_multiarray(Jacobian, label_prefix="J")
+        self._jacobian_publisher.publish(j_msg)
+
+        # 3. Optionally publish Covariance Matrix Pk (if in uncalibrated mode)
+        if Pk is not None:
+            pk_msg = self._matrix_to_multiarray(Pk, label_prefix="Pk")
+            self._covariance_publisher.publish(pk_msg)
+
+    def _matrix_to_multiarray(self, matrix, label_prefix="matrix"):
+        """Helper to convert any 2D numpy array to a Float64MultiArray properly."""
+        rows, cols = matrix.shape
+        msg = Float64MultiArray()
+        
+        # Rows
+        dim_rows = MultiArrayDimension()
+        dim_rows.label = f"{label_prefix}_rows"
+        dim_rows.size = rows
+        dim_rows.stride = rows * cols
+        msg.layout.dim.append(dim_rows)
+        
+        # Columns
+        dim_cols = MultiArrayDimension()
+        dim_cols.label = f"{label_prefix}_cols"
+        dim_cols.size = cols
+        dim_cols.stride = cols
+        msg.layout.dim.append(dim_cols)
+        
+        msg.data = matrix.flatten().tolist()
+        return msg
 
     @staticmethod
     def _slew_axis(target: float, prev: float, limit_per_s: float, dt: float) -> float:

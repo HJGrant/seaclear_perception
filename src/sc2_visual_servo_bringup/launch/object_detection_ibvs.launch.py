@@ -91,7 +91,8 @@ def generate_launch_description():
             'ibvs_lambda': 0.1,
             'alpha_1': 1.0,  #apply no filtering
             'decay_rate': 0.0,
-            'mavros_depth': True
+            'mavros_depth': True,
+            'calibrated': True
         }],
     )
 
