@@ -221,6 +221,8 @@ class VisualServoControllerNode(Node):
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
         self._calibrated = self.get_parameter('calibrated').get_parameter_value().bool_value
+        self._target_point_topic = str(self.get_parameter('target_point_topic').value)
+        self._depth_mode = str(self.get_parameter('depth_estimation_mode').get_parameter_value().string_value)
 
         # which depth estimation mode to use for IBVS
         match self._depth_mode:
@@ -229,7 +231,7 @@ class VisualServoControllerNode(Node):
             case 'DVL':
                 self._target_pose_topic = str(self.get_parameter('dvl_altitude_topic').value)
             case 'MAVROS':
-                self._target_pose_topic = str(self.get_parameter('mavros_altitude_topic').value)
+                self._target_pose_topic = str(self.get_parameter('mavros_depth_topic').value)
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -1094,6 +1096,22 @@ class VisualServoControllerNode(Node):
 
         self._cmd_pub.publish(cmd)
         self._last_cmd = (vx, vy, vz, yaw)
+
+        # publish the topic for SC2 as a custom Vector6 type, defined in the state_machine package
+        sc2_cmd_linear = Vector3()
+        sc2_cmd_linear.x = vx
+        sc2_cmd_linear.y = vy
+        sc2_cmd_linear.z = vz
+
+        sc2_cmd_angular = Vector3()
+        sc2_cmd_angular.x = 0.0 # assuiming no roll control
+        sc2_cmd_angular.y = 0.0 # assuming no pitch control
+        sc2_cmd_angular.z = yaw
+
+        cmd_vec_6 = Vector6()
+        cmd_vec_6.linear = sc2_cmd_linear
+        cmd_vec_6.angular = sc2_cmd_angular   
+        self._sc2_cmd_pub_vec_6.publish(cmd_vec_6)
     
     def _publish_jacobian(self, Jacobian, Pk=None):
         ''' 
@@ -1137,22 +1155,6 @@ class VisualServoControllerNode(Node):
         
         msg.data = matrix.flatten().tolist()
         return msg
-
-        # publish the topic for SC2 as a custom Vector6 type, defined in the state_machine package
-        sc2_cmd_linear = Vector3()
-        sc2_cmd_linear.x = vx
-        sc2_cmd_linear.y = vy
-        sc2_cmd_linear.z = vz
-
-        sc2_cmd_angular = Vector3()
-        sc2_cmd_angular.x = 0.0 # assuiming no roll control
-        sc2_cmd_angular.y = 0.0 # assuming no pitch control
-        sc2_cmd_angular.z = yaw
-
-        cmd_vec_6 = Vector6()
-        cmd_vec_6.linear = sc2_cmd_linear
-        cmd_vec_6.angular = sc2_cmd_angular   
-        self._sc2_cmd_pub_vec_6.publish(cmd_vec_6)
 
     def _publish_cmd_direct_body(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)
