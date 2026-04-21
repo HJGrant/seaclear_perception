@@ -167,7 +167,7 @@ MY_TOPIC_LIST = [
     #DVL
     '/waterlinked_dvl_driver/dead_reckoning_report',
     '/waterlinked_dvl_driver/transition_event',
-    '/waterlinked_dvl_driver/velocity_report'
+    '/waterlinked_dvl_driver/velocity_report',
 
     # sc2 topics
     '/sc2/altitude',
