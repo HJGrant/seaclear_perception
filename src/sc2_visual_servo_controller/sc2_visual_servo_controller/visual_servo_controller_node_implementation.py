@@ -92,8 +92,9 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
-        self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
         self.declare_parameter('dvl_altitude_topic', '/waterlinked_dvl_driver/velocity_report')
+        self.declare_parameter('mavros_altitude_topic','/mavros/global_position/rel_alt')
+        self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
         self.declare_parameter('image_jacobian_topic', '/image_jacobian')
         self.declare_parameter('jacobian_condition_number_topic', '/condition_numebr')
         self.declare_parameter('uncalibrated_ibvs_covariance_mat_topic', '/uncalibrated_ibvs_covariance')
@@ -223,6 +224,11 @@ class VisualServoControllerNode(Node):
         self._calibrated = self.get_parameter('calibrated').get_parameter_value().bool_value
         self._target_point_topic = str(self.get_parameter('target_point_topic').value)
         self._depth_mode = str(self.get_parameter('depth_estimation_mode').get_parameter_value().string_value)
+        mavros_depth_topic = str(self.get_parameter('mavros_depth_topic').value)
+        mavros_altitude_topic = str(self.get_parameter('mavros_altitude_topic').value)
+        self._mavros_altitude_topic = mavros_altitude_topic
+        if mavros_depth_topic != '/mavros/global_position/rel_alt':
+            self._mavros_altitude_topic = mavros_depth_topic
 
         # which depth estimation mode to use for IBVS
         match self._depth_mode:
@@ -231,7 +237,7 @@ class VisualServoControllerNode(Node):
             case 'DVL':
                 self._target_pose_topic = str(self.get_parameter('dvl_altitude_topic').value)
             case 'MAVROS':
-                self._target_pose_topic = str(self.get_parameter('mavros_depth_topic').value)
+                self._target_pose_topic = self._mavros_altitude_topic
 
         self._max_vx = float(self.get_parameter('max_vx').value)
         self._max_vy = float(self.get_parameter('max_vy').value)
@@ -459,7 +465,7 @@ class VisualServoControllerNode(Node):
             elif self._depth_mode == 'MAVROS':
                 self.create_subscription(
                     Float64,
-                    str(self.get_parameter('mavros_altitude_topic').value),
+                    self._mavros_altitude_topic,
                     self._mavros_altitude_cb,
                     10,
                 )
