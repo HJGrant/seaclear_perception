@@ -392,6 +392,7 @@ class VisualServoControllerNode(Node):
         #self.target_centroid = np.mean(self.center_box_corners, axis=1)
         self.target_centroid = [cx, cy]
         self._staged_pid_target_centroid = np.array([self._target_u, self._target_v], dtype=np.float32)
+        self.latest_centroid = [0.0, 0.0]
 
         self.prev_centroid = np.zeros(2)
         self.roi_w = 50
