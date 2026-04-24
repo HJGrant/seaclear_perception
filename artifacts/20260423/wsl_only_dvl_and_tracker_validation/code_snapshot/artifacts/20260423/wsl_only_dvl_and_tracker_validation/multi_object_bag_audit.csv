@@ -1,0 +1,5 @@
+bag_path,dvl_present,dvl_type,dvl_count,detections_present,detections_count,best_detection_count,duration_sec,total_frames,zero_frames,one_frames,two_plus_frames,same_class_two_plus_frames,longest_two_plus_run_frames,longest_two_plus_run_sec,longest_two_plus_start_sec,longest_two_plus_end_sec,near_center_competitor_frames,near_size_competitor_frames
+rosbag2_2026_04_22-15_22_39,True,marine_acoustic_msgs/msg/Dvl,144,True,727,0,29.239744186000003,727,0,304,423,423,12,0.42860311500000003,22.086703345,22.51530646,2,0
+rosbag2_2026_04_22-16_47_57-diving-noimage,True,marine_acoustic_msgs/msg/Dvl,78,True,414,393,15.974861462000002,414,150,160,104,57,40,1.558240708,2.728320702,4.28656141,0,1
+rosbag2_2026_04_10-17_38_57,False,,0,False,0,2602,257.82553383600003,0,0,0,0,0,0,0.0,-1.0,-1.0,0,0
+src/deployment_env/assets/rosbag2_2026_04_13-17_56_18,False,,0,False,0,264,15.091716846,0,0,0,0,0,0,0.0,-1.0,-1.0,0,0

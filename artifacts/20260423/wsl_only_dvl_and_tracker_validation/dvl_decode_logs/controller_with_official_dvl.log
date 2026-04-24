@@ -1,0 +1,53 @@
+PRODUCTION_BRINGUP_SUMMARY
+obs_count=414
+valid_obs_count=145
+invalid_obs_count=269
+hold_obs_count=74
+status_count=177
+target_locked_count=160
+cmd_count=160
+valid_track_ids=[1, 2, 3, 4, 6]
+transition_count=4
+first_transition={'t': 1776971831.1674693, 'from': 1, 'to': 2}
+first_valid={'t': 1776971829.161749, 'selected_valid': True, 'selected_track_id': 1, 'track_state': 'CONFIRMED', 'reason_code': 'high_confidence_match', 'freshness': 1.0, 'u': 56.0, 'v': 519.0}
+last_valid={'t': 1776971844.4505935, 'selected_valid': True, 'selected_track_id': 6, 'track_state': 'CONFIRMED', 'reason_code': 'high_confidence_match', 'freshness': 1.0, 'u': 25.5, 'v': 108.0}
+first_hold={'t': 1776971829.36301, 'selected_valid': False, 'selected_track_id': 1, 'track_state': 'HOLD', 'reason_code': 'hold_no_match', 'freshness': 0.9249334335327148, 'u': 51.5, 'v': 495.5}
+first_hold_status=HOLD_SELECTED_INVALID_HOLD_hold_no_match_HOLD_MAINTAIN_VELOCITY_DAMPING_DEPTH_DVL
+first_nonzero_hold_cmd={'t': 1776971829.363389, 'vx': -0.2, 'vy': -0.2, 'vz': 0.0, 'yaw': -0.35}
+LOGFILE=/tmp/object_detection_ibvs_launch.log
+node-1]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 740, in _spin_once_impl
+[target_observer_node-1]     handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+[target_observer_node-1]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 723, in wait_for_ready_callbacks
+[target_observer_node-1]     return next(self._cb_iter)
+[target_observer_node-1]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 620, in _wait_for_ready_callbacks
+[target_observer_node-1]     wait_set.wait(timeout_nsec)
+[target_observer_node-1] KeyboardInterrupt
+[visual_servo_controller_node-2] Traceback (most recent call last):
+[visual_servo_controller_node-2]   File "/ws/install/sc2_visual_servo_controller/lib/sc2_visual_servo_controller/visual_servo_controller_node", line 33, in <module>
+[visual_servo_controller_node-2]     sys.exit(load_entry_point('sc2-visual-servo-controller==0.1.0', 'console_scripts', 'visual_servo_controller_node')())
+[visual_servo_controller_node-2]   File "/ws/install/sc2_visual_servo_controller/lib/python3.10/site-packages/sc2_visual_servo_controller/visual_servo_controller_node_implementation.py", line 1419, in main
+[visual_servo_controller_node-2]     rclpy.spin(node)
+[visual_servo_controller_node-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/__init__.py", line 226, in spin
+[visual_servo_controller_node-2]     executor.spin_once()
+[visual_servo_controller_node-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 751, in spin_once
+[visual_servo_controller_node-2]     self._spin_once_impl(timeout_sec)
+[visual_servo_controller_node-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 740, in _spin_once_impl
+[visual_servo_controller_node-2]     handler, entity, node = self.wait_for_ready_callbacks(timeout_sec=timeout_sec)
+[visual_servo_controller_node-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 723, in wait_for_ready_callbacks
+[visual_servo_controller_node-2]     return next(self._cb_iter)
+[visual_servo_controller_node-2]   File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/executors.py", line 620, in _wait_for_ready_callbacks
+[visual_servo_controller_node-2]     wait_set.wait(timeout_nsec)
+[visual_servo_controller_node-2] KeyboardInterrupt
+[ERROR] [visual_servo_controller_node-2]: process has died [pid 4539, exit code -2, cmd '/ws/install/sc2_visual_servo_controller/lib/sc2_visual_servo_controller/visual_servo_controller_node --ros-args -r __node:=visual_servo_controller_node --params-file /tmp/launch_params_w00fuh3m'].
+[ERROR] [target_observer_node-1]: process has died [pid 4537, exit code -2, cmd '/ws/install/sc2_visual_servo_perception/lib/sc2_visual_servo_perception/target_observer_node --ros-args -r __node:=target_observer_node --params-file /tmp/launch_params_ju5fz8h1'].
+
+LOGFILE=/tmp/object_detection_ibvs_bag_play.log
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1776971828.934906259] [rosbag2_storage]: Opened database '/ws/rosbag2_2026_04_22-16_47_57-diving-noimage/rosbag2_2026_04_22-16_47_57_0.db3' for READ_ONLY.
+[INFO] [1776971828.934995327] [rosbag2_player]: Set rate to 1
+[INFO] [1776971828.954400478] [rosbag2_player]: Adding keyboard callbacks.
+[INFO] [1776971828.954459887] [rosbag2_player]: Press SPACE for Pause/Resume
+[INFO] [1776971828.954469252] [rosbag2_player]: Press CURSOR_RIGHT for Play Next Message
+[INFO] [1776971828.954476722] [rosbag2_player]: Press CURSOR_UP for Increase Rate 10%
+[INFO] [1776971828.954483179] [rosbag2_player]: Press CURSOR_DOWN for Decrease Rate 10%
+[INFO] [1776971828.955036287] [rosbag2_storage]: Opened database '/ws/rosbag2_2026_04_22-16_47_57-diving-noimage/rosbag2_2026_04_22-16_47_57_0.db3' for READ_ONLY.
+

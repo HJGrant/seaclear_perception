@@ -36,6 +36,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float64, Float64MultiArray, MultiArrayDimension
 from sensor_msgs.msg import CameraInfo
+from sc2_visual_servo_interfaces.msg import TargetObservation
 from enum import Enum
 from std_srvs.srv import SetBool
 
@@ -43,13 +44,24 @@ import tf2_ros
 import tf2_geometry_msgs 
 from tf2_ros import TransformException
 from state_estimation.msg import Vector6
-from marine_acoustic_msgs.msg import Dvl
+try:
+    from marine_acoustic_msgs.msg import Dvl
+    _HAS_MARINE_ACOUSTIC_DVL = True
+except ImportError:
+    Dvl = None
+    _HAS_MARINE_ACOUSTIC_DVL = False
 
 from .ibvs.controller_math import (
     clamp,
     is_in_roi,
     get_image_jacobian,
     get_uncalibrated_jacobian
+)
+from .hold_maintain_core import (
+    HoldVelocityDampingConfig,
+    HoldVelocityMeasurement,
+    compute_hold_velocity_damping,
+    should_enter_hold_maintain,
 )
 from .pid import PIDController, PIDGains
 
@@ -81,6 +93,7 @@ class VisualServoControllerNode(Node):
 
         # relevant data topics
         self.declare_parameter('target_topic', '/sc2/visual_servo/target_obs')
+        self.declare_parameter('use_target_observation', False)
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
@@ -176,6 +189,12 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('desired_vertical_distance_m', 0.6)
         self.declare_parameter('staged_pid_z_source', 'target_point_primary_dvl_fallback')
         self.declare_parameter('staged_pid_hold_zero_distance_m', 0.5)
+        self.declare_parameter('hold_maintain_enable', True)
+        self.declare_parameter('hold_maintain_z_kp_scale', 0.5)
+        self.declare_parameter('hold_maintain_velocity_damping_enable', True)
+        self.declare_parameter('hold_maintain_xy_damping', 0.4)
+        self.declare_parameter('hold_maintain_yaw_damping', 0.3)
+        self.declare_parameter('hold_maintain_velocity_timeout_ms', 500)
         self.declare_parameter('tracked_enter_window_obs', 10)
         self.declare_parameter('tracked_enter_min_obs', 2)
         self.declare_parameter('tracked_exit_no_obs_sec', 0.6)
@@ -187,6 +206,8 @@ class VisualServoControllerNode(Node):
 
         # extract data topics
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
+        self._target_obs_topic = str(self.get_parameter('target_topic').value)
+        self._use_target_observation = self._as_bool(self.get_parameter('use_target_observation').value)
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
 
@@ -278,6 +299,10 @@ class VisualServoControllerNode(Node):
             self._staged_pid_z_source = 'target_point_primary_dvl_fallback'
 
         self._latest_obs: Optional[Detection2D] = None
+        self._latest_target_observation: Optional[TargetObservation] = None
+        self._target_observation_valid = False
+        self._target_observation_state = 'LOST'
+        self._target_observation_reason = 'not_received'
         self._latest_target_point: Optional[PoseStamped] = None
 
         self.first_execution = True
@@ -343,6 +368,25 @@ class VisualServoControllerNode(Node):
         self._staged_pid_hold_zero_distance_m = float(
             self.get_parameter('staged_pid_hold_zero_distance_m').value
         )
+        self._hold_maintain_enable = self._as_bool(self.get_parameter('hold_maintain_enable').value)
+        self._hold_maintain_z_kp_scale = max(
+            0.0,
+            float(self.get_parameter('hold_maintain_z_kp_scale').value),
+        )
+        self._hold_maintain_velocity_damping_enable = self._as_bool(
+            self.get_parameter('hold_maintain_velocity_damping_enable').value
+        )
+        self._hold_maintain_xy_damping = max(
+            0.0,
+            float(self.get_parameter('hold_maintain_xy_damping').value),
+        )
+        self._hold_maintain_yaw_damping = max(
+            0.0,
+            float(self.get_parameter('hold_maintain_yaw_damping').value),
+        )
+        self._hold_maintain_velocity_timeout_sec = (
+            float(self.get_parameter('hold_maintain_velocity_timeout_ms').value) * 1e-3
+        )
         self._tracked_enter_window_obs = max(
             1, int(self.get_parameter('tracked_enter_window_obs').value)
         )
@@ -354,6 +398,7 @@ class VisualServoControllerNode(Node):
         self._latest_detection_time = None
         self._last_valid_target_observation_time = None
         self._last_accepted_target_centroid: Optional[np.ndarray] = None
+        self._has_marine_acoustic_dvl = _HAS_MARINE_ACOUSTIC_DVL
         self._tracking_valid_observation_history = deque(maxlen=self._tracked_enter_window_obs)
         self._staged_pid_state = self.StagedPIDState.NO_TARGET
         self._staged_pid_phase = 'horizontal_only'
@@ -415,6 +460,7 @@ class VisualServoControllerNode(Node):
         self.decay_rate = self.decay_rate_val  # Drops 5% of speed per "blind" frame
         self.DoF_mask = [1, 1, 0, 0, 0, 1]
         self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
+        self._last_velocity_measurement_time = None
         self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
         self.current_e = np.zeros(6)
         self.J_img = np.eye(2*self.center_box_corners.shape[0], 6)  # initialise the Jacobian based on the number of target points
@@ -451,18 +497,26 @@ class VisualServoControllerNode(Node):
         self._covariance_mat_publisher = self.create_publisher(Float64MultiArray, self._covariance_mat_topic, 10)
 
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
+        if self._use_target_observation:
+            self.create_subscription(TargetObservation, self._target_obs_topic, self._target_observation_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
         if self._controller_mode == 'staged_pid':
             self.create_subscription(PoseStamped, self._target_point_topic, self._target_pose_cb, 10)
             if self._depth_mode == 'DVL':
-                self.create_subscription(
-                    Dvl,
-                    str(self.get_parameter('dvl_altitude_topic').value),
-                    self._dvl_altitude_cb,
-                    10,
-                )
+                if self._has_marine_acoustic_dvl:
+                    self.create_subscription(
+                        Dvl,
+                        str(self.get_parameter('dvl_altitude_topic').value),
+                        self._dvl_altitude_cb,
+                        10,
+                    )
+                else:
+                    self.get_logger().warn(
+                        'marine_acoustic_msgs.msg.Dvl is unavailable in this environment; '
+                        'staged PID will run without /waterlinked_dvl_driver/velocity_report depth input.'
+                    )
             elif self._depth_mode == 'MAVROS':
                 self.create_subscription(
                     Float64,
@@ -475,7 +529,13 @@ class VisualServoControllerNode(Node):
                 case 'RGBD':
                     self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
                 case 'DVL':
-                    self.create_subscription(Dvl, self._target_pose_topic, self._target_pose_cb, 10)
+                    if self._has_marine_acoustic_dvl:
+                        self.create_subscription(Dvl, self._target_pose_topic, self._target_pose_cb, 10)
+                    else:
+                        self.get_logger().warn(
+                            'marine_acoustic_msgs.msg.Dvl is unavailable in this environment; '
+                            'IBVS DVL depth mode will not receive /waterlinked_dvl_driver/velocity_report.'
+                        )
                 case 'MAVROS':
                     self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
 
@@ -494,7 +554,9 @@ class VisualServoControllerNode(Node):
         self._publish_status(str(self.current_state.name))
 
         self.get_logger().info(
-            f'visual_servo_controller_node mode={self._controller_mode} target={self._target_bbox_topic} cmd={self._cmd_topic}'
+            f'visual_servo_controller_node mode={self._controller_mode} '
+            f'target_bbox={self._target_bbox_topic} target_obs={self._target_obs_topic if self._use_target_observation else "<disabled>"} '
+            f'cmd={self._cmd_topic}'
         )
 
     def handle_control_switch(self, request, response):
@@ -731,6 +793,57 @@ class VisualServoControllerNode(Node):
         self._staged_pid_last_z_source = z_source
         return vx_body, vy_body, vz_body, yaw, status, allow_z, z_meas, z_fresh, z_source
 
+    def _compute_hold_maintain_command(self, dt_ctrl: float) -> tuple[float, float, float, float, str]:
+        if not self._hold_maintain_enable:
+            self._z_pid.reset()
+            return 0.0, 0.0, 0.0, 0.0, 'HOLD_MAINTAIN_DISABLED'
+
+        velocity_fresh = (
+            self._last_velocity_measurement_time is not None and
+            self._is_timestamp_fresh(
+                self._last_velocity_measurement_time,
+                self._hold_maintain_velocity_timeout_sec,
+            )
+        )
+        vx_body = 0.0
+        vy_body = 0.0
+        yaw = 0.0
+        velocity_status = 'NO_VELOCITY'
+        if self._hold_maintain_velocity_damping_enable and velocity_fresh:
+            vx_body, vy_body, yaw = compute_hold_velocity_damping(
+                HoldVelocityMeasurement(
+                    vx=float(self.latest_velocity_measurement[0]),
+                    vy=float(self.latest_velocity_measurement[1]),
+                    yaw_rate=float(self.latest_velocity_measurement[5]),
+                ),
+                HoldVelocityDampingConfig(
+                    xy_damping=self._hold_maintain_xy_damping,
+                    yaw_damping=self._hold_maintain_yaw_damping,
+                    max_vx=self._max_vx,
+                    max_vy=self._max_vy,
+                    max_yaw=self._max_yaw,
+                ),
+            )
+            velocity_status = 'VELOCITY_DAMPING'
+        elif not self._hold_maintain_velocity_damping_enable:
+            velocity_status = 'VELOCITY_DAMPING_DISABLED'
+
+        z_meas, z_source, z_fresh = self._resolve_staged_pid_vertical_measurement()
+        self._staged_pid_last_z_fresh = z_fresh
+        self._staged_pid_last_z_meas = z_meas
+        self._staged_pid_last_z_source = z_source
+        self._staged_pid_last_allow_z = False
+
+        if not z_fresh or z_meas is None:
+            self._z_pid.reset()
+            return vx_body, vy_body, 0.0, yaw, f'HOLD_MAINTAIN_{velocity_status}_NO_DEPTH'
+
+        err_z_m = float(z_meas - self._desired_vertical_dist)
+        vz_body = self._hold_maintain_z_kp_scale * self._z_pid.update(err_z_m, dt_ctrl)
+        vz_body = clamp(vz_body, self._max_vz)
+        source_suffix = str(z_source).upper()
+        return vx_body, vy_body, vz_body, yaw, f'HOLD_MAINTAIN_{velocity_status}_DEPTH_{source_suffix}'
+
     def _target_pose_cb(self, msg) -> None:
         '''Extract the depth information from the latest Pose estimate.'''
 
@@ -781,6 +894,35 @@ class VisualServoControllerNode(Node):
             t.angular.x, t.angular.y, t.angular.z
         ])
         self.latest_velocity_measurement = current_vel
+        self._last_velocity_measurement_time = self.get_clock().now()
+
+    def _target_observation_cb(self, msg: TargetObservation) -> None:
+        now = self.get_clock().now()
+        self._latest_target_observation = msg
+        self._target_observation_valid = bool(msg.selected_valid)
+        self._target_observation_state = str(msg.track_state)
+        self._target_observation_reason = str(msg.reason_code)
+
+        self.latest_centroid = [float(msg.u), float(msg.v)]
+        self._last_obs_time = now
+        self._latest_detection_time = now
+        self._last_accepted_target_centroid = np.array(self.latest_centroid, dtype=np.float32)
+
+        err_summary = Vector3()
+        if self._controller_mode == 'staged_pid':
+            err_summary.x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
+            err_summary.y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+        else:
+            err_summary.x = float(self.target_centroid[0] - self.latest_centroid[0])
+            err_summary.y = float(self.target_centroid[1] - self.latest_centroid[1])
+        err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        self._centroid_error_publisher.publish(err_summary)
+
+        if self._target_observation_valid:
+            self._last_valid_target_observation_time = now
+            self._set_target_tracked(True)
+        else:
+            self._set_target_tracked(False)
 
     def _detection_cb(self, detection_2D_msg: Detection2D):
         """This callback reads an incoming detection from the object detection model, extracts the detection with the desired class_id
@@ -799,6 +941,11 @@ class VisualServoControllerNode(Node):
         #     f'position setpoint at x={self.setpoint_x:6.2f}, y={self.setpoint_y:6.2f}',
         #     throttle_duration_sec=1,
         # )
+
+        if self._use_target_observation and self._controller_mode == 'staged_pid':
+            # Compatibility path only: the tracker/selector TargetObservation
+            # contract is the primary staged-PID gate when enabled.
+            return
 
         self.get_logger().info(f'Detection Recieved!', throttle_duration_sec=2.0)
 
@@ -1027,6 +1174,27 @@ class VisualServoControllerNode(Node):
 
     def _tick_staged_pid(self, dt_ctrl: float, dt_obs: float) -> None:
         obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
+        if self._use_target_observation:
+            obs_fresh = (
+                self._latest_target_observation is not None and
+                dt_obs <= self._timeout_sec
+            )
+            if should_enter_hold_maintain(
+                use_target_observation=self._use_target_observation,
+                observation_received=self._latest_target_observation is not None,
+                observation_fresh=obs_fresh,
+                selected_valid=self._target_observation_valid,
+            ):
+                self._set_target_tracked(False)
+                self.set_state(self.ControllerState.BREAK)
+                state = self._target_observation_state if self._latest_target_observation is not None else 'NO_OBSERVATION'
+                reason = self._target_observation_reason if self._latest_target_observation is not None else 'not_received'
+                vx_body, vy_body, vz_body, yaw, maintain_status = self._compute_hold_maintain_command(dt_ctrl)
+                self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
+                self._publish_status(f'HOLD_SELECTED_INVALID_{state}_{reason}_{maintain_status}')
+                self._publish_is_locked('False')
+                self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+                return
         self._update_target_tracked_from_tick()
         self._publish_is_locked(str(self._target_tracked))
 

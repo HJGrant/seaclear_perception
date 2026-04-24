@@ -1,0 +1,14 @@
+topic,message_type,direction,component,note
+/detections_output,vision_msgs/msg/Detection2DArray,subscribe,target_observer_node,new tracker/selector primary input
+/sc2/visual_servo/target_obs,sc2_visual_servo_interfaces/msg/TargetObservation,publish,target_observer_node,selected track contract
+/sc2/visual_servo/target_obs,sc2_visual_servo_interfaces/msg/TargetObservation,subscribe,visual_servo_controller_node,primary staged_pid HOLD gate when enabled
+/best_detection,vision_msgs/msg/Detection2D,subscribe,visual_servo_controller_node,compatibility/baseline input retained
+/sc2/odometry_ekf,nav_msgs/msg/Odometry,subscribe,target_observer_node,motion-aware gate expansion speed input
+/sc2/imu/imu,sensor_msgs/msg/Imu,subscribe,target_observer_node,motion-aware gate expansion yaw-rate input
+/oak/stereo/image_raw,sensor_msgs/msg/Image,optional subscribe,target_observer_node,depth annotation only; disabled in P1-P4 launch
+/sc2/visual_servo/centroid_error,geometry_msgs/msg/Vector3,publish,visual_servo_controller_node,debug error from TargetObservation or compatibility Detection2D
+/sc2/visual_servo/status,std_msgs/msg/String,publish,visual_servo_controller_node,HOLD_SELECTED_INVALID_*_HOLD_MAINTAIN_* status
+/sc2/visual_servo/target_locked,std_msgs/msg/String,publish,visual_servo_controller_node,false while selected_valid is false
+/mavros/local_position/velocity_body,geometry_msgs/msg/TwistStamped,subscribe,visual_servo_controller_node,default body velocity measurement used for HOLD XY/yaw damping
+/waterlinked_dvl_driver/velocity_report,marine_acoustic_msgs/msg/Dvl,subscribe,visual_servo_controller_node,DVL vertical feedback for normal vertical and HOLD maintain
+/sc2/visual_servo/target_point,geometry_msgs/msg/PoseStamped,optional subscribe,visual_servo_controller_node,compatibility path; not primary in this implementation

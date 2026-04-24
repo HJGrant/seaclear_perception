@@ -11,6 +11,7 @@
 
   <depend>launch</depend>
   <depend>launch_ros</depend>
+  <exec_depend>ament_index_python</exec_depend>
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
   <depend>sc2_visual_servo_interfaces</depend>
