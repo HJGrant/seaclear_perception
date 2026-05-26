@@ -215,6 +215,7 @@ def generate_launch_description():
             'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',           # velocity command for MAVROS
             'cmd_topic_vec_6': '/sc2/velocity_controller_node/outer/console_signals', # velocity command for SC2 (msg type: Vector6)
             'status_topic': '/sc2/visual_servo/status',
+            'vs_control_finish_topic': '/sc2/visual_servo/vs_control_finish',
             'dvl_altitude_topic' : '/waterlinked_dvl_driver/velocity_report',
             'body_frame_id': 'base_link',
             'rate_hz' : 10.0,
@@ -252,6 +253,12 @@ def generate_launch_description():
             'staged_pid_vertical_enter_hold_ticks': 2,
             'staged_pid_vertical_exit_hold_ticks': 2,
             'staged_pid_hold_zero_distance_m': 0.5,
+            # Completion handoff to the external operation state machine.
+            # Uses the same horizontal tolerances and distance tolerance above.
+            'staged_pid_completion_enable': True,
+            'staged_pid_completion_window_ticks': 10,
+            'staged_pid_completion_enter_ratio': 0.8,
+            'staged_pid_completion_latch': True,
             'hold_maintain_enable': True,
             'hold_maintain_z_kp_scale': 0.5,
             # Provisional HOLD maintain values. During tracker HOLD, visual

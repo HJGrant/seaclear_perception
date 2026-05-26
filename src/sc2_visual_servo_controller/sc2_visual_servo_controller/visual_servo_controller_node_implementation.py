@@ -22,8 +22,8 @@ Current staged PID behavior notes:
   meters. Before hardware testing, still verify the resulting positive-z command
   convention against the vehicle frame.
 
-Not implemented in this file yet: search scan/recovery and terminal hold/zero
-behavior. The hold-distance check is only exposed as a status hook.
+Not implemented in this file yet: search scan/recovery. The staged PID path
+implements a terminal completion gate for the external operation state machine.
 """
 
 from collections import deque
@@ -34,7 +34,7 @@ from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3, 
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float64, Float64MultiArray, MultiArrayDimension
+from std_msgs.msg import String, Float64, Float64MultiArray, MultiArrayDimension, Bool
 from sensor_msgs.msg import CameraInfo
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from enum import Enum
@@ -189,6 +189,11 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('desired_vertical_distance_m', 0.6)
         self.declare_parameter('staged_pid_z_source', 'target_point_primary_dvl_fallback')
         self.declare_parameter('staged_pid_hold_zero_distance_m', 0.5)
+        self.declare_parameter('vs_control_finish_topic', '/sc2/visual_servo/vs_control_finish')
+        self.declare_parameter('staged_pid_completion_enable', True)
+        self.declare_parameter('staged_pid_completion_window_ticks', 10)
+        self.declare_parameter('staged_pid_completion_enter_ratio', 0.8)
+        self.declare_parameter('staged_pid_completion_latch', True)
         self.declare_parameter('hold_maintain_enable', True)
         self.declare_parameter('hold_maintain_z_kp_scale', 0.5)
         self.declare_parameter('hold_maintain_velocity_damping_enable', True)
@@ -208,7 +213,6 @@ class VisualServoControllerNode(Node):
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
         self._target_obs_topic = str(self.get_parameter('target_topic').value)
         self._use_target_observation = self._as_bool(self.get_parameter('use_target_observation').value)
-        self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
 
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
@@ -218,7 +222,9 @@ class VisualServoControllerNode(Node):
         
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
+        self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
+        self._vs_control_finish_topic = str(self.get_parameter('vs_control_finish_topic').value)
 
         #IBVS topics
         self._jacobian_topic = str(self.get_parameter('image_jacobian_topic').value)
@@ -368,6 +374,19 @@ class VisualServoControllerNode(Node):
         self._staged_pid_hold_zero_distance_m = float(
             self.get_parameter('staged_pid_hold_zero_distance_m').value
         )
+        self._staged_pid_completion_enable = self._as_bool(
+            self.get_parameter('staged_pid_completion_enable').value
+        )
+        self._staged_pid_completion_window_ticks = max(
+            1, int(self.get_parameter('staged_pid_completion_window_ticks').value)
+        )
+        self._staged_pid_completion_enter_ratio = min(
+            1.0,
+            max(0.0, float(self.get_parameter('staged_pid_completion_enter_ratio').value)),
+        )
+        self._staged_pid_completion_latch = self._as_bool(
+            self.get_parameter('staged_pid_completion_latch').value
+        )
         self._hold_maintain_enable = self._as_bool(self.get_parameter('hold_maintain_enable').value)
         self._hold_maintain_z_kp_scale = max(
             0.0,
@@ -405,6 +424,10 @@ class VisualServoControllerNode(Node):
         self._staged_pid_recent_horizontal_ok = deque(
             maxlen=self._staged_pid_vertical_gate_window_ticks
         )
+        self._staged_pid_recent_completion_ok = deque(
+            maxlen=self._staged_pid_completion_window_ticks
+        )
+        self._vs_control_finished = False
         self._staged_pid_vertical_enabled = False
         self._staged_pid_enter_counter = 0
         self._staged_pid_exit_counter = 0
@@ -489,6 +512,7 @@ class VisualServoControllerNode(Node):
         self._sc2_base_link_vel_pub = self.create_publisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
+        self._vs_control_finish_pub = self.create_publisher(Bool, self._vs_control_finish_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
 
         # IBVS analysis topics 
@@ -552,6 +576,7 @@ class VisualServoControllerNode(Node):
 
         self.current_state = self.ControllerState.BREAK
         self._publish_status(str(self.current_state.name))
+        self._publish_vs_control_finish(False)
 
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} '
@@ -562,6 +587,9 @@ class VisualServoControllerNode(Node):
     def handle_control_switch(self, request, response):
         '''Service for turning the IBVS control on or off.'''
         self.control_enabled = request.data
+        if not self.control_enabled:
+            self._clear_staged_pid_completion()
+            self._publish_vs_control_finish(False)
         response.success = True
         response.message = f"IBVS Control {'Enabled' if self.control_enabled else 'Disabled'}"
         return response
@@ -570,6 +598,11 @@ class VisualServoControllerNode(Node):
         self._xy_pid_x.reset()
         self._xy_pid_y.reset()
         self._reset_vertical_gate()
+        self._clear_staged_pid_completion()
+
+    def _clear_staged_pid_completion(self) -> None:
+        self._staged_pid_recent_completion_ok.clear()
+        self._vs_control_finished = False
 
     def _reset_vertical_gate(self) -> None:
         self._z_pid.reset()
@@ -740,6 +773,55 @@ class VisualServoControllerNode(Node):
             return None, 'none', False
 
         return None, 'none', False
+
+    def _update_staged_pid_completion_gate(
+        self,
+        *,
+        obs_fresh: bool,
+        z_meas: Optional[float],
+        z_fresh: bool,
+    ) -> bool:
+        """Return true after bbox and distance have remained ready long enough.
+
+        This is a state-machine handoff condition for the staged PID path. It is
+        deliberately stricter than target tracking: tracking only means that the
+        selected observation is continuous, whereas completion requires both image
+        centering and vertical-distance convergence.
+        """
+        if not self._staged_pid_completion_enable:
+            self._clear_staged_pid_completion()
+            return False
+
+        if self._staged_pid_completion_latch and self._vs_control_finished:
+            return True
+
+        selected_valid_ok = True
+        if self._use_target_observation:
+            selected_valid_ok = bool(self._target_observation_valid)
+
+        horizontal_ok = self._is_staged_pid_vertical_gate_aligned()
+        distance_ok = (
+            z_fresh
+            and z_meas is not None
+            and abs(float(z_meas) - self._desired_vertical_dist) <= self._staged_pid_distance_tol_m
+        )
+        completion_ok = (
+            self.control_enabled
+            and self._target_tracked
+            and obs_fresh
+            and selected_valid_ok
+            and horizontal_ok
+            and distance_ok
+        )
+
+        self._staged_pid_recent_completion_ok.append(bool(completion_ok))
+        if len(self._staged_pid_recent_completion_ok) < self._staged_pid_completion_window_ticks:
+            return False
+
+        ready_ratio = sum(self._staged_pid_recent_completion_ok) / float(
+            self._staged_pid_completion_window_ticks
+        )
+        return ready_ratio >= self._staged_pid_completion_enter_ratio
 
     def _compute_staged_pid_command(
         self,
@@ -994,6 +1076,7 @@ class VisualServoControllerNode(Node):
         if not self.control_enabled:
             if self._controller_mode == 'staged_pid':
                 self._reset_staged_pid_state()
+                self._publish_vs_control_finish(False)
             self._publish_cmd(0.0, 0.0, 0.0, 0.0)
             self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
             return
@@ -1186,6 +1269,8 @@ class VisualServoControllerNode(Node):
                 selected_valid=self._target_observation_valid,
             ):
                 self._set_target_tracked(False)
+                self._clear_staged_pid_completion()
+                self._publish_vs_control_finish(False)
                 self.set_state(self.ControllerState.BREAK)
                 state = self._target_observation_state if self._latest_target_observation is not None else 'NO_OBSERVATION'
                 reason = self._target_observation_reason if self._latest_target_observation is not None else 'not_received'
@@ -1201,20 +1286,49 @@ class VisualServoControllerNode(Node):
         if not self._target_tracked:
             self.set_state(self.ControllerState.BREAK)
             self.v_last_valid = np.zeros(6)
+            self._clear_staged_pid_completion()
+            self._publish_vs_control_finish(False)
             self._publish_status('TRACKING_STAGED_PID_NO_TARGET')
             self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
             return
 
-        self.set_state(self.ControllerState.VISUAL)
+        if self._staged_pid_completion_latch and self._vs_control_finished:
+            # Handoff to the external operation state machine. Continue publishing
+            # zero velocity so MAVROS does not time out the setpoint while complete.
+            self.set_state(self.ControllerState.COMPLETE)
+            self.v_last_valid = np.zeros(6)
+            self._publish_vs_control_finish(True)
+            self._publish_status('COMPLETE_STAGED_PID_LATCHED')
+            self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+            return
 
         if obs_fresh and hasattr(self, 'latest_centroid'):
-            vx_body, vy_body, vz_body, yaw, status, *_ = self._compute_staged_pid_command(
+            vx_body, vy_body, vz_body, yaw, status, _allow_z, z_meas, z_fresh, z_source = self._compute_staged_pid_command(
                 obs_fresh,
                 dt_ctrl,
             )
+            completion_reached = self._update_staged_pid_completion_gate(
+                obs_fresh=obs_fresh,
+                z_meas=z_meas,
+                z_fresh=z_fresh,
+            )
+            if completion_reached:
+                # Handoff to the external operation state machine. Continue publishing
+                # zero velocity so MAVROS does not time out the setpoint while complete.
+                self.set_state(self.ControllerState.COMPLETE)
+                self._vs_control_finished = True
+                self.v_last_valid = np.zeros(6)
+                self._publish_vs_control_finish(True)
+                self._publish_status(f'COMPLETE_STAGED_PID_{z_source.upper()}')
+                self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+                return
+            self.set_state(self.ControllerState.VISUAL)
+            self._publish_vs_control_finish(False)
         else:
             self._staged_pid_state = self.StagedPIDState.HORIZONTAL
             self._reset_vertical_gate()
+            self._clear_staged_pid_completion()
+            self._publish_vs_control_finish(False)
             vx_body, vy_body, vz_body, yaw = self._tracked_horizontal_stale_command()
             status = 'TRACKING_STAGED_PID_HORIZONTAL_STALE'
 
@@ -1249,6 +1363,11 @@ class VisualServoControllerNode(Node):
         msg = String()
         msg.data = text
         self._status_pub.publish(msg)
+
+    def _publish_vs_control_finish(self, finished: bool) -> None:
+        msg = Bool()
+        msg.data = bool(finished)
+        self._vs_control_finish_pub.publish(msg)
 
     def _publish_is_locked(self, text: str) -> None:
         msg = String()
