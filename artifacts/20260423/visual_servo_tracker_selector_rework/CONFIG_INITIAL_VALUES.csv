@@ -1,0 +1,34 @@
+component,parameter,default_value,category,note
+target_observer_node,detections_topic,/detections_output,fixed_for_current_path,new tracker/selector primary input
+target_observer_node,output_topic,/sc2/visual_servo/target_obs,fixed_for_current_path,TargetObservation contract output
+target_observer_node,target_class,3,requires_field_tuning,initial class from noimage bag baseline
+target_observer_node,min_confidence,0.5,requires_field_tuning,provisional high-confidence threshold
+target_observer_node,low_confidence,0.15,requires_field_tuning,provisional low-confidence recovery threshold
+target_observer_node,use_depth,false,fixed_or_unused,target_point/depth path is not primary in P1-P4
+target_observer_node,alpha_uv_predict,0.0,usable_initial,last-observation hold by default
+target_observer_node,t_stale_sec,1.0,requires_field_tuning,freshness denominator
+target_observer_node,n_confirm,5,requires_field_tuning,TENTATIVE to CONFIRMED consecutive matches
+target_observer_node,base_gate_px,80.0,requires_field_tuning,image-plane association gate before motion-aware scale
+target_observer_node,r_gate_max_scale,1.6,requires_field_tuning,max motion-aware gate scale
+target_observer_node,max_tracks,8,usable_initial,maximum retained track-table entries
+target_observer_node,selector_switch_margin,0.05,requires_field_tuning,minimum score advantage required before switching away from previous selected confirmed/fresh track
+target_observer_node,selector_selected_track_bonus,0.05,requires_field_tuning,continuity bonus applied to previous selected confirmed/fresh track
+target_observer_node,confidence_ema_alpha,0.35,usable_initial,confidence smoothing factor
+target_observer_node,hold_max_misses,12,requires_field_tuning,HOLD miss budget before LOST
+target_observer_node,lost_max_misses,30,requires_field_tuning,ESCALATE miss budget
+target_observer_node,enable_motion_aware_gate,true,usable_initial,uses odom speed and IMU yaw rate to expand gate
+target_observer_node,v_ref_mps,0.5,requires_field_tuning,linear speed normalization reference
+target_observer_node,omega_ref_radps,0.5,requires_field_tuning,yaw-rate normalization reference
+target_observer_node,beta_v,0.3,requires_field_tuning,linear speed gate contribution
+target_observer_node,beta_omega,0.3,requires_field_tuning,yaw-rate gate contribution
+visual_servo_controller_node,use_target_observation,true in launch,fixed_for_current_path,TargetObservation primary gate for staged_pid
+visual_servo_controller_node,target_topic,/sc2/visual_servo/target_obs,fixed_for_current_path,tracker/selector output
+visual_servo_controller_node,target_bounding_box,/best_detection,compatibility_only,kept for legacy/baseline input
+visual_servo_controller_node,staged_pid_z_source,dvl,usable_initial,DVL vertical feedback for P1-P4 path
+visual_servo_controller_node,hold_maintain_enable,true,usable_initial,enables depth maintain during invalid selected target
+visual_servo_controller_node,hold_maintain_z_kp_scale,0.5,requires_field_tuning,scales existing z PID output during HOLD maintain
+visual_servo_controller_node,hold_maintain_velocity_damping_enable,true,usable_initial,enables body velocity damping during invalid selected target
+visual_servo_controller_node,hold_maintain_xy_damping,0.4,requires_field_tuning,body-frame x/y drift damping gain during HOLD maintain
+visual_servo_controller_node,hold_maintain_yaw_damping,0.3,requires_field_tuning,body yaw-rate damping gain during HOLD maintain
+visual_servo_controller_node,hold_maintain_velocity_timeout_ms,500,requires_field_tuning,velocity feedback freshness timeout for HOLD damping
+object_detection_ibvs.launch,launch_target_point,false,fixed_for_current_path,compatibility switch for target_point path

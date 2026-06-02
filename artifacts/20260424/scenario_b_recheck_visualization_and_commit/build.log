@@ -1,0 +1,24 @@
+Starting >>> sc2_visual_servo_interfaces
+Starting >>> state_estimation
+--- stderr: sc2_visual_servo_interfaces
+ERROR setuptools_scm._file_finders.git listing git files failed - pretending there aren't any
+---
+Finished <<< sc2_visual_servo_interfaces [1.50s]
+Starting >>> sc2_visual_servo_perception
+--- stderr: state_estimation
+ERROR setuptools_scm._file_finders.git listing git files failed - pretending there aren't any
+ERROR setuptools_scm._file_finders.git listing git files failed - pretending there aren't any
+---
+Finished <<< state_estimation [1.53s]
+Starting >>> sc2_visual_servo_controller
+--- stderr: sc2_visual_servo_perception
+ERROR setuptools_scm._file_finders.git listing git files failed - pretending there aren't any
+---
+Finished <<< sc2_visual_servo_perception [2.90s]
+--- stderr: sc2_visual_servo_controller
+ERROR setuptools_scm._file_finders.git listing git files failed - pretending there aren't any
+---
+Finished <<< sc2_visual_servo_controller [2.89s]
+
+Summary: 4 packages finished [4.97s]
+  4 packages had stderr output: sc2_visual_servo_controller sc2_visual_servo_interfaces sc2_visual_servo_perception state_estimation

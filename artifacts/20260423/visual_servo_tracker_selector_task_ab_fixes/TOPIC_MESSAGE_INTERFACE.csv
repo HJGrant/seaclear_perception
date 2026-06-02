@@ -1,0 +1,11 @@
+topic,message_type,direction,component,note
+/detections_output,vision_msgs/msg/Detection2DArray,subscribe,target_observer_node,primary tracker/selector input
+/sc2/visual_servo/target_obs,sc2_visual_servo_interfaces/msg/TargetObservation,publish,target_observer_node,selected track contract
+/sc2/visual_servo/target_obs,sc2_visual_servo_interfaces/msg/TargetObservation,subscribe,visual_servo_controller_node,primary staged_pid gate when use_target_observation=true
+/best_detection,vision_msgs/msg/Detection2D,subscribe,visual_servo_controller_node,legacy compatibility path only
+/sc2/odometry_ekf,nav_msgs/msg/Odometry,subscribe,target_observer_node,motion-aware gate expansion linear speed input
+/sc2/imu/imu,sensor_msgs/msg/Imu,subscribe,target_observer_node,motion-aware gate expansion yaw-rate input
+/mavros/local_position/velocity_body,geometry_msgs/msg/TwistStamped,subscribe,visual_servo_controller_node,body velocity damping source for HOLD maintain
+/waterlinked_dvl_driver/velocity_report,marine_acoustic_msgs/msg/Dvl,subscribe,visual_servo_controller_node,DVL vertical feedback for staged PID and HOLD maintain
+/sc2/velocity_controller_node/outer/console_signals,state_estimation/msg/Vector6,publish,visual_servo_controller_node,SC2 command adapter output configured in launch
+/sc2/visual_servo/status,std_msgs/msg/String,publish,visual_servo_controller_node,status includes HOLD_SELECTED_INVALID and maintain reason

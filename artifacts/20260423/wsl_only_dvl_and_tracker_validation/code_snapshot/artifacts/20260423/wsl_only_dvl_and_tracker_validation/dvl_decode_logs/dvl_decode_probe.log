@@ -1,0 +1,20 @@
+== rosbag2_2026_04_22-15_22_39 ==
+bag=rosbag2_2026_04_22-15_22_39
+topic_type=marine_acoustic_msgs/msg/Dvl
+db_decode ts=1776864161508995909 altitude=4.705516 speed_gnd=0.000016 course_gnd=1.671716 num_good_beams=4
+db_decode ts=1776864161514696424 altitude=4.705516 speed_gnd=0.000035 course_gnd=1.349093 num_good_beams=4
+db_decode ts=1776864161713706997 altitude=4.705516 speed_gnd=0.000069 course_gnd=1.515960 num_good_beams=4
+subscriber_count=3
+subscriber_sample altitude=4.705516 speed_gnd=0.000016 course_gnd=1.671716 num_good_beams=4
+subscriber_sample altitude=4.705516 speed_gnd=0.000035 course_gnd=1.349093 num_good_beams=4
+subscriber_sample altitude=4.705516 speed_gnd=0.000069 course_gnd=1.515960 num_good_beams=4
+== rosbag2_2026_04_22-16_47_57-diving-noimage ==
+bag=rosbag2_2026_04_22-16_47_57-diving-noimage
+topic_type=marine_acoustic_msgs/msg/Dvl
+db_decode ts=1776869282417930519 altitude=6.719603 speed_gnd=0.013746 course_gnd=-0.830999 num_good_beams=4
+db_decode ts=1776869282421675546 altitude=6.725076 speed_gnd=0.014340 course_gnd=-0.639942 num_good_beams=4
+db_decode ts=1776869282607916841 altitude=6.716866 speed_gnd=0.014388 course_gnd=-0.533063 num_good_beams=4
+subscriber_count=3
+subscriber_sample altitude=6.719603 speed_gnd=0.013746 course_gnd=-0.830999 num_good_beams=4
+subscriber_sample altitude=6.725076 speed_gnd=0.014340 course_gnd=-0.639942 num_good_beams=4
+subscriber_sample altitude=6.716866 speed_gnd=0.014388 course_gnd=-0.533063 num_good_beams=4

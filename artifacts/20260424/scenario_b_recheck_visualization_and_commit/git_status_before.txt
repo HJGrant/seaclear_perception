@@ -1,0 +1,19 @@
+ M .gitignore
+ M src/sc2_visual_servo_bringup/launch/object_detection_ibvs.launch.py
+ M src/sc2_visual_servo_bringup/package.xml
+ M src/sc2_visual_servo_controller/package.xml
+ M src/sc2_visual_servo_controller/sc2_visual_servo_controller/visual_servo_controller_node_implementation.py
+ M src/sc2_visual_servo_interfaces/msg/TargetObservation.msg
+ M src/sc2_visual_servo_perception/package.xml
+ M src/sc2_visual_servo_perception/sc2_visual_servo_perception/target_observer_node.py
+ M src/sc2_visual_servo_perception/test/test_target_observer_integration.py
+?? .codex
+?? PLANS.md
+?? docs/codex/
+?? rosbag2_2026_04_22-15_22_39/
+?? rosbag2_2026_04_22-16_47_57-diving-noimage/
+?? src/deployment_env/
+?? src/sc2_visual_servo_controller/sc2_visual_servo_controller/hold_maintain_core.py
+?? src/sc2_visual_servo_controller/test/test_hold_maintain_core.py
+?? src/sc2_visual_servo_perception/sc2_visual_servo_perception/tracker_selector_core.py
+?? src/sc2_visual_servo_perception/test/test_tracker_selector_core.py

@@ -1,0 +1,14 @@
+component,parameter,default_value,category,note
+target_observer_node,selector_switch_margin,0.05,requires_field_tuning,minimum score advantage required before switching away from previous selected confirmed/fresh track
+target_observer_node,selector_selected_track_bonus,0.05,requires_field_tuning,continuity bonus applied to previous selected confirmed/fresh track
+target_observer_node,confidence_ema_alpha,0.35,usable_initial,confidence smoothing used by selection score
+target_observer_node,t_stale_sec,1.0,requires_field_tuning,freshness denominator and confirmed/fresh validity window
+target_observer_node,hold_max_misses,12,requires_field_tuning,HOLD passive reacquire miss budget before LOST
+target_observer_node,lost_max_misses,30,requires_field_tuning,ESCALATE miss budget
+sc2_visual_servo_controller_package,std_srvs,declared,fixed_for_build,SetBool service dependency
+sc2_visual_servo_controller_package,sensor_msgs,declared,fixed_for_build,CameraInfo message dependency
+sc2_visual_servo_controller_package,vision_msgs,declared,fixed_for_build,Detection2D message dependency
+sc2_visual_servo_controller_package,marine_acoustic_msgs,declared,fixed_for_build,Dvl message dependency
+sc2_visual_servo_controller_package,tf2_ros,declared,fixed_for_build,TF buffer/listener/exception dependency
+sc2_visual_servo_controller_package,tf2_geometry_msgs,declared,fixed_for_build,geometry transform helper dependency
+sc2_visual_servo_controller_package,state_estimation,declared,fixed_for_build,Vector6 custom message dependency

@@ -1,0 +1,4 @@
+scenario,tracker_config,hold_rematch_attempts,hold_rematch_successes,hold_rematch_latency_frames_mean,true_reacquire_attempts,true_reacquire_successes,true_reacquire_latency_frames_mean
+scenario_b,legacy_synth,40,39,1.103,0,0,
+scenario_b,production_like,0,0,,0,0,
+variable_bbox_b,production_like,21,16,1.312,0,0,

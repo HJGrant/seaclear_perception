@@ -1,0 +1,4 @@
+scenario,tracker_config,switches,valid_switches,false_spans,false_frames,clutter_false_selects,hold_transitions,lost_transitions,escalate_transitions,hold_rematch_attempts,hold_rematch_successes,true_reacquire_attempts,true_reacquire_successes,hold_rematch_latency_frames_mean,true_reacquire_latency_frames_mean
+scenario_b,legacy_synth,6,6,41,58,12,49,85,81,40,39,0,0,1.103,
+scenario_b,production_like,0,0,1,120,0,0,39,27,0,0,0,0,,
+variable_bbox_b,production_like,33,29,22,39,45,69,31,27,21,16,0,0,1.312,
