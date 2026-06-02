@@ -195,6 +195,7 @@ MY_TOPIC_LIST = [
     '/sc2/state_estimation_node/estimated_state',
     '/sc2/state_estimation_node/estimated_velocity',
     '/sc2/thruster_manager/input',
+    '/sc2/visual_servo/target_point',
     '/sc2/velocity_controller_node/console_desireds',
     '/sc2/velocity_controller_node/control_errors',
     '/sc2/velocity_controller_node/control_signals',

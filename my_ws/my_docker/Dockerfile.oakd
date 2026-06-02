@@ -140,4 +140,4 @@ RUN apt-get update && apt-get install -y \
     ros-${ROS_DISTRO}-mavros-msgs \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install "numpy<2"
+#RUN pip install "numpy<2"

@@ -1,10 +1,11 @@
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import TwistStamped, Vector3Stamped
+from geometry_msgs.msg import TwistStamped, Vector3Stamped, Vector3
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 import tf2_geometry_msgs # Required for do_transform_vector3
+from state_estimation.msg import Vector6
 
 class Sc2VelocityPublisher(Node):
     def __init__(self):
@@ -24,6 +25,12 @@ class Sc2VelocityPublisher(Node):
             '/mavros/setpoint_velocity/cmd_vel', 
             10
         )
+
+        self.vel_pub_vec_6 = self.create_publisher(
+            Vector6, 
+            '/sc2/velocity_controller_node/outer/console_signals', 
+            10
+        )
         
         self.timer = self.create_timer(0.05, self.publish_velocity)
         self.start_time = self.get_clock().now()
@@ -40,12 +47,20 @@ class Sc2VelocityPublisher(Node):
         v_sc2.header.frame_id = 'sc2_base_link'
         v_sc2.header.stamp = curr_time.to_msg()
 
+        v_sc2_lin = Vector3() 
+        v_sc2_lin.header.header = 'sc2_base_link'
+        v_sc2_lin.header.stamp = curr_time.to_msg()
+
         if elapsed_time < duration:
             axis = self.get_parameter('axis').value.lower()
             vel = self.get_parameter('velocity').value
-            if axis == 'x': v_sc2.vector.x = vel
-            elif axis == 'y': v_sc2.vector.y = vel
-            elif axis == 'z': v_sc2.vector.z = vel
+            if axis == 'x': 
+                v_sc2.vector.x = vel
+
+            elif axis == 'y': 
+                v_sc2.vector.y = vel
+            elif axis == 'z': 
+                v_sc2.vector.z = vel
         elif elapsed_time >= (duration + 1.0):
             raise SystemExit
 
