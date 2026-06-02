@@ -1,8 +1,8 @@
 import depthai as dai
 
-STATIC_IP = "10.1.1.210"
+STATIC_IP = "192.168.2.109"
 NETMASK   = "255.255.255.0"
-GATEWAY   = "10.1.1.1"   # ここは使っているネットワークに合わせる
+GATEWAY   = ""   # ここは使っているネットワークに合わせる
 
 ok, info = dai.DeviceBootloader.getFirstAvailableDevice()
 if not ok:
