@@ -8,7 +8,7 @@ This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packag
 Make sure you have the OAK-D connected, and give your machine a static ip such as ` 169.254.1.97` with netmask ` 255.255.0.0 `. Verfiy that the OAK-D is detected by running: 
 
 ```bash
-ping 192.168.2.97
+ping 192.168.2.109
 ```
 
 If you are having trouble with the OAK-D then go to troubleshooting. 
