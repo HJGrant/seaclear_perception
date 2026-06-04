@@ -110,7 +110,6 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
         self.declare_parameter('image_jacobian_topic', '/image_jacobian')
         self.declare_parameter('jacobian_condition_number_topic', '/condition_numebr')
-        self.declare_parameter('uncalibrated_ibvs_covariance_mat_topic', '/uncalibrated_ibvs_covariance')
         
         # relevant frames for transformations
         self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
@@ -229,7 +228,6 @@ class VisualServoControllerNode(Node):
         #IBVS topics
         self._jacobian_topic = str(self.get_parameter('image_jacobian_topic').value)
         self._condition_nr_topic = str(self.get_parameter('jacobian_condition_number_topic').value)
-        self._covariance_mat_topic = str(self.get_parameter('uncalibrated_ibvs_covariance_mat_topic').value)
 
         # extract frame IDs
         self._mavros_base_link_frame_id = str(self.get_parameter('mavros_base_link_frame_id').value)
@@ -518,7 +516,6 @@ class VisualServoControllerNode(Node):
         # IBVS analysis topics 
         self._jacobian_publisher = self.create_publisher(Float64MultiArray, self._jacobian_topic, 10)
         self._condition_nr_publisher = self.create_publisher(Float64, self._condition_nr_topic, 10)
-        self._covariance_mat_publisher = self.create_publisher(Float64MultiArray, self._covariance_mat_topic, 10)
 
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         if self._use_target_observation:
@@ -548,21 +545,6 @@ class VisualServoControllerNode(Node):
                     self._mavros_altitude_cb,
                     10,
                 )
-        else:
-            match self._depth_mode:
-                case 'RGBD':
-                    self.create_subscription(PoseStamped, self._target_pose_topic, self._target_pose_cb, 10)
-                case 'DVL':
-                    if self._has_marine_acoustic_dvl:
-                        self.create_subscription(Dvl, self._target_pose_topic, self._target_pose_cb, 10)
-                    else:
-                        self.get_logger().warn(
-                            'marine_acoustic_msgs.msg.Dvl is unavailable in this environment; '
-                            'IBVS DVL depth mode will not receive /waterlinked_dvl_driver/velocity_report.'
-                        )
-                case 'MAVROS':
-                    self.create_subscription(Float64, self._target_pose_topic, self._target_pose_cb, 10)
-
         
         #service for turning the IBVS control on or off 
         self.control_enabled = False # Default to off
@@ -994,9 +976,6 @@ class VisualServoControllerNode(Node):
         if self._controller_mode == 'staged_pid':
             err_summary.x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
             err_summary.y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
-        else:
-            err_summary.x = float(self.target_centroid[0] - self.latest_centroid[0])
-            err_summary.y = float(self.target_centroid[1] - self.latest_centroid[1])
         err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
         self._centroid_error_publisher.publish(err_summary)
 
@@ -1054,9 +1033,6 @@ class VisualServoControllerNode(Node):
         if self._controller_mode == 'staged_pid':
             centroid_err_x = self.latest_centroid[0] - self._staged_pid_target_centroid[0]
             centroid_err_y = self.latest_centroid[1] - self._staged_pid_target_centroid[1]
-        else:
-            centroid_err_x = self.target_centroid[0] - self.latest_centroid[0]
-            centroid_err_y = self.target_centroid[1] - self.latest_centroid[1]
 
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
@@ -1085,175 +1061,6 @@ class VisualServoControllerNode(Node):
             self._tick_staged_pid(dt_ctrl, dt_obs)
             return
 
-        # --- 1. SENSOR VALIDATION GATE ---
-        is_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
-        
-        # ROI check against the LAST VALID centroid we trusted
-        in_roi = True
-        if not self.first_execution:
-            in_roi = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.prev_centroid, self.roi_w)
-            self.prev_centroid = self.latest_centroid.copy()
-
-        # Update the Consecutive Counter
-        if is_fresh and in_roi:
-            # We only count it as a "valid frame" if it's fresh and near the last one
-            self.target_count = min(self.target_count + 1, self.target_min + 1)
-        else:
-            # Hard reset: If it jumps or times out, we lose the "lock"
-            self.target_count = 0
-
-        # Boolean for whether we trust the current frame enough to do math
-        is_locked = (self.target_count > self.target_min)
-
-        # publish if the target is locked or not for debugging
-        self._publish_is_locked(str(is_locked))
-
-        # --- 2. MATH UPDATE (Only if Locked) ---
-        if is_locked:
-            self.current_e = (self.center_box_corners - self.latest_bbox_corners).flatten(order="F") 
-            Z = np.ones(len(self.latest_bbox_corners)) * self._latest_depth_measurement # apply the latest depth measurement of the bbbox center
-
-            
-            if self.calibrated:
-                self.J_img = get_image_jacobian(self.latest_bbox_corners, Z, self.fx, self.fy, self.cx, self.cy)
-                # publish the Jacobian and condition number
-                self._publish_jacobian(self.J_img.copy())
-
-            else:
-                # UNCALIBRATED MODE: Update RLS Jacobian estimate
-                self.J_hat, self.Pk, self.delta_e = get_uncalibrated_jacobian(
-                    self.current_e, self.prev_e, self.prev_velocity_measurement, 
-                    self.J_hat, self.Pk, self.lmbda_rls, dt_ctrl
-                )
-                self.J_img = self.J_hat
-                # publish the Jacobian, condition number and the covariance matrix
-                self._publish_jacobian(self.J_img.copy(), Pk=self.Pk.copy())
-
-            # Update history for next iteration
-            self.prev_e = self.current_e.copy()
-            self.prev_velocity_measurement = self.latest_velocity_measurement
-            self.first_execution = False
-
-        # --- 3. STATE TRANSITIONS ---
-        if is_locked:
-            # Check for VISUAL transition
-            if self.current_state not in [self.ControllerState.DVL, self.ControllerState.COMPLETE]:
-                self.set_state(self.ControllerState.VISUAL)
-
-            # Check for DVL transition (Requires being in the center)
-            in_center = is_in_roi(self.latest_centroid[0], self.latest_centroid[1], self.target_centroid, self.roi_w/2)
-            if in_center and self.enable_dvl:
-                self.center_count = min(self.center_count + 1, self.center_min + 1)
-                if self.center_count > self.center_min:
-                    self.set_state(self.ControllerState.DVL)
-            else:
-                self.center_count = 0
-        else:
-            # Not locked: if blind for too long, break
-            if dt_obs >= self.lost_timeout:
-                self.set_state(self.ControllerState.BREAK)
-
-        # --- 4. ACTION SELECTION (Mode-Specific) ---
-        # Initialize raw target velocity
-        v_raw_target = np.zeros(6)
-
-        if self.current_state == self.ControllerState.DVL:
-            # DVL DESCENT LOGIC
-            # error_z calculation (you'll need to ensure you have the Z-measurement available)
-            error_z = 1.0 - self.dist_target # Placeholder: Replace with real altitude
-            v_z = self.kz * error_z
-            v_raw_target = np.array([0, 0, v_z, 0, 0, 0])
-            
-            if abs(error_z) < 0.05:
-                self.set_state(self.ControllerState.COMPLETE)
-
-        elif self.current_state == self.ControllerState.VISUAL and is_locked:
-            # IBVS TRACKING LOGIC
-            try:
-                # Use Damped Least Squares inverse
-                inv_J = np.linalg.inv(self.J_img.T @ self.J_img + 1e-4 * np.eye(6)) @ self.J_img.T
-                #v_raw_target = (-self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask
-                #NOTE: removed negative sign, according to Corke: Robotics, Vision and Control, must correspond to correct error computation order
-                v_raw_target = (self.lmbda_max * inv_J @ self.current_e) * self.DoF_mask    
-            except np.linalg.LinAlgError:
-                v_raw_target = self.v_last_valid * self.decay_rate
-        
-        else:
-            # BREAK or GLIDE (Target lost while in VISUAL)
-            v_raw_target = self.v_last_valid * self.decay_rate
-
-        # --- 5. SMOOTHING & PUBLISHING ---
-        # Apply EMA filter (only if target is valid, otherwise use raw decay)
-        if is_locked or self.current_state == self.ControllerState.DVL:
-            v_desired = (self.alpha_1 * v_raw_target) + ((1 - self.alpha_1) * self.v_last_valid)
-        else:
-            v_desired = v_raw_target # Already contains the decayed v_last_valid
-
-        self.v_last_valid = v_desired
-        vx, vy, vz, _, _, yaw = v_desired.flatten()
-
-        # map the velocities computed in the image plane 
-        v_image_plane_msg = TwistStamped()
-        v_image_plane_msg.header.stamp = self.get_clock().now().to_msg()
-        v_image_plane_msg.header.frame_id = self._camera_image_plane_frame_id
-        
-        v_image_plane_msg.twist.linear.x = -vx * 0.6 # vx #TODO: turn the transformation of the image plane by 180 degrees
-        v_image_plane_msg.twist.linear.y = vy * 0.6     
-        v_image_plane_msg.twist.linear.z = 0.0 #vz   
-        v_image_plane_msg.twist.angular.z = 0.0 #yaw  
-
-        # PUBLISH the camera frame debug velocity
-        self._image_plane_vel_pub.publish(v_image_plane_msg)
-
-        # 2. Prepare for TF Transformation (Linear and Angular separately)
-        v_lin_image_plane = Vector3Stamped()
-        v_lin_image_plane.header = v_image_plane_msg.header
-        v_lin_image_plane.vector = v_image_plane_msg.twist.linear
-
-        v_ang_image_plane = Vector3Stamped()
-        v_ang_image_plane.header = v_image_plane_msg.header
-        v_ang_image_plane.vector = v_image_plane_msg.twist.angular
-
-        try:
-            # Look up the transform from Optical Frame to ROV Body Frame
-            transform = self.tf_buffer.lookup_transform(
-                self._sc2_base_link_frame_id, 
-                self._camera_image_plane_frame_id, 
-                rclpy.time.Time()
-            )
-            
-            # Transform both vectors to the ROV's coordinate system
-            v_lin_sc2_base_link = tf2_geometry_msgs.do_transform_vector3(v_lin_image_plane, transform)
-            v_ang_sc2_base_link = tf2_geometry_msgs.do_transform_vector3(v_ang_image_plane, transform)
-
-            # 3. Publish to BlueROV2 (MAVROS)
-            # We take the resulting Z-axis rotation as the ROV's Yaw
-            if self._yaw_control_switch:
-                yaw_cmd = v_ang_sc2_base_link.vector.z
-            else:
-                yaw_cmd = 0.0 
-
-            self._publish_cmd_with_slew(
-                v_lin_sc2_base_link.vector.x, 
-                v_lin_sc2_base_link.vector.y, 
-                v_lin_sc2_base_link.vector.z, 
-                yaw_cmd,
-                dt_ctrl
-            )
-
-            # publish the velocities in the reference sc2_base_link frame for debugging    
-            v_sc2_base_link_msg = TwistStamped()
-            v_sc2_base_link_msg.header = v_image_plane_msg.header
-            v_sc2_base_link_msg.header.frame_id = self._sc2_base_link_frame_id
-            v_sc2_base_link_msg.twist.linear.x = v_lin_sc2_base_link.vector.x
-            v_sc2_base_link_msg.twist.linear.y = v_lin_sc2_base_link.vector.y
-            v_sc2_base_link_msg.twist.linear.z = v_lin_sc2_base_link.vector.z
-            v_sc2_base_link_msg.twist.angular.z = v_ang_sc2_base_link.vector.z
-
-            self._sc2_base_link_vel_pub.publish(v_sc2_base_link_msg)
-
-        except Exception as e:
-            self.get_logger().error(f"TF Transform failed: {e}", throttle_duration_sec=1.0)
 
     def _tick_staged_pid(self, dt_ctrl: float, dt_obs: float) -> None:
         obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
@@ -1406,49 +1213,6 @@ class VisualServoControllerNode(Node):
         cmd_vec_6.linear = sc2_cmd_linear
         cmd_vec_6.angular = sc2_cmd_angular   
         self._sc2_cmd_pub_vec_6.publish(cmd_vec_6)
-    
-    def _publish_jacobian(self, Jacobian, Pk=None):
-        ''' 
-        Publishes the Jacobian matrix, its condition number, and optionally the RLS covariance matrix (Pk) 
-        '''
-
-        # 1. Calculate and publish Condition Number (Standard Float64)
-        # This is the easiest way to monitor 'Jacobian Health' in rqt_plot
-        cond_number = np.linalg.cond(Jacobian)
-        cond_msg = Float64()
-        cond_msg.data = float(cond_number)
-        self._condition_nr_publisher.publish(cond_msg)
-
-        # 2. Publish the Jacobian (MultiArray)
-        j_msg = self._matrix_to_multiarray(Jacobian, label_prefix="J")
-        self._jacobian_publisher.publish(j_msg)
-
-        # 3. Optionally publish Covariance Matrix Pk (if in uncalibrated mode)
-        if Pk is not None:
-            pk_msg = self._matrix_to_multiarray(Pk, label_prefix="Pk")
-            self._covariance_publisher.publish(pk_msg)
-
-    def _matrix_to_multiarray(self, matrix, label_prefix="matrix"):
-        """Helper to convert any 2D numpy array to a Float64MultiArray properly."""
-        rows, cols = matrix.shape
-        msg = Float64MultiArray()
-        
-        # Rows
-        dim_rows = MultiArrayDimension()
-        dim_rows.label = f"{label_prefix}_rows"
-        dim_rows.size = rows
-        dim_rows.stride = rows * cols
-        msg.layout.dim.append(dim_rows)
-        
-        # Columns
-        dim_cols = MultiArrayDimension()
-        dim_cols.label = f"{label_prefix}_cols"
-        dim_cols.size = cols
-        dim_cols.stride = cols
-        msg.layout.dim.append(dim_cols)
-        
-        msg.data = matrix.flatten().tolist()
-        return msg
 
     def _publish_cmd_direct_body(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)
@@ -1493,35 +1257,6 @@ class VisualServoControllerNode(Node):
         if delta < -delta_max:
             return prev - delta_max
         return target
-
-    def _publish_cmd_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
-        
-        transform = self.tf_buffer.lookup_transform(
-                self._mavros_base_link_frame_id,              # pixhawk base_link frame
-                self._sc2_base_link_frame_id,                    # our base_link frame
-                rclpy.time.Time() 
-            )
-
-        vel_sc2_base_link = PointStamped()
-        vel_sc2_base_link.point.x = vx
-        vel_sc2_base_link.point.y = vy
-        vel_sc2_base_link.point.z = vz
-
-        vel_mavros_base_link = tf2_geometry_msgs.do_transform_point(vel_sc2_base_link, transform)
-
-        vx_mavros_base_link = vel_mavros_base_link.point.x
-        vy_mavros_base_link = vel_mavros_base_link.point.y
-        vz_mavros_base_link = vel_mavros_base_link.point.z
-
-        # NOTE: yaw stays the same in both frames
-
-        pvx, pvy, pvz, pyaw = self._last_cmd
-        
-        svx = self._slew_axis(vx_mavros_base_link, pvx, self._slew_vx, dt)
-        svy = self._slew_axis(vy_mavros_base_link, pvy, self._slew_vy, dt)
-        svz = self._slew_axis(vz_mavros_base_link, pvz, self._slew_vz, dt)
-        syaw = self._slew_axis(yaw, pyaw, self._slew_yaw, dt)
-        self._publish_cmd(svx, svy, svz, syaw)
 
     def _publish_cmd_direct_body_with_slew(self, vx: float, vy: float, vz: float, yaw: float, dt: float) -> None:
         pvx, pvy, pvz, pyaw = self._last_cmd
