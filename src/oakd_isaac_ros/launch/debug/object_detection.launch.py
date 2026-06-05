@@ -243,7 +243,7 @@ def generate_launch_description():
         package='rclcpp_components',
         executable='component_container_mt',
         composable_node_descriptions=[
-            camera_node,
+            #camera_node,
             #rectify_node,
             image_converter,
             image_resize_node,
