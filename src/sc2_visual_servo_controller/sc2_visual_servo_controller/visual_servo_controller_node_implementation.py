@@ -1,6 +1,6 @@
-"""Visual servo controller node with legacy IBVS and Phase 2 staged PID paths.
+"""Visual servo controller node for the Phase 2 staged PID path.
 
-Current staged PID behavior notes:
+Current behavior notes:
 - Phase 2 controls body-frame x/y/yaw and can add z velocity after the
   horizontal gate is satisfied.
 - `valid_target_observation` is only a tracking-continuity signal based on ROI
@@ -30,19 +30,16 @@ from collections import deque
 from typing import Optional
 import numpy as np
 
-from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3, Vector3Stamped
+from geometry_msgs.msg import TwistStamped, PoseStamped, Vector3
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String, Float64, Float64MultiArray, MultiArrayDimension, Bool
+from std_msgs.msg import String, Float64, Bool
 from sensor_msgs.msg import CameraInfo
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from enum import Enum
 from std_srvs.srv import SetBool
 
-import tf2_ros
-import tf2_geometry_msgs 
-from tf2_ros import TransformException
 from state_estimation.msg import Vector6
 try:
     from marine_acoustic_msgs.msg import Dvl
@@ -53,9 +50,7 @@ except ImportError:
 
 from .ibvs.controller_math import (
     clamp,
-    is_in_roi,
-    get_image_jacobian,
-    get_uncalibrated_jacobian
+    is_in_roi
 )
 from .hold_maintain_core import (
     HoldVelocityDampingConfig,
@@ -98,8 +93,6 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
         self.declare_parameter('cmd_topic_vec_6', '/sc2/setpoint_velocity/cmd_vel_vec6') #the 
-        self.declare_parameter('velocity_camera_image_plane_frame_topic', '/sc2/visual_servo/velocity_camera_image_plane_frame')    # DEBUG velocities published in the camera image plane frame 
-        self.declare_parameter('velocity_sc2_base_link_topic', '/sc2/visual_servo/velocity_sc2_base_link')     # DEBUG velocities published in the reference sc2_base_link frame
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
@@ -108,21 +101,15 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('dvl_altitude_topic', '/waterlinked_dvl_driver/velocity_report')
         self.declare_parameter('mavros_altitude_topic','/mavros/global_position/rel_alt')
         self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
-        self.declare_parameter('image_jacobian_topic', '/image_jacobian')
-        self.declare_parameter('jacobian_condition_number_topic', '/condition_numebr')
         
         # relevant frames for transformations
-        self.declare_parameter('mavros_base_link_frame_id', 'base_link')    # body frame used by mavros
-        self.declare_parameter('sc2_base_link_frame_id', 'sc2_base_link')   # body frame used by us (SeaClear2)
         self.declare_parameter('body_frame_id', 'base_link')                # frame used for direct body-frame commands
-        self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')    # RGB camera optical frame
-        self.declare_parameter('camera_image_plane_frame_id', 'image_plane')                # image plane frame
 
         # controller parameters 
         self.declare_parameter('timeout_ms', 500)
         self.declare_parameter('target_point_timeout_ms', 500)
         self.declare_parameter('rate_hz', 60.0)
-        self.declare_parameter('controller_mode', 'ibvs')
+        self.declare_parameter('controller_mode', 'staged_pid')
         self.declare_parameter('calibrated', True)
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
@@ -204,8 +191,6 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('tracked_exit_no_obs_sec', 0.6)
         
         # IBVS control parameters
-        self.declare_parameter('ibvs_lambda', 0.2)
-        self.declare_parameter('alpha_1', 0.6)
         self.declare_parameter('decay_rate', 0.95)
 
         # extract data topics
@@ -216,33 +201,24 @@ class VisualServoControllerNode(Node):
 
         self._cmd_topic = str(self.get_parameter('cmd_topic').value)
         self._sc2_cmd_topic_vec_6 = str(self.get_parameter('cmd_topic_vec_6').value)
-        self._velocity_image_plane_frame_topic = str(self.get_parameter('velocity_camera_image_plane_frame_topic').value)
-        self._velocity_sc2_base_link_topic = str(self.get_parameter('velocity_sc2_base_link_topic').value)
-        
         self._velocity_measurement_topic = str(self.get_parameter('vel_measurement_topic').value)
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
         self._vs_control_finish_topic = str(self.get_parameter('vs_control_finish_topic').value)
 
-        #IBVS topics
-        self._jacobian_topic = str(self.get_parameter('image_jacobian_topic').value)
-        self._condition_nr_topic = str(self.get_parameter('jacobian_condition_number_topic').value)
-
         # extract frame IDs
-        self._mavros_base_link_frame_id = str(self.get_parameter('mavros_base_link_frame_id').value)
-        self._sc2_base_link_frame_id = str(self.get_parameter('sc2_base_link_frame_id').value)
         self._body_frame_id = str(self.get_parameter('body_frame_id').value)
-        self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
-        self._camera_image_plane_frame_id = str(self.get_parameter('camera_image_plane_frame_id').value)
 
         # extract parameters
         self._timeout_sec = float(self.get_parameter('timeout_ms').value) * 1e-3
         self._target_point_timeout_sec = float(self.get_parameter('target_point_timeout_ms').value) * 1e-3
         self._controller_mode = str(self.get_parameter('controller_mode').value).strip().lower()
-        if self._controller_mode not in {'ibvs', 'staged_pid'}:
-            self.get_logger().warn(f'Unknown controller_mode={self._controller_mode}; falling back to ibvs')
-            self._controller_mode = 'ibvs'
+        if self._controller_mode != 'staged_pid':
+            raise RuntimeError(
+                f'Unsupported controller_mode={self._controller_mode!r}; '
+                'this node now supports only staged_pid'
+            )
         self.verbose = self.get_parameter('verbose').get_parameter_value().bool_value
         self.enable_dvl = self.get_parameter('enable_dvl').get_parameter_value().bool_value
         self._yaw_control_switch = self.get_parameter('yaw_control').get_parameter_value().bool_value
@@ -274,8 +250,6 @@ class VisualServoControllerNode(Node):
         self._slew_yaw = float(self.get_parameter('slew_yaw_rate').value)
 
         # IBVS paramters
-        self.ibvs_lmdba = float(self.get_parameter('ibvs_lambda').value)
-        self.alpha_1_val = float(self.get_parameter('alpha_1').value)
         self.decay_rate_val = float(self.get_parameter('decay_rate').value)
 
         self.calibrated = bool(self.get_parameter('calibrated').value)
@@ -437,10 +411,7 @@ class VisualServoControllerNode(Node):
         self._staged_pid_last_z_meas: Optional[float] = None
         self._staged_pid_last_z_source = 'none'
 
-        ###########################################################################################################################################
-        ################################## Here start the IBVS control parameters which were validated in simulation ##############################
-        ###########################################################################################################################################
-
+        # Target tracking and command state.
         # target paratmers
         # first define the corners of a sqaure around the center of the image
         # TODO: validate whether these target corners suffice 
@@ -460,31 +431,15 @@ class VisualServoControllerNode(Node):
         self._staged_pid_target_centroid = np.array([self._target_u, self._target_v], dtype=np.float32)
         self.latest_centroid = [0.0, 0.0]
 
-        self.prev_centroid = np.zeros(2)
         self.roi_w = 50
 
         # define the minimum needed detections and the detection counter
-        self.confirmation_time = 0.1  # Must see target for 0.1s to go VISUAL
-        self.lost_timeout = 0.2        # Must lose target for 0.2s to go BREAK
-        self._first_seen_time = None
-        self.target_min = 1
-        self.center_min = 1
-        self.target_count = 0
 
         # IBVS parameters
-        self.lmbda = 0          # the lambda control gain from the standard IBVS control law
-        self.lmbda_max = self.ibvs_lmdba    # the maximum control gain that we can apply
-        self.v_prev = np.zeros(6)
-        self.alpha_1 = 0.6
-        self.alpha_2 = 0.1
         self.v_last_valid = np.zeros(6)
         self.decay_rate = self.decay_rate_val  # Drops 5% of speed per "blind" frame
-        self.DoF_mask = [1, 1, 0, 0, 0, 1]
         self.latest_velocity_measurement = np.zeros(6)  # a variable to store the incoming velocity measurements from mavros/pixhawk
         self._last_velocity_measurement_time = None
-        self.prev_velocity_measurement = np.zeros(6)    # keep the previous velocity measurement for estimating travelled distance in the uncalibrated case
-        self.current_e = np.zeros(6)
-        self.J_img = np.eye(2*self.center_box_corners.shape[0], 6)  # initialise the Jacobian based on the number of target points
 
         # DVL control parameters
         self._latest_depth_measurement = 3.0
@@ -492,30 +447,16 @@ class VisualServoControllerNode(Node):
         self.kz = float(self.get_parameter('vertical_gain').value) # vertical gain
 
         # uncalibrated visual servoing
-        self.Pk = np.eye(6) * 0.1
-        self.lmbda_rls = 0.6
-        self.prev_e = np.zeros_like(self.center_box_corners).flatten(order="F") 
-        self.delta_e = 0
-
-        #######################################################################################################################################################
-        ###################### Here end the IBVS controller parameters which were validated in simulation #####################################################
-        #######################################################################################################################################################
 
         # data publishers
         self._cmd_pub = self.create_publisher(TwistStamped, self._cmd_topic, 10)                            # the actual commanded velocity in the Pixhawk base_link frame        
         self._sc2_cmd_pub_vec_6 = self.create_publisher(Vector6, self._sc2_cmd_topic_vec_6, 10)   
         
-        # debug publishers 
-        self._image_plane_vel_pub = self.create_publisher(TwistStamped, self._velocity_image_plane_frame_topic, 10)       # the velocities w.r.t. to the 
-        self._sc2_base_link_vel_pub = self.create_publisher(TwistStamped, self._velocity_sc2_base_link_topic, 10)
+        # status and debug publishers
         self._status_pub = self.create_publisher(String, self._status_topic, 10)
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._vs_control_finish_pub = self.create_publisher(Bool, self._vs_control_finish_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
-
-        # IBVS analysis topics 
-        self._jacobian_publisher = self.create_publisher(Float64MultiArray, self._jacobian_topic, 10)
-        self._condition_nr_publisher = self.create_publisher(Float64, self._condition_nr_topic, 10)
 
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         if self._use_target_observation:
@@ -523,35 +464,31 @@ class VisualServoControllerNode(Node):
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
-        if self._controller_mode == 'staged_pid':
-            self.create_subscription(PoseStamped, self._target_point_topic, self._target_pose_cb, 10)
-            if self._depth_mode == 'DVL':
-                if self._has_marine_acoustic_dvl:
-                    self.create_subscription(
-                        Dvl,
-                        str(self.get_parameter('dvl_altitude_topic').value),
-                        self._dvl_altitude_cb,
-                        10,
-                    )
-                else:
-                    self.get_logger().warn(
-                        'marine_acoustic_msgs.msg.Dvl is unavailable in this environment; '
-                        'staged PID will run without /waterlinked_dvl_driver/velocity_report depth input.'
-                    )
-            elif self._depth_mode == 'MAVROS':
+        self.create_subscription(PoseStamped, self._target_point_topic, self._target_pose_cb, 10)
+        if self._depth_mode == 'DVL':
+            if self._has_marine_acoustic_dvl:
                 self.create_subscription(
-                    Float64,
-                    self._mavros_altitude_topic,
-                    self._mavros_altitude_cb,
+                    Dvl,
+                    str(self.get_parameter('dvl_altitude_topic').value),
+                    self._dvl_altitude_cb,
                     10,
                 )
+            else:
+                self.get_logger().warn(
+                    'marine_acoustic_msgs.msg.Dvl is unavailable in this environment; '
+                    'staged PID will run without /waterlinked_dvl_driver/velocity_report depth input.'
+                )
+        elif self._depth_mode == 'MAVROS':
+            self.create_subscription(
+                Float64,
+                self._mavros_altitude_topic,
+                self._mavros_altitude_cb,
+                10,
+            )
         
         #service for turning the IBVS control on or off 
         self.control_enabled = False # Default to off
         self.ibvs_switch_srv = self.create_service(SetBool, 'enable_ibvs_control', self.handle_control_switch)
-
-        self.tf_buffer = tf2_ros.Buffer()
-        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
 
         rate_hz = float(self.get_parameter('rate_hz').value)
         self.create_timer(1.0 / max(1e-3, rate_hz), self._tick)
@@ -911,21 +848,8 @@ class VisualServoControllerNode(Node):
     def _target_pose_cb(self, msg) -> None:
         '''Extract the depth information from the latest Pose estimate.'''
 
-        if self._controller_mode == 'staged_pid':
-            self._latest_target_point = msg
-            self._last_target_point_time = self.get_clock().now()
-            return
-
-        match self._depth_mode:
-            case 'RGBD':
-                latest_pose = msg.pose
-                self._latest_depth_measurement = latest_pose.position.z
-            case 'DVL':
-                latest_depth = msg.altitude # get the altitude reading from the velocity report
-                self._latest_depth_measurement = np.abs(latest_depth)   # take the absoloute value, since depth w.r.t. the camera can only be positive
-            case 'MAVROS':
-                latest_depth = msg.data
-                self._latest_depth_measurement = np.abs(latest_depth)
+        self._latest_target_point = msg
+        self._last_target_point_time = self.get_clock().now()
 
     def _dvl_altitude_cb(self, msg: Dvl) -> None:
         # Phase 2 staged PID fallback. target_point remains primary while fresh.
@@ -1030,9 +954,8 @@ class VisualServoControllerNode(Node):
         #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
         self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
 
-        if self._controller_mode == 'staged_pid':
-            centroid_err_x = self.latest_centroid[0] - self._staged_pid_target_centroid[0]
-            centroid_err_y = self.latest_centroid[1] - self._staged_pid_target_centroid[1]
+        centroid_err_x = self.latest_centroid[0] - self._staged_pid_target_centroid[0]
+        centroid_err_y = self.latest_centroid[1] - self._staged_pid_target_centroid[1]
 
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
@@ -1040,8 +963,7 @@ class VisualServoControllerNode(Node):
         err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
         self._centroid_error_publisher.publish(err_summary)
 
-        if self._controller_mode == 'staged_pid':
-            self._update_target_tracking_from_detection(now)
+        self._update_target_tracking_from_detection(now)
 
     def _tick(self) -> None:
         now = self.get_clock().now()
@@ -1050,17 +972,13 @@ class VisualServoControllerNode(Node):
         self._last_tick_time = now
 
         if not self.control_enabled:
-            if self._controller_mode == 'staged_pid':
-                self._reset_staged_pid_state()
-                self._publish_vs_control_finish(False)
-            self._publish_cmd(0.0, 0.0, 0.0, 0.0)
+            self._reset_staged_pid_state()
+            self._publish_vs_control_finish(False)
+            self._publish_cmd_direct_body(0.0, 0.0, 0.0, 0.0)
             self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
             return
 
-        if self._controller_mode == 'staged_pid':
-            self._tick_staged_pid(dt_ctrl, dt_obs)
-            return
-
+        self._tick_staged_pid(dt_ctrl, dt_obs)
 
     def _tick_staged_pid(self, dt_ctrl: float, dt_obs: float) -> None:
         obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
@@ -1148,18 +1066,6 @@ class VisualServoControllerNode(Node):
             # Logging the change
             self.get_logger().info(f"State transition: {self.current_state.name} -> {new_state.name}")
             
-            # Specific transition logic
-            if new_state == self.ControllerState.DVL:
-                if self.verbose:
-                    self.get_logger().info("DVL Latch: Resetting horizontal velocity filters.")
-                self.v_last_valid[0] = 0
-                self.v_last_valid[1] = 0
-                self.v_last_valid[5] = 0
-                
-                self.v_prev[0] = 0
-                self.v_prev[1] = 0
-                self.v_prev[5] = 0
-
             # Update the variable
             self.current_state = new_state
             
@@ -1180,39 +1086,6 @@ class VisualServoControllerNode(Node):
         msg = String()
         msg.data = text
         self._target_locked_pub.publish(msg)
-
-    def _publish_cmd(self, vx: float, vy: float, vz: float, yaw: float) -> None:
-        vx = clamp(vx, self._max_vx)
-        vy = clamp(vy, self._max_vy)
-        vz = clamp(vz, self._max_vz)
-        yaw = clamp(yaw, self._max_yaw)
-
-        cmd = TwistStamped()
-        cmd.header.stamp = self.get_clock().now().to_msg()      
-        cmd.header.frame_id = self._mavros_base_link_frame_id
-        cmd.twist.linear.x = vx
-        cmd.twist.linear.y = vy
-        cmd.twist.linear.z = vz
-        cmd.twist.angular.z = yaw
-
-        self._cmd_pub.publish(cmd)
-        self._last_cmd = (vx, vy, vz, yaw)
-
-        # publish the topic for SC2 as a custom Vector6 type, defined in the state_machine package
-        sc2_cmd_linear = Vector3()
-        sc2_cmd_linear.x = vx
-        sc2_cmd_linear.y = vy
-        sc2_cmd_linear.z = vz
-
-        sc2_cmd_angular = Vector3()
-        sc2_cmd_angular.x = 0.0 # assuiming no roll control
-        sc2_cmd_angular.y = 0.0 # assuming no pitch control
-        sc2_cmd_angular.z = yaw
-
-        cmd_vec_6 = Vector6()
-        cmd_vec_6.linear = sc2_cmd_linear
-        cmd_vec_6.angular = sc2_cmd_angular   
-        self._sc2_cmd_pub_vec_6.publish(cmd_vec_6)
 
     def _publish_cmd_direct_body(self, vx: float, vy: float, vz: float, yaw: float) -> None:
         vx = clamp(vx, self._max_vx)
