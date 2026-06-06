@@ -38,7 +38,6 @@ from std_msgs.msg import String, Float64, Bool
 from sensor_msgs.msg import CameraInfo
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from enum import Enum
-from std_srvs.srv import SetBool
 
 from state_estimation.msg import Vector6
 try:
@@ -486,10 +485,6 @@ class VisualServoControllerNode(Node):
                 10,
             )
         
-        #service for turning the IBVS control on or off 
-        self.control_enabled = False # Default to off
-        self.ibvs_switch_srv = self.create_service(SetBool, 'enable_ibvs_control', self.handle_control_switch)
-
         rate_hz = float(self.get_parameter('rate_hz').value)
         self.create_timer(1.0 / max(1e-3, rate_hz), self._tick)
 
@@ -500,18 +495,8 @@ class VisualServoControllerNode(Node):
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} '
             f'target_bbox={self._target_bbox_topic} target_obs={self._target_obs_topic if self._use_target_observation else "<disabled>"} '
-            f'cmd={self._cmd_topic}'
+            f'cmd={self._cmd_topic} control=always_enabled'
         )
-
-    def handle_control_switch(self, request, response):
-        '''Service for turning the IBVS control on or off.'''
-        self.control_enabled = request.data
-        if not self.control_enabled:
-            self._clear_staged_pid_completion()
-            self._publish_vs_control_finish(False)
-        response.success = True
-        response.message = f"IBVS Control {'Enabled' if self.control_enabled else 'Disabled'}"
-        return response
 
     def _reset_staged_pid_state(self) -> None:
         self._xy_pid_x.reset()
@@ -544,6 +529,7 @@ class VisualServoControllerNode(Node):
         self._target_tracked = tracked
         if tracked:
             self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            print(f"setting `tracked` to True. `self._staged_pid_state = self.StagedPIDState.HORIZONTAL`")
             self._reset_vertical_gate()
         else:
             self._tracking_valid_observation_history.clear()
@@ -565,6 +551,7 @@ class VisualServoControllerNode(Node):
             self._last_accepted_target_centroid is None or
             is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
         )
+        print(f"roi_consistent: {roi_consistent}")
         valid_target_observation = bool(roi_consistent)
         self._tracking_valid_observation_history.append(valid_target_observation)
 
@@ -577,6 +564,8 @@ class VisualServoControllerNode(Node):
             sum(self._tracking_valid_observation_history) >= self._tracked_enter_min_obs
         ):
             self._set_target_tracked(True)
+            print(f"sum(self._tracking_valid_observation_history) >= self._tracked_enter_min_obs: {sum(self._tracking_valid_observation_history) >= self._tracked_enter_min_obs}")
+            print("setting `self._set_target_tracked(True)`")
 
         return valid_target_observation
 
@@ -585,7 +574,9 @@ class VisualServoControllerNode(Node):
             self._target_tracked and
             not self._is_timestamp_fresh(self._last_valid_target_observation_time, self._tracked_exit_no_obs_sec)
         ):
-            self._set_target_tracked(False)
+            #self._set_target_tracked(False)
+            print("originally setting self._set_target_tracked(False) but now setting off")
+            pass
 
     def _tracked_horizontal_stale_command(self) -> tuple[float, float, float, float]:
         return (
@@ -725,8 +716,7 @@ class VisualServoControllerNode(Node):
             and abs(float(z_meas) - self._desired_vertical_dist) <= self._staged_pid_distance_tol_m
         )
         completion_ok = (
-            self.control_enabled
-            and self._target_tracked
+            self._target_tracked
             and obs_fresh
             and selected_valid_ok
             and horizontal_ok
@@ -885,29 +875,7 @@ class VisualServoControllerNode(Node):
         self._last_velocity_measurement_time = self.get_clock().now()
 
     def _target_observation_cb(self, msg: TargetObservation) -> None:
-        now = self.get_clock().now()
-        self._latest_target_observation = msg
-        self._target_observation_valid = bool(msg.selected_valid)
-        self._target_observation_state = str(msg.track_state)
-        self._target_observation_reason = str(msg.reason_code)
-
-        self.latest_centroid = [float(msg.u), float(msg.v)]
-        self._last_obs_time = now
-        self._latest_detection_time = now
-        self._last_accepted_target_centroid = np.array(self.latest_centroid, dtype=np.float32)
-
-        err_summary = Vector3()
-        if self._controller_mode == 'staged_pid':
-            err_summary.x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
-            err_summary.y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
-        err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
-        self._centroid_error_publisher.publish(err_summary)
-
-        if self._target_observation_valid:
-            self._last_valid_target_observation_time = now
-            self._set_target_tracked(True)
-        else:
-            self._set_target_tracked(False)
+        pass
 
     def _detection_cb(self, detection_2D_msg: Detection2D):
         """This callback reads an incoming detection from the object detection model, extracts the detection with the desired class_id
@@ -943,15 +911,6 @@ class VisualServoControllerNode(Node):
         half_w = best_bbox.size_x / 2.0
         half_h = best_bbox.size_y / 2.0
 
-        # Define corners (Top-Left, Top-Right, Bottom-Right, Bottom-Left)
-        self.latest_bbox_corners = [
-            (best_bbox.center.position.x - half_w, best_bbox.center.position.y - half_h), # TL
-            (best_bbox.center.position.x + half_w, best_bbox.center.position.y - half_h), # TR
-            (best_bbox.center.position.x + half_w, best_bbox.center.position.y + half_h), # BR
-            (best_bbox.center.position.x - half_w, best_bbox.center.position.y + half_h)  # BL
-        ]
-
-        #self.latest_centroid = np.mean(self.latest_bbox_corners, axis=1).copy()
         self.latest_centroid = [best_bbox.center.position.x ,best_bbox.center.position.y]
 
         centroid_err_x = self.latest_centroid[0] - self._staged_pid_target_centroid[0]
@@ -966,23 +925,18 @@ class VisualServoControllerNode(Node):
         self._update_target_tracking_from_detection(now)
 
     def _tick(self) -> None:
+        print("tick called")
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
-
-        if not self.control_enabled:
-            self._reset_staged_pid_state()
-            self._publish_vs_control_finish(False)
-            self._publish_cmd_direct_body(0.0, 0.0, 0.0, 0.0)
-            self.get_logger().info('IBVS Control is off...use service call to turn it on: ros2 service call /enable_ibvs_control std_srvs/srv/SetBool "{data: true}"', throttle_duration_sec=2.0)
-            return
 
         self._tick_staged_pid(dt_ctrl, dt_obs)
 
     def _tick_staged_pid(self, dt_ctrl: float, dt_obs: float) -> None:
         obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
         if self._use_target_observation:
+            print("`_use_target_observation` on in _tick_staged_pid()")
             obs_fresh = (
                 self._latest_target_observation is not None and
                 dt_obs <= self._timeout_sec
@@ -993,6 +947,7 @@ class VisualServoControllerNode(Node):
                 observation_fresh=obs_fresh,
                 selected_valid=self._target_observation_valid,
             ):
+                print("originally `_set_target_tracked(False)` but turned off now")
                 self._set_target_tracked(False)
                 self._clear_staged_pid_completion()
                 self._publish_vs_control_finish(False)
@@ -1005,6 +960,8 @@ class VisualServoControllerNode(Node):
                 self._publish_is_locked('False')
                 self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
                 return
+        else:
+            print("`_use_target_observation` off in _tick_staged_pid()")
         self._update_target_tracked_from_tick()
         self._publish_is_locked(str(self._target_tracked))
 

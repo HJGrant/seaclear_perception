@@ -209,7 +209,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time,
             'target_topic': '/sc2/visual_servo/target_obs',
-            'use_target_observation': True,
+            'use_target_observation': False,
             'target_point_topic': '/sc2/visual_servo/target_point',
             'controller_mode': 'staged_pid',
             'cmd_topic': '/mavros/setpoint_velocity/cmd_vel',           # velocity command for MAVROS
@@ -287,7 +287,7 @@ def generate_launch_description():
         declare_use_sim_time_arg,
         declare_launch_detection_stack_arg,
         OpaqueFunction(function=_optional_detection_stack),
-        target_observer_node,
+        #target_observer_node,
         target_pose_node,
         ibvs_node
     ])
