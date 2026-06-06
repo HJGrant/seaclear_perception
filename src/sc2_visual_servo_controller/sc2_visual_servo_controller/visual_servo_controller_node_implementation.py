@@ -44,9 +44,17 @@ from state_estimation.msg import Vector6
 try:
     from marine_acoustic_msgs.msg import Dvl
     _HAS_MARINE_ACOUSTIC_DVL = True
+    print("_HAS_MARINE_ACOUSTIC_DVL = True")
+    print("_HAS_MARINE_ACOUSTIC_DVL = True")
+    print("_HAS_MARINE_ACOUSTIC_DVL = True")
+    print("_HAS_MARINE_ACOUSTIC_DVL = True")
 except ImportError:
     Dvl = None
     _HAS_MARINE_ACOUSTIC_DVL = False
+    print("_HAS_MARINE_ACOUSTIC_DVL = False")
+    print("_HAS_MARINE_ACOUSTIC_DVL = False")
+    print("_HAS_MARINE_ACOUSTIC_DVL = False")
+    print("_HAS_MARINE_ACOUSTIC_DVL = False")
 
 from .ibvs.controller_math import (
     clamp,
@@ -266,6 +274,7 @@ class VisualServoControllerNode(Node):
         self.image_width = float(self.get_parameter('image_width').value)
         self._target_u = float(self.get_parameter('target_u').value)
         self._target_v = float(self.get_parameter('target_v').value)
+        self._desired_target_dist = 0.5
         self._desired_target_dist = float(self.get_parameter('desired_target_distance_m').value)
         self._desired_vertical_dist = float(self.get_parameter('desired_vertical_distance_m').value)
         self._staged_pid_z_source = str(self.get_parameter('staged_pid_z_source').value).strip().lower()
@@ -453,7 +462,7 @@ class VisualServoControllerNode(Node):
         self._last_velocity_measurement_time = None
 
         # DVL control parameters
-        self._latest_depth_measurement = 3.0
+        self._latest_depth_measurement = None
         self.dist_target = float(self.get_parameter('desired_target_distance_m').value) # desired vertical distance to target     
         self.kz = float(self.get_parameter('vertical_gain').value) # vertical gain
 
@@ -695,7 +704,8 @@ class VisualServoControllerNode(Node):
             self._latest_depth_measurement is not None and
             self._is_timestamp_fresh(self._last_depth_time, self._target_point_timeout_sec)
         )
-
+        if dvl_fresh:
+            return float(self._latest_depth_measurement), 'dvl_fallback', True
         if self._staged_pid_z_source in {'target_point', 'target_point_primary_dvl_fallback'}:
             if target_point_fresh:
                 return float(self._latest_target_point.pose.position.z), 'target_point', True
@@ -947,7 +957,8 @@ class VisualServoControllerNode(Node):
         err_summary = Vector3()
         err_summary.x = float(centroid_err_x)
         err_summary.y = float(centroid_err_y)
-        err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        if (self._latest_depth_measurement is not None) and (self._desired_target_dist is not None):
+            err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
         self._centroid_error_publisher.publish(err_summary)
 
         self._update_target_tracking_from_detection(now)
@@ -963,6 +974,7 @@ class VisualServoControllerNode(Node):
 
     def _tick_staged_pid(self, dt_ctrl: float, dt_obs: float) -> None:
         obs_fresh = self._latest_obs is not None and dt_obs <= self._timeout_sec
+        #self._request_completion_winch_length(self._staged_pid_last_z_meas)
         if self._use_target_observation:
             print("`_use_target_observation` on in _tick_staged_pid()")
             obs_fresh = (
