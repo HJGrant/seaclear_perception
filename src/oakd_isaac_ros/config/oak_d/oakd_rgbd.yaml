@@ -5,6 +5,7 @@
       i_tf_base_frame: oak-d_frame
       i_tf_parent_frame: oak-d-base-frame
       i_pipeline_type: RGBD
+      i_ip: "192.168.2.109"
     nn:
       i_nn_config_path: depthai_ros_driver/mobilenet
     pipeline_gen:
