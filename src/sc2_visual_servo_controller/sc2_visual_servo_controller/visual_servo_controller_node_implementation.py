@@ -37,6 +37,7 @@ from rclpy.node import Node
 from std_msgs.msg import String, Float64, Bool
 from sensor_msgs.msg import CameraInfo
 from sc2_visual_servo_interfaces.msg import TargetObservation
+from msg_winch.srv import SetWinchLength
 from enum import Enum
 
 from state_estimation.msg import Vector6
@@ -179,6 +180,11 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('staged_pid_completion_window_ticks', 10)
         self.declare_parameter('staged_pid_completion_enter_ratio', 0.8)
         self.declare_parameter('staged_pid_completion_latch', True)
+        self.declare_parameter('completion_winch_service_enable', True)
+        self.declare_parameter(
+            'completion_winch_service_name',
+            'grapple/winch_ctrl/set_desired_winch_length',
+        )
         self.declare_parameter('hold_maintain_enable', True)
         self.declare_parameter('hold_maintain_z_kp_scale', 0.5)
         self.declare_parameter('hold_maintain_velocity_damping_enable', True)
@@ -358,6 +364,12 @@ class VisualServoControllerNode(Node):
         self._staged_pid_completion_latch = self._as_bool(
             self.get_parameter('staged_pid_completion_latch').value
         )
+        self._completion_winch_service_enable = self._as_bool(
+            self.get_parameter('completion_winch_service_enable').value
+        )
+        self._completion_winch_service_name = str(
+            self.get_parameter('completion_winch_service_name').value
+        )
         self._hold_maintain_enable = self._as_bool(self.get_parameter('hold_maintain_enable').value)
         self._hold_maintain_z_kp_scale = max(
             0.0,
@@ -456,6 +468,14 @@ class VisualServoControllerNode(Node):
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._vs_control_finish_pub = self.create_publisher(Bool, self._vs_control_finish_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
+        self._completion_winch_client = None
+        self._completion_winch_request_sent = False
+        self._completion_winch_length_m: Optional[float] = None
+        if self._completion_winch_service_enable:
+            self._completion_winch_client = self.create_client(
+                SetWinchLength,
+                self._completion_winch_service_name,
+            )
 
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
         if self._use_target_observation:
@@ -507,6 +527,8 @@ class VisualServoControllerNode(Node):
     def _clear_staged_pid_completion(self) -> None:
         self._staged_pid_recent_completion_ok.clear()
         self._vs_control_finished = False
+        self._completion_winch_request_sent = False
+        self._completion_winch_length_m = None
 
     def _reset_vertical_gate(self) -> None:
         self._z_pid.reset()
@@ -1007,6 +1029,7 @@ class VisualServoControllerNode(Node):
                 self._vs_control_finished = True
                 self.v_last_valid = np.zeros(6)
                 self._publish_vs_control_finish(True)
+                self._request_completion_winch_length(z_meas)
                 self._publish_status(f'COMPLETE_STAGED_PID_{z_source.upper()}')
                 self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
                 return
@@ -1024,6 +1047,77 @@ class VisualServoControllerNode(Node):
         self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
         self._publish_status(status)
         self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+
+    def _request_completion_winch_length(self, z_meas: Optional[float]) -> None:
+        """Request winch desired length once when staged PID completion is reached.
+
+        The winch controller exposes msg_winch/srv/SetWinchLength on
+        grapple/winch_ctrl/set_desired_winch_length and reads request.length.
+        The winch controller adds its own frame length internally, so this node
+        sends only the measured target-relative length abs(z_meas).
+        """
+        if not self._completion_winch_service_enable:
+            return
+
+        if z_meas is None:
+            self.get_logger().warn(
+                'Cannot request completion winch length: z_meas is None.'
+            )
+            return
+
+        length_m = abs(float(z_meas))
+        self._completion_winch_length_m = length_m
+        if self._completion_winch_request_sent:
+            return
+
+        if self._completion_winch_client is None:
+            self.get_logger().warn(
+                'Cannot request completion winch length: service client is not initialized.'
+            )
+            return
+
+        if not self._completion_winch_client.service_is_ready():
+            self.get_logger().warn(
+                f'Completion winch service {self._completion_winch_service_name!r} '
+                f'is not ready; will retry while completion latch is active.'
+            )
+            return
+
+        req = SetWinchLength.Request()
+        req.length = length_m
+
+        future = self._completion_winch_client.call_async(req)
+        self._completion_winch_request_sent = True
+
+        self.get_logger().info(
+            f'Requested desired winch length from visual-servo completion: '
+            f'length={length_m:.3f} m via {self._completion_winch_service_name}'
+        )
+
+        def _completion_winch_response_cb(done_future):
+            try:
+                response = done_future.result()
+            except Exception as exc:
+                self._completion_winch_request_sent = False
+                self.get_logger().warn(
+                    f'Completion winch length service call failed: {exc}'
+                )
+                return
+
+            success = bool(getattr(response, 'success', False))
+            message = str(getattr(response, 'message', ''))
+            if success:
+                self.get_logger().info(
+                    f'Completion winch length accepted: {message}'
+                )
+            else:
+                self._completion_winch_request_sent = False
+                self.get_logger().warn(
+                    f'Completion winch length rejected: {message}'
+                )
+
+        future.add_done_callback(_completion_winch_response_cb)
+
 
     def set_state(self, new_state):
         if new_state != self.current_state:
