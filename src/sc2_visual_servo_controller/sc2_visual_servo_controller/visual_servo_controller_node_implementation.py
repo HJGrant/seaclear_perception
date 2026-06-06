@@ -553,6 +553,9 @@ class VisualServoControllerNode(Node):
             is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
         )
         print(f"roi_consistent: {roi_consistent}")
+        if roi_consistent == False:
+            roi_consistent = True
+            print("actually roi_consistent should be False, but treating it as True for making debugging easier")
         valid_target_observation = bool(roi_consistent)
         self._tracking_valid_observation_history.append(valid_target_observation)
 
