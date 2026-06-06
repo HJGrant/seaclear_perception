@@ -332,3 +332,5 @@ frames_*.gv
 build/
 install/
 log/
+
+rosbag2*/

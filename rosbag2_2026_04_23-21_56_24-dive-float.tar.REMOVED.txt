@@ -1,0 +1,11 @@
+PLACEHOLDER - original file removed during GitLab -> GitHub migration
+(GitHub rejects files over 100 MB).
+
+Original path : rosbag2_2026_04_23-21_56_24-dive-float.tar
+Original size : 144.3 MB
+Git blob SHA  : 5274d485ff8f34a762f07518e05c9fbd915dba23
+
+The original is still in the LRZ GitLab repo:
+  https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros
+To restore it from a clone of that repo:
+  git cat-file blob 5274d485ff8f34a762f07518e05c9fbd915dba23 > rosbag2_2026_04_23-21_56_24-dive-float.tar
