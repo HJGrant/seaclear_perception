@@ -297,9 +297,9 @@ class VisualServoControllerNode(Node):
             output_limit=self._max_vx,
         ))
         self._xy_pid_y = PIDController(PIDGains(
-            kp=float(self.get_parameter('staged_pid_xy_kp').value),
-            ki=float(self.get_parameter('staged_pid_xy_ki').value),
-            kd=float(self.get_parameter('staged_pid_xy_kd').value),
+            kp=float(self.get_parameter('staged_pid_xy_kp').value)/2.0,
+            ki=float(self.get_parameter('staged_pid_xy_ki').value)/2.0,
+            kd=float(self.get_parameter('staged_pid_xy_kd').value)/2.0,
             integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
             output_limit=self._max_vy,
         ))
