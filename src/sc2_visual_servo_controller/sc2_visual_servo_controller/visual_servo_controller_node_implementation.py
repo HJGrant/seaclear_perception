@@ -390,7 +390,7 @@ class VisualServoControllerNode(Node):
         self._last_accepted_target_centroid: Optional[np.ndarray] = None
         self._has_marine_acoustic_dvl = _HAS_MARINE_ACOUSTIC_DVL
         self._tracking_valid_observation_history = deque(maxlen=self._tracked_enter_window_obs)
-        self._staged_pid_state = self.StagedPIDState.NO_TARGET
+        #self._staged_pid_state = self.StagedPIDState.NO_TARGET
         self._staged_pid_phase = 'horizontal_only'
         self._staged_pid_recent_horizontal_ok = deque(
             maxlen=self._staged_pid_vertical_gate_window_ticks
@@ -528,13 +528,14 @@ class VisualServoControllerNode(Node):
             return
         self._target_tracked = tracked
         if tracked:
-            self._staged_pid_state = self.StagedPIDState.HORIZONTAL
-            print(f"setting `tracked` to True. `self._staged_pid_state = self.StagedPIDState.HORIZONTAL`")
+            #self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            #print(f"setting `tracked` to True. `self._staged_pid_state = self.StagedPIDState.HORIZONTAL`")
             self._reset_vertical_gate()
         else:
             self._tracking_valid_observation_history.clear()
             self._last_accepted_target_centroid = None
-            self._staged_pid_state = self.StagedPIDState.NO_TARGET
+            #self._staged_pid_state = self.StagedPIDState.NO_TARGET
+            #print(f"Not tracked. Setting `self._staged_pid_state = sself.StagedPIDState.NO_TARGET")
             self._reset_staged_pid_state()
 
     def _is_timestamp_fresh(self, stamp, timeout_sec: float) -> bool:
@@ -767,7 +768,8 @@ class VisualServoControllerNode(Node):
                     if aligned else
                     f'TRACKING_STAGED_PID_VERTICAL_{source_suffix}'
                 )
-            self._staged_pid_state = self.StagedPIDState.HORIZONTAL_AND_VERTICAL
+            #self._staged_pid_state = self.StagedPIDState.HORIZONTAL_AND_VERTICAL
+            #print(f"`self._staged_pid_state = self.StagedPIDState.HORIZONTAL_AND_VERTICAL")
         else:
             self._z_pid.reset()
             if self._staged_pid_vertical_enabled and horizontal_aligned_now and not z_fresh:
@@ -776,7 +778,8 @@ class VisualServoControllerNode(Node):
                 status = 'TRACKING_STAGED_PID_HORIZONTAL_READY'
             else:
                 status = 'TRACKING_STAGED_PID_HORIZONTAL'
-            self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            #self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            #print(f"`self._staged_pid_state = self.StagedPIDState.HORIZONTAL")
 
         self._staged_pid_last_allow_z = allow_z
         self._staged_pid_last_z_fresh = z_fresh
@@ -960,8 +963,8 @@ class VisualServoControllerNode(Node):
                 self._publish_is_locked('False')
                 self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
                 return
-        else:
-            print("`_use_target_observation` off in _tick_staged_pid()")
+        #else:
+            #print("`_use_target_observation` off in _tick_staged_pid()")
         self._update_target_tracked_from_tick()
         self._publish_is_locked(str(self._target_tracked))
 
@@ -1007,7 +1010,8 @@ class VisualServoControllerNode(Node):
             self.set_state(self.ControllerState.VISUAL)
             self._publish_vs_control_finish(False)
         else:
-            self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            #self._staged_pid_state = self.StagedPIDState.HORIZONTAL
+            #print(f"`self._staged_pid_state = self.StagedPIDState.HORIZONTAL")
             self._reset_vertical_gate()
             self._clear_staged_pid_completion()
             self._publish_vs_control_finish(False)
