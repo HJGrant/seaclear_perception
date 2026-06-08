@@ -41,6 +41,7 @@ from msg_winch.srv import SetWinchLength
 from enum import Enum
 
 from state_estimation.msg import Vector6
+#from waterlinked_dvl_msgs.msg import VelocityReport
 try:
     from marine_acoustic_msgs.msg import Dvl
     _HAS_MARINE_ACOUSTIC_DVL = True
@@ -122,7 +123,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('verbose', True)
         self.declare_parameter('enable_dvl', False)
         self.declare_parameter('yaw_control', False)    #turn yaw control on/off
-        self.declare_parameter('depth_estimation_mode', 'RGBD') # choose from: MAVROS, DVL or RGBD
+        self.declare_parameter('depth_estimation_mode', 'DVL') # choose from: MAVROS, DVL or RGBD
 
         # image data parameters
         self.declare_parameter('image_width', 1280.0)
@@ -140,9 +141,9 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('max_vy', 0.3)
         self.declare_parameter('max_vz', 0.3)
         self.declare_parameter('max_yaw_rate', 0.4)
-        self.declare_parameter('slew_vx', 2.0)
-        self.declare_parameter('slew_vy', 2.0)
-        self.declare_parameter('slew_vz', 2.0)
+        self.declare_parameter('slew_vx', 0.0)
+        self.declare_parameter('slew_vy', 0.0)
+        self.declare_parameter('slew_vz', 0.0)
         self.declare_parameter('slew_yaw_rate', 2.0)
 
         # camera parameters
@@ -161,7 +162,7 @@ class VisualServoControllerNode(Node):
         # vertical gate uses 150 px on both u and v: slightly stricter than a
         # 0.2 m lateral-offset allowance at 0.5 m while avoiding the previous
         # 25 px near-perfect-centering assumption.
-        self.declare_parameter('staged_pid_xy_kp', 0.0025)
+        self.declare_parameter('staged_pid_xy_kp', 0.05)
         self.declare_parameter('staged_pid_xy_ki', 0.0)
         self.declare_parameter('staged_pid_xy_kd', 0.0008)
         self.declare_parameter('staged_pid_xy_integral_limit', 200.0)
@@ -628,8 +629,14 @@ class VisualServoControllerNode(Node):
         vel_x_im = self._xy_pid_x.update(centroid_err_x, dt_ctrl)
         vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
 
-        cmd_vx_body = vel_x_im
-        cmd_vy_body = -vel_y_im
+        cmd_vel_correction_coeff: float = 1.0
+        if (self._latest_depth_measurement is not None) and (self._latest_depth_measurement > 0.0):
+            cmd_vel_correction_coeff = self._latest_depth_measurement
+            print(f"cmd_vel_correction_coeff: {cmd_vel_correction_coeff}")
+        else:
+            print(f"invalid dvl altitude. setting cmd_vel_correction_coeff to 1.0")
+        cmd_vx_body = vel_x_im * cmd_vel_correction_coeff
+        cmd_vy_body = -vel_y_im * cmd_vel_correction_coeff
         yaw = 0.0
         if self._staged_pid_enable_yaw:
             yaw = clamp(
@@ -881,7 +888,8 @@ class VisualServoControllerNode(Node):
 
     def _dvl_altitude_cb(self, msg: Dvl) -> None:
         # Phase 2 staged PID fallback. target_point remains primary while fresh.
-        self._latest_depth_measurement = float(np.abs(msg.altitude))
+        self._latest_depth_measurement = float(msg.altitude)
+        print(f"self._latest_depth_measurement: {self._latest_depth_measurement}")
         self._last_depth_time = self.get_clock().now()
 
     def _mavros_altitude_cb(self, msg: Float64) -> None:
@@ -1048,6 +1056,7 @@ class VisualServoControllerNode(Node):
             self.set_state(self.ControllerState.VISUAL)
             self._publish_vs_control_finish(False)
         else:
+            print("TRACKING_STAGED_PID_HORIZONTAL_STALE")
             #self._staged_pid_state = self.StagedPIDState.HORIZONTAL
             #print(f"`self._staged_pid_state = self.StagedPIDState.HORIZONTAL")
             self._reset_vertical_gate()
@@ -1096,7 +1105,7 @@ class VisualServoControllerNode(Node):
             return
 
         req = SetWinchLength.Request()
-        req.length = length_m
+        req.desired_length = float(length_m)
 
         future = self._completion_winch_client.call_async(req)
         self._completion_winch_request_sent = True
@@ -1143,6 +1152,7 @@ class VisualServoControllerNode(Node):
             self._publish_status(str(self.current_state.name))
     
     def _publish_status(self, text: str) -> None:
+        print(f"publishing {text}")
         msg = String()
         msg.data = text
         self._status_pub.publish(msg)
