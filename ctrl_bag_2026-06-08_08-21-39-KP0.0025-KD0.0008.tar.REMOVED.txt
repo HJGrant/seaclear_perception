@@ -1,0 +1,11 @@
+PLACEHOLDER - original file removed during GitLab -> GitHub migration
+(GitHub rejects files over 100 MB).
+
+Original path : ctrl_bag_2026-06-08_08-21-39-KP0.0025-KD0.0008.tar
+Original size : 8134.2 MB
+Git blob SHA  : 7a15c4247efeb0769205445af42e0851b0eddc85
+
+The original is still in the LRZ GitLab repo:
+  https://gitlab.lrz.de/itr-seaclear/tum/sc2/development/oakd_isaac_ros
+To restore it from a clone of that repo:
+  git cat-file blob 7a15c4247efeb0769205445af42e0851b0eddc85 > ctrl_bag_2026-06-08_08-21-39-KP0.0025-KD0.0008.tar
