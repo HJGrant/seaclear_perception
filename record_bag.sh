@@ -2,10 +2,10 @@
 
 set -eo pipefail
 
-BAG_BASE_DIR="${1:-/mnt/orin_ssd/workspaces/oakd_isaac_ros/rosbags_dubrovnik}"
+BAG_BASE_DIR="${1:-/workspaces/oakd_isaac_ros/rosbags_dubrovnik/no-slew/beams}"
 
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
-BAG_NAME="ctrl_bag_${TIMESTAMP}-staged_pid_xy-kp_0.050-kd_0.0008"
+BAG_NAME="ctrl_bag_${TIMESTAMP}-staged_pid_xy-kp_0.05-kd_0.0008-maxvxvy20ms"
 BAG_PATH="${BAG_BASE_DIR}/${BAG_NAME}"
 
 TOPICS=(
