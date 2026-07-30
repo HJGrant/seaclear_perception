@@ -1,0 +1,171 @@
+# Parameter set for src/sc2_visual_servo_bringup/launch/object_detection_ibvs.launch.py.
+# Tune this file for field trials instead of editing the launch file or Python node.
+
+target_point_estimator_node:
+  ros__parameters:
+    # target_point PoseStamped convention for staged PID:
+    #   position.x/y = metric target offset in the camera optical frame
+    #   position.z   = target-relative range/depth in meters
+    target_bounding_box: /best_detection
+    depth_topic: /oak/stereo/image_raw
+    camera_info_topic: /oak/stereo/camera_info
+    status_topic: /sc2/visual_servo/target_point_status
+    default_frame_id: oak_rgb_camera_optical_frame
+    max_hold_ms: 500.0
+    hold_last_valid: true
+    max_obs_age_ms: 300.0
+    max_depth_age_ms: 300.0
+    depth_min_m: 0.2
+    depth_max_m: 20.0
+    min_valid_points: 20
+    num_nearest_points: 25
+    max_search_radius_px: 40.0
+    use_uv_median_depth: true
+    use_mask_gating: false
+    mask_threshold: 1
+    enable_temporal_filter: true
+    filter_alpha_uv: 0.4
+    filter_alpha_depth: 0.3
+    filter_alpha_size: 0.3
+    max_uv_jump_px: 80.0
+    max_depth_jump_m: 0.5
+    reject_large_jumps: true
+
+target_observer_node:
+  ros__parameters:
+    detections_topic: /detections_output
+    output_topic: /sc2/visual_servo/target_obs
+    target_class: '3'
+    min_confidence: 0.5
+    low_confidence: 0.15
+    pick_strategy: nearest_track
+    use_depth: false
+    alpha_uv_predict: 0.0
+    t_stale_sec: 1.0
+    n_confirm: 5
+    base_gate_px: 80.0
+    r_gate_max_scale: 1.6
+    max_tracks: 8
+    selector_switch_margin: 0.05
+    selector_selected_track_bonus: 0.05
+    enable_motion_aware_gate: true
+    odom_topic: /sc2/odometry_ekf
+    imu_topic: /sc2/imu/imu
+    v_ref_mps: 0.5
+    omega_ref_radps: 0.5
+    beta_v: 0.3
+    beta_omega: 0.3
+    timeout_ms: 500
+
+visual_servo_controller_node:
+  ros__parameters:
+    target_topic: /sc2/visual_servo/target_obs
+    use_target_observation: false
+    target_point_topic: /sc2/visual_servo/target_point
+    controller_mode: staged_pid
+    cmd_topic: /mavros/setpoint_velocity/cmd_vel
+    cmd_topic_vec_6: /sc2/velocity_controller_node/outer/console_signals
+    status_topic: /sc2/visual_servo/status
+    target_locked_state: /sc2/visual_servo/target_locked
+    centroid_error_topic: /sc2/visual_servo/centroid_error
+    vs_control_finish_topic: /sc2/visual_servo/vs_control_finish
+    target_bounding_box: /best_detection
+    camera_info_topic: /oak/rgb/camera_info
+    dvl_altitude_topic: /waterlinked_dvl_driver/velocity_report
+    mavros_altitude_topic: /mavros/global_position/rel_alt
+    mavros_depth_topic: /mavros/global_position/rel_alt
+    vel_measurement_topic: /mavros/local_position/velocity_body
+    body_frame_id: base_link
+
+    rate_hz: 10.0
+    timeout_ms: 200
+    target_point_timeout_ms: 200
+    calibrated: true
+    verbose: true
+    enable_dvl: false
+    yaw_control: false
+    depth_estimation_mode: DVL
+
+    image_width: 640.0
+    image_height: 640.0
+    target_u: 320.0
+    target_v: 320.0
+
+    desired_depth_m: 1.0
+    desired_target_distance_m: 0.5
+    desired_vertical_distance_m: 1.0
+    vertical_gain: 1.0
+    staged_pid_z_source: dvl
+
+    max_vx: 20.0
+    max_vy: 20.0
+    max_vz: 0.50
+    max_yaw_rate: 0.35
+    slew_vx: 0.0
+    slew_vy: 0.0
+    slew_vz: 0.0
+    slew_yaw_rate: 2.0
+
+    fx_px: 600.0
+    fy_px: 600.0
+    cx_px: 640.0
+    cy_px: 360.0
+    camera_info_use_msg_intrinsics: false
+
+    staged_pid_xy_kp: 0.05
+    staged_pid_xy_ki: 0.0
+    staged_pid_xy_kd: 0.0008
+    staged_pid_xy_integral_limit: 200.0
+    staged_pid_xy_y_gain_scale: 0.5
+    staged_pid_depth_velocity_scale_enable: true
+    staged_pid_depth_velocity_scale_default: 1.0
+    staged_pid_yaw_gain: 0.8
+    staged_pid_z_kp: 0.8
+    staged_pid_z_ki: 0.0
+    staged_pid_z_kd: 0.10
+    staged_pid_z_integral_limit: 1.0
+    staged_pid_enable_yaw: true
+
+    # Phase 2 vertical gate: both u and v must stay within 150 px.
+    # At 0.5 m range with HFOV ~= 66 deg and 640 px width,
+    # 150 px is roughly 15 cm lateral offset.
+    staged_pid_horizontal_tolerance_px: 150.0
+    staged_pid_horizontal_tolerance_x_px: 150.0
+    staged_pid_horizontal_tolerance_y_px: 150.0
+    # Deprecated alias retained for older configs; controller uses the x/y
+    # horizontal tolerances for vertical on/off.
+    staged_pid_vertical_tolerance_px: 150.0
+    staged_pid_distance_tolerance_m: 0.08
+    staged_pid_vertical_gate_window_ticks: 10
+    staged_pid_vertical_enter_ratio: 0.8
+    staged_pid_vertical_exit_ratio: 0.4
+    staged_pid_vertical_enter_hold_ticks: 2
+    staged_pid_vertical_exit_hold_ticks: 2
+    staged_pid_hold_zero_distance_m: 0.5
+
+    # Completion handoff to the external operation state machine. Uses the same
+    # horizontal tolerances and distance tolerance above.
+    staged_pid_completion_enable: true
+    staged_pid_completion_window_ticks: 10
+    staged_pid_completion_enter_ratio: 0.8
+    staged_pid_completion_latch: true
+    completion_winch_service_enable: true
+    completion_winch_service_name: grapple/winch_ctrl/set_desired_winch_length
+
+    hold_maintain_enable: true
+    hold_maintain_z_kp_scale: 0.5
+    hold_maintain_velocity_damping_enable: true
+    hold_maintain_xy_damping: 0.4
+    hold_maintain_yaw_damping: 0.3
+    hold_maintain_velocity_timeout_ms: 500
+
+    tracked_enter_window_obs: 10
+    tracked_enter_min_obs: 2
+    tracked_exit_no_obs_sec: 0.6
+    target_tracking_roi_width_px: 50.0
+    debug_ignore_roi_consistency: true
+    target_center_box_side_length_px: 100.0
+
+    ibvs_lambda: 0.1
+    alpha_1: 0.5
+    decay_rate: 0.1

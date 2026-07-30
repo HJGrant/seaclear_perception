@@ -203,6 +203,19 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('tracked_enter_window_obs', 10)
         self.declare_parameter('tracked_enter_min_obs', 2)
         self.declare_parameter('tracked_exit_no_obs_sec', 0.6)
+        self.declare_parameter('target_tracking_roi_width_px', 50.0)
+        self.declare_parameter('debug_ignore_roi_consistency', True)
+        self.declare_parameter('target_center_box_side_length_px', 100.0)
+
+        # Staged PID implementation parameters
+        self.declare_parameter('staged_pid_xy_y_gain_scale', 0.5)
+        self.declare_parameter('staged_pid_yaw_gain', 0.8)
+        self.declare_parameter('staged_pid_depth_velocity_scale_enable', True)
+        self.declare_parameter('staged_pid_depth_velocity_scale_default', 1.0)
+
+        # CameraInfo handling. When disabled, the configured fx/fy/cx/cy values
+        # remain authoritative, which matches the field-trial setup.
+        self.declare_parameter('camera_info_use_msg_intrinsics', False)
         
         # IBVS control parameters
         self.declare_parameter('decay_rate', 0.95)
@@ -278,6 +291,32 @@ class VisualServoControllerNode(Node):
         self._desired_target_dist = 0.5
         self._desired_target_dist = float(self.get_parameter('desired_target_distance_m').value)
         self._desired_vertical_dist = float(self.get_parameter('desired_vertical_distance_m').value)
+        self._target_tracking_roi_width_px = max(
+            0.0,
+            float(self.get_parameter('target_tracking_roi_width_px').value),
+        )
+        self._debug_ignore_roi_consistency = self._as_bool(
+            self.get_parameter('debug_ignore_roi_consistency').value
+        )
+        self._target_center_box_side_length_px = max(
+            0.0,
+            float(self.get_parameter('target_center_box_side_length_px').value),
+        )
+        self._staged_pid_xy_y_gain_scale = float(
+            self.get_parameter('staged_pid_xy_y_gain_scale').value
+        )
+        self._staged_pid_yaw_gain = float(
+            self.get_parameter('staged_pid_yaw_gain').value
+        )
+        self._staged_pid_depth_velocity_scale_enable = self._as_bool(
+            self.get_parameter('staged_pid_depth_velocity_scale_enable').value
+        )
+        self._staged_pid_depth_velocity_scale_default = float(
+            self.get_parameter('staged_pid_depth_velocity_scale_default').value
+        )
+        self._camera_info_use_msg_intrinsics = self._as_bool(
+            self.get_parameter('camera_info_use_msg_intrinsics').value
+        )
         self._staged_pid_z_source = str(self.get_parameter('staged_pid_z_source').value).strip().lower()
         if self._staged_pid_z_source in {'target_pose', 'target_point'}:
             self._staged_pid_z_source = 'target_point'
@@ -313,9 +352,9 @@ class VisualServoControllerNode(Node):
             output_limit=self._max_vx,
         ))
         self._xy_pid_y = PIDController(PIDGains(
-            kp=float(self.get_parameter('staged_pid_xy_kp').value)/2.0,
-            ki=float(self.get_parameter('staged_pid_xy_ki').value)/2.0,
-            kd=float(self.get_parameter('staged_pid_xy_kd').value)/2.0,
+            kp=float(self.get_parameter('staged_pid_xy_kp').value) * self._staged_pid_xy_y_gain_scale,
+            ki=float(self.get_parameter('staged_pid_xy_ki').value) * self._staged_pid_xy_y_gain_scale,
+            kd=float(self.get_parameter('staged_pid_xy_kd').value) * self._staged_pid_xy_y_gain_scale,
             integral_limit=float(self.get_parameter('staged_pid_xy_integral_limit').value),
             output_limit=self._max_vy,
         ))
@@ -436,9 +475,9 @@ class VisualServoControllerNode(Node):
         # target paratmers
         # first define the corners of a sqaure around the center of the image
         # TODO: validate whether these target corners suffice 
-        side_length = 100
+        side_length = self._target_center_box_side_length_px
         h = side_length / 2.0
-        cx, cy = self.image_height / 2.0, self.image_height / 2.0
+        cx, cy = self.image_width / 2.0, self.image_height / 2.0
 
         self.center_box_corners = np.array([
             [cx - h, cy - h],  # Top-Left
@@ -452,7 +491,7 @@ class VisualServoControllerNode(Node):
         self._staged_pid_target_centroid = np.array([self._target_u, self._target_v], dtype=np.float32)
         self.latest_centroid = [0.0, 0.0]
 
-        self.roi_w = 50
+        self.roi_w = self._target_tracking_roi_width_px
 
         # define the minimum needed detections and the detection counter
 
@@ -585,7 +624,7 @@ class VisualServoControllerNode(Node):
             is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
         )
         print(f"roi_consistent: {roi_consistent}")
-        if roi_consistent == False:
+        if (not roi_consistent) and self._debug_ignore_roi_consistency:
             roi_consistent = True
             print("actually roi_consistent should be False, but treating it as True for making debugging easier")
         valid_target_observation = bool(roi_consistent)
@@ -629,18 +668,22 @@ class VisualServoControllerNode(Node):
         vel_x_im = self._xy_pid_x.update(centroid_err_x, dt_ctrl)
         vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
 
-        cmd_vel_correction_coeff: float = 1.0
-        if (self._latest_depth_measurement is not None) and (self._latest_depth_measurement > 0.0):
-            cmd_vel_correction_coeff = self._latest_depth_measurement
-            print(f"cmd_vel_correction_coeff: {cmd_vel_correction_coeff}")
-        else:
-            print(f"invalid dvl altitude. setting cmd_vel_correction_coeff to 1.0")
+        cmd_vel_correction_coeff = self._staged_pid_depth_velocity_scale_default
+        if self._staged_pid_depth_velocity_scale_enable:
+            if (self._latest_depth_measurement is not None) and (self._latest_depth_measurement > 0.0):
+                cmd_vel_correction_coeff = self._latest_depth_measurement
+                print(f"cmd_vel_correction_coeff: {cmd_vel_correction_coeff}")
+            else:
+                print(
+                    "invalid dvl altitude. setting cmd_vel_correction_coeff to "
+                    f"{self._staged_pid_depth_velocity_scale_default}"
+                )
         cmd_vx_body = vel_x_im * cmd_vel_correction_coeff
         cmd_vy_body = -vel_y_im * cmd_vel_correction_coeff
         yaw = 0.0
         if self._staged_pid_enable_yaw:
             yaw = clamp(
-                0.8 * (centroid_err_x / max(1.0, self.image_width * 0.5)),
+                self._staged_pid_yaw_gain * (centroid_err_x / max(1.0, self.image_width * 0.5)),
                 self._max_yaw,
             )
 
@@ -906,10 +949,19 @@ class VisualServoControllerNode(Node):
         '''
         _camera_info_msg = msg
         k = _camera_info_msg.k  # extract the intrinsic camera matrix
-        self.fx = k[0]
-        self.fy = k[4]
-        self.cx = 320 #k[2]
-        self.cy = 320 #k[5]
+        if self._camera_info_use_msg_intrinsics:
+            fx, fy, cx, cy = float(k[0]), float(k[4]), float(k[2]), float(k[5])
+        else:
+            fx, fy, cx, cy = self._fx, self._fy, self._cx, self._cy
+
+        self.fx = fx
+        self.fy = fy
+        self.cx = cx
+        self.cy = cy
+        self._fx = fx
+        self._fy = fy
+        self._cx = cx
+        self._cy = cy
     
     def _vel_measurement_cb(self, msg: TwistStamped) -> None:
         t = msg.twist
