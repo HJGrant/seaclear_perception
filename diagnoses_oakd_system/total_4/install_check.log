@@ -1,7 +1,0 @@
-=== install launch files ===
-
-=== target point estimator shim ===
-total 4
-lrwxrwxrwx 1 admin admin   35 Mar 13 15:48 grasp_pose_estimator_node -> ../../bin/grasp_pose_estimator_node
--rwxr-xr-x 1 admin admin 1044 Mar  9 16:45 target_observer_node
-lrwxrwxrwx 1 admin admin   37 Mar 13 15:48 target_point_estimator_node -> ../../bin/target_point_estimator_node

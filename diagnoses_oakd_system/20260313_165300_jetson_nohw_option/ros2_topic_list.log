@@ -1,7 +1,0 @@
-/parameter_events
-/rosout
-/sc2/visual_servo/cmd_vel_body
-/sc2/visual_servo/status
-/sc2/visual_servo/target_obs
-/sc2/visual_servo/target_point
-/tf_static
