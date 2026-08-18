@@ -19,7 +19,7 @@ def generate_launch_description():
         launch_arguments={
             'params_file': os.path.join(
                 get_package_share_directory('oakd_isaac_ros'),
-                'config', 'oak_d', 'oakd_dnn_depth.yaml'
+                'config', 'oak_d', 'oakd_dnn_depth-bremen.yaml'
             )
         }.items()
     )

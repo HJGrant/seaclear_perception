@@ -113,7 +113,7 @@ def generate_launch_description() -> LaunchDescription:
         DeclareLaunchArgument('detector_target_class_id', default_value='3'),
         DeclareLaunchArgument(
             'oakd_params_file',
-            default_value=os.path.join(package_share, 'config', 'oak_d', 'oakd_dnn_depth.yaml')),
+            default_value=os.path.join(package_share, 'config', 'oak_d', 'oakd_dnn_depth-bremen.yaml')),
 
         DeclareLaunchArgument('controller_mode', default_value='bbox_target_point'),
         DeclareLaunchArgument('target_class', default_value=''),

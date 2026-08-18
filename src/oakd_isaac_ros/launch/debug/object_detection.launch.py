@@ -149,59 +149,6 @@ def generate_launch_description():
         ]
     )
 
-    
-    encoder_node = ComposableNode(
-        name='oak_rgb_encoder_node',
-        package='isaac_ros_h264_encoder',
-        plugin='nvidia::isaac_ros::h264_encoder::EncoderNode',
-        parameters=[{
-            'input_height': 720, 
-            'input_width': 1280,
-            'qp': 25,           # The encoder constant QP value.
-            'hw_preset': 0,     # The encoder hardware preset type. The value can be an integer from 0 to 3, representing Ultrafast, Fast, Medium and, Slow, respectively.
-            'profile': 1,       # The profile to be used for encoding. The value can be an integer from 0 to 2, representing Main, Baseline, and High, respectively.
-            'iframe_interval': 1,   # Interval between two I frames, in number of frames. E.g., iframe_interval=5 represents IPPPPI..., iframe_interval=1 represents I frame only
-            'config': 'custom'      # A preset combination of qp, hw_preset, profile and iframe_interval. The value can be iframe_cqp, pframe_cqp or custom. When iframe_cqp or pframe_cqp is used, the default value of these four parameters will be applied. Only when this field is custom will the custom values will be used.
-        }],
-        remappings=[
-            ('image_raw', '/oak/rgb/image_raw_rgb8/resize'),
-            ('image_compressed', '/oak/rgb/image_raw/h264')
-        ]
-        )
-
-    encoder_node_mask_overlay = ComposableNode(
-        name='oak_mask_encoder_node',
-        package='isaac_ros_h264_encoder',
-        plugin='nvidia::isaac_ros::h264_encoder::EncoderNode',
-        parameters=[{
-            'input_height': 640, 
-            'input_width': 640
-        }],
-        remappings=[
-            ('image_raw', '/mask_overlay'),
-            ('image_compressed', '/mask_overlay/h264')
-        ]
-        )
-
-    image_resize_node = ComposableNode(
-        name='oak_image_resize_node_for_rtp',
-        package='isaac_ros_image_proc',
-        plugin='nvidia::isaac_ros::image_proc::ResizeNode',
-        parameters=[{
-            'input_width': 1280,
-            'input_height': 720,
-            'output_width': 1280,
-            'output_height': 720,
-            'encoding_desired': 'rgb8'
-        }],
-        remappings=[
-            ('image', '/oak/rgb/image_raw'),
-            ('camera_info', '/oak/rgb/camera_info'),
-            ('resize/image', '/oak/rgb/image_raw_rgb8/resize'),
-            ('resize/camera_info', '/oak/rgb/camera_info/resize')
-        ]
-    )
-
     image_converter = ComposableNode(
         name='oak_format_conv_node',
         package='isaac_ros_image_proc',
@@ -217,40 +164,15 @@ def generate_launch_description():
         ]
     )
 
-    rgb_video_node = ComposableNode(
-        package='oakd_isaac_ros',
-        plugin='oakd_isaac_ros::H264ToFoxgloveBridge',
-        name='foxglove_bridge_rgb',
-        remappings=[
-            ('input/h264', '/oak/rgb/image_raw/h264'),
-            ('output/foxglove', '/oak/rgb/video')
-        ]
-    )
-
-    yolo_video_node = ComposableNode(
-        package='oakd_isaac_ros',
-        plugin='oakd_isaac_ros::H264ToFoxgloveBridge',
-        name='foxglove_bridge_yolo',
-        remappings=[
-            ('input/h264', '/mask_overlay/h264'),
-            ('output/foxglove', '/mask_overlay/video')
-        ]
-    )
-
     detection_container = ComposableNodeContainer(
         name='detection_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container_mt',
         composable_node_descriptions=[
-            #camera_node,
+            camera_node,
             #rectify_node,
             image_converter,
-            image_resize_node,
-            encoder_node,
-            encoder_node_mask_overlay,
-            rgb_video_node,
-            yolo_video_node
         ],
         output='screen'
     )
