@@ -70,8 +70,8 @@ rtp:
   enable: true
   headless: true
   destination_ips:
-    - "127.0.0.1"
-    - ""
+    #- "127.0.0.1"  localhost
+    - "192.168.2.94"  # default
 
   rgb:
     enabled: true
