@@ -137,6 +137,7 @@ RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
     ros-humble-isaac-ros-triton \
     ros-humble-isaac-ros-dnn-image-encoder \
     ros-humble-isaac-ros-detectnet \
+    ros-humble-robot-localization \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- jetson-utils / jetson-inference (needed by ros_deep_learning for RTP

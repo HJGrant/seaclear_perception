@@ -25,10 +25,12 @@ from nvblox_ros_python_utils.nvblox_launch_utils import NvbloxMode
 from nvblox_ros_python_utils.nvblox_constants import NVBLOX_CONTAINER_NAME
 
 
-def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
+def get_oakd_remappings(
+        mode: NvbloxMode, depth_topic: str, depth_camera_info_topic: str,
+        rgb_camera_info_topic: str) -> List[Tuple[str, str]]:
     remappings = []
-    remappings.append((f'camera_0/depth/image', '/oak/stereo/image_raw'))
-    remappings.append((f'camera_0/depth/camera_info', '/oak/stereo/camera_info'))
+    remappings.append((f'camera_0/depth/image', depth_topic))
+    remappings.append((f'camera_0/depth/camera_info', depth_camera_info_topic))
 
     if mode is NvbloxMode.people_segmentation:
             # nvblox takes resized images from semseg inputs
@@ -41,13 +43,16 @@ def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
                 (f'camera_0/mask/camera_info', f'/camera0/segmentation/camera_info_resized'))
 
     else:
+        # /oak/rgb/image_raw_rgb8 is the detection pipeline's own internal
+        # converted copy (see perception.launch.py's oak_format_conv_node),
+        # not a raw camera topic -- not part of the configurable set.
         remappings.append((f'camera_0/color/image', f'/oak/rgb/image_raw_rgb8'))
-        remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
+        remappings.append((f'camera_0/color/camera_info', rgb_camera_info_topic))
 
         if mode is NvbloxMode.people_detection:
             remappings.append((f'camera_0/mask/image', f'/camera0/detection/mask_resized'))
             remappings.append((f'camera_0/mask/camera_info', f'/camera0/detection/mask_resized/camera_info'))
-            
+
     return remappings
 
 def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
@@ -83,10 +88,11 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
     else:
         raise Exception(f'Mode {mode} not implemented for nvblox.')
 
-    # select the camera 
+    # select the camera
     if camera == "oakd":
         print("##### Setting Camera to nvBLOX!! #####")
-        remappings = get_oakd_remappings(mode)
+        remappings = get_oakd_remappings(
+            mode, args.depth_topic, args.depth_camera_info_topic, args.rgb_camera_info_topic)
         camera_config = oakd_config
         assert num_cameras == 1, 'OAK-D example can only run with 1 camera.'
         assert not use_lidar, 'Can not run lidar for OAK-D example.'
@@ -100,6 +106,12 @@ def add_nvblox(args: lu.ArgumentContainer) -> List[Action]:
     parameters.append({'num_cameras': num_cameras})
     parameters.append({'use_lidar': use_lidar})
     parameters.append({'voxel_size': args.voxel_size})
+    # Overrides nvblox_base.yaml's global_frame (default "odom") -- used by
+    # multi-frame mapping to fuse into the periodically re-anchored
+    # tsdf_map_origin frame instead of the continuously-drifting live
+    # estimate. Empty string (the default here) means "leave it alone".
+    if args.global_frame:
+        parameters.append({'global_frame': args.global_frame})
 
     # Add the nvblox node.
     nvblox_node = ComposableNode(
@@ -134,6 +146,14 @@ def generate_launch_description() -> LaunchDescription:
     args.add_arg('container_name', NVBLOX_CONTAINER_NAME)
     args.add_arg('run_standalone', 'False')
     args.add_arg('voxel_size', 0.05)
+    args.add_arg('global_frame', '')
+    # Defaults match the real depthai_ros_driver's topics -- overridden by
+    # perception.launch.py from config/system_params.yaml's camera section
+    # when testing against a simulator with different topic names.
+    args.add_arg('depth_topic', '/oak/stereo/image_raw')
+    args.add_arg('depth_camera_info_topic', '/oak/stereo/camera_info')
+    args.add_arg('rgb_topic', '/oak/rgb/image_raw')
+    args.add_arg('rgb_camera_info_topic', '/oak/rgb/camera_info')
 
     args.add_opaque_function(add_nvblox)
     return LaunchDescription(args.get_launch_actions())

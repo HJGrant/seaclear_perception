@@ -33,9 +33,11 @@
   <depend>isaac_ros_gxf</depend>
   <depend>isaac_ros_managed_nitros</depend>
   <depend>isaac_ros_nitros_image_type</depend>
+  <depend>std_srvs</depend>
+  <depend>tf2_ros</depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
   <exec_depend>sc2_visual_servo_interfaces</exec_depend>
   <exec_depend>sc2_visual_servo_perception</exec_depend>
   <exec_depend>sc2_visual_servo_controller</exec_depend>

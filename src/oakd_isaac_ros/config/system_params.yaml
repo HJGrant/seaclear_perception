@@ -7,18 +7,60 @@ camera:
   rgb_fps: 60.0 # max is 60.0
   depth_fps: 10.0 # test with 5.0 or 10.0
 
+  # Turn off the real OAK-D driver for testing against a simulator instead
+  # (e.g. state_estimation's unity_bridge.launch.py) -- detection/nvblox/RTP
+  # don't care where these topics come from, only that something publishes
+  # them with these names before the real deployment. When false, nothing
+  # in this stack tries to connect to the physical camera at all.
+  enable_camera: true
+
+  # Topic names the rest of the pipeline reads. Defaults match the real
+  # depthai_ros_driver's topics -- point these at your simulator's topics
+  # instead if they differ (leave enable_camera: true if the real driver
+  # should still publish under these same names).
+  rgb_topic: /oak/rgb/image_raw
+  rgb_camera_info_topic: /oak/rgb/camera_info
+  depth_topic: /oak/stereo/image_raw
+  depth_camera_info_topic: /oak/stereo/camera_info
+
 # Toggles for launch/perception.launch.py (the no-visual-servoing pipeline).
 # Camera always runs; these let you run e.g. camera+rtp only, or
 # camera+detection+rtp without nvblox, etc.
 perception:
-  enable_object_detection: true
-  enable_nvblox: true
+  enable_object_detection: false
+  enable_nvblox: false
 
 nvblox:
   # people_detection = masked/selective TSDF (only the detected target is
   #   reconstructed into the static map -- see publish_mask_nitros.cpp)
   # static = full, unmasked TSDF of the whole scene
   mode: static
+
+  # TSDF voxel size, in meters. Smaller = finer detail, more GPU memory
+  # and compute; e.g. 0.25 for a coarse, cheap map, 0.05 for fine detail.
+  voxel_size: 0.05
+
+  # Multi-frame mapping: fuse depth over multiple vehicle poses into one
+  # cohesive TSDF map, using the live state estimate (map_frame_anchor.cpp
+  # + nvblox_node's ~/clear_map service). When false, nvblox behaves as
+  # before -- single fixed-frame reconstruction, camera pose assumed
+  # static, global_frame left at nvblox_base.yaml's default ("odom").
+  multi_frame_mapping:
+    enabled: false
+    # Re-anchor the map's temporary global frame at the vehicle's current
+    # pose and clear old geometry every N frames of camera.trigger_topic
+    # (see launch/tools/map_frame_anchor -- default topic is the stereo
+    # depth stream). Bounds how much state-estimate drift can accumulate
+    # into the map's internal consistency within one window.
+    reset_every_n_frames: 1000
+    # "state_estimation": use the real vehicle EKF's live odom ->
+    #   sc2_base_link (state_estimation package must already be running --
+    #   we don't launch it).
+    # "oakd_imu": launch a lightweight IMU-only fallback ourselves (see
+    #   launch/tools/imu_pose_estimate.launch.py) for debugging the mapping
+    #   logic with just the OAK-D connected. Orientation only -- position
+    #   is not reliable without DVL/GPS.
+    pose_source: oakd_imu
 
 # enable the RTP stream for teleoperation, and object detection + depth debugging
 # you can select insert multipl IPs where the stream should be sent to.
@@ -37,9 +79,9 @@ rtp:
     height: 720
 
   mask_overlay:
-    enabled: true
+    enabled: false
     port: 8552
 
   depth:
-    enabled: true
+    enabled: false
     port: 8551

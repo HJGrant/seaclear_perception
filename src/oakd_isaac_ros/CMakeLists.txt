@@ -30,6 +30,8 @@ find_package(CUDAToolkit REQUIRED)
 find_package(isaac_ros_gxf REQUIRED)
 find_package(isaac_ros_managed_nitros REQUIRED)
 find_package(isaac_ros_nitros_image_type REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(tf2_ros REQUIRED)
 
 
 add_library(publish_mask_component SHARED src/publish_mask.cpp)
@@ -195,6 +197,28 @@ install(TARGETS dnn_depth_visualizer_component
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
+)
+
+add_library(map_frame_anchor_component SHARED src/map_frame_anchor.cpp)
+ament_target_dependencies(map_frame_anchor_component
+  rclcpp_components
+  rclcpp
+  sensor_msgs
+  std_srvs
+  tf2_ros)
+
+rclcpp_components_register_node(
+    map_frame_anchor_component
+    PLUGIN "map_frame_anchor"
+    EXECUTABLE map_frame_anchor
+)
+
+ament_export_targets(export_map_frame_anchor_component)
+install(TARGETS map_frame_anchor_component
+        EXPORT export_map_frame_anchor_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 # Install Python modules

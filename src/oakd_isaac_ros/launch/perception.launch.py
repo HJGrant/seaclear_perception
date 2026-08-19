@@ -5,11 +5,11 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
-from launch_ros.descriptions import ComposableNode
+from launch_ros.descriptions import ComposableNode, ParameterValue
 
 
 def generate_launch_description():
@@ -39,7 +39,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'voxel_size',
-            default_value='0.05',
+            default_value=str(params['nvblox']['voxel_size']),
             description='nvblox TSDF voxel size, in meters',
         ),
         DeclareLaunchArgument(
@@ -50,6 +50,47 @@ def generate_launch_description():
             'enable_nvblox',
             default_value=str(params['perception']['enable_nvblox']),
         ),
+        DeclareLaunchArgument(
+            'enable_multi_frame_mapping',
+            default_value=str(params['nvblox']['multi_frame_mapping']['enabled']),
+            description='Fuse depth over multiple re-anchored vehicle poses '
+                        '(see map_frame_anchor) instead of one fixed frame',
+        ),
+        DeclareLaunchArgument(
+            'reset_every_n_frames',
+            default_value=str(params['nvblox']['multi_frame_mapping']['reset_every_n_frames']),
+            description='How many depth frames between multi-frame mapping resets',
+        ),
+        DeclareLaunchArgument(
+            'pose_source',
+            default_value=params['nvblox']['multi_frame_mapping']['pose_source'],
+            description="'state_estimation' (real EKF, must already be running "
+                        "externally) or 'oakd_imu' (IMU-only fallback we launch "
+                        "ourselves, for debugging with just the OAK-D connected)",
+        ),
+        DeclareLaunchArgument(
+            'enable_camera',
+            default_value=str(params['camera']['enable_camera']),
+            description='Run the real depthai_ros_driver camera node. Turn off '
+                        'for simulation testing -- something else (e.g. a '
+                        'simulator bridge) must then publish the topics below.',
+        ),
+        DeclareLaunchArgument(
+            'rgb_topic',
+            default_value=params['camera']['rgb_topic'],
+        ),
+        DeclareLaunchArgument(
+            'rgb_camera_info_topic',
+            default_value=params['camera']['rgb_camera_info_topic'],
+        ),
+        DeclareLaunchArgument(
+            'depth_topic',
+            default_value=params['camera']['depth_topic'],
+        ),
+        DeclareLaunchArgument(
+            'depth_camera_info_topic',
+            default_value=params['camera']['depth_camera_info_topic'],
+        ),
     ]
 
     target_class_id = LaunchConfiguration('target_class_id')
@@ -57,6 +98,27 @@ def generate_launch_description():
     voxel_size = LaunchConfiguration('voxel_size')
     enable_object_detection = LaunchConfiguration('enable_object_detection')
     enable_nvblox = LaunchConfiguration('enable_nvblox')
+    enable_multi_frame_mapping = LaunchConfiguration('enable_multi_frame_mapping')
+    reset_every_n_frames = LaunchConfiguration('reset_every_n_frames')
+    pose_source = LaunchConfiguration('pose_source')
+    enable_camera = LaunchConfiguration('enable_camera')
+    rgb_topic = LaunchConfiguration('rgb_topic')
+    rgb_camera_info_topic = LaunchConfiguration('rgb_camera_info_topic')
+    depth_topic = LaunchConfiguration('depth_topic')
+    depth_camera_info_topic = LaunchConfiguration('depth_camera_info_topic')
+
+    # perception.launch.py's own map->odom->oak-d-base-frame chain below is
+    # only correct when nothing else owns those frames. That's true in
+    # today's single-frame default (nothing else runs), and in the
+    # multi-frame "oakd_imu" debug mode (imu_pose_estimate.launch.py only
+    # publishes odom -> sc2_base_link, not the map or camera extrinsic). It
+    # is NOT true in multi-frame "state_estimation" mode -- the real vehicle
+    # stack (ekf_fusing.launch.py) is assumed already running and owns all
+    # of those transforms; publishing them here too would create the same
+    # two-publishers-one-child-frame conflict we just fixed there.
+    own_camera_tf_condition = PythonExpression([
+        "'", enable_multi_frame_mapping, "' == 'False' or '", pose_source, "' == 'oakd_imu'"
+    ])
 
     # --- camera --------------------------------------------------------------
     oak_params_file = os.path.join(
@@ -82,13 +144,21 @@ def generate_launch_description():
     # NITROS can negotiate zero-copy transport wherever both ends are
     # NITROS-typed, and so rclcpp intra-process comms can do the same for
     # the plain-message hops (notably the RTP video_output nodes below).
+    # Starts empty -- camera_node loads conditionally below like everything
+    # else, so enable_camera:=false skips it cleanly for simulation testing.
     detection_container = ComposableNodeContainer(
         name='detection_container',
         namespace='',
         package='rclcpp_components',
         executable='component_container_mt',
-        composable_node_descriptions=[camera_node],
+        composable_node_descriptions=[],
         output='screen'
+    )
+
+    camera_include = LoadComposableNodes(
+        condition=IfCondition(enable_camera),
+        target_container='detection_container',
+        composable_node_descriptions=[camera_node],
     )
 
     # image_converter only feeds the detection pipeline's input topic --
@@ -107,7 +177,7 @@ def generate_launch_description():
                     'encoding_desired': 'rgb8'
                 }],
                 remappings=[
-                    ('image_raw', '/oak/rgb/image_raw'),
+                    ('image_raw', rgb_topic),
                     ('image', '/oak/rgb/image_raw_rgb8')
                 ],
                 # NOT intra-process-enabled: NITROS's type-negotiation uses
@@ -135,24 +205,96 @@ def generate_launch_description():
 
     # --- nvblox (optional) -----------------------------------------------------
     # Minimal static TF chain nvblox needs to integrate depth into a global
-    # frame. Cheap enough to always run regardless of enable_nvblox.
+    # frame. Cheap enough to always run regardless of enable_nvblox -- but
+    # see own_camera_tf_condition above for when these get skipped in favor
+    # of an externally-running state_estimation stack.
     static_tf_map_to_odom = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='map_to_odom_static_tf',
         arguments=['0', '0', '0', '0', '0', '0', 'map', 'odom'],
+        condition=IfCondition(own_camera_tf_condition),
     )
-    static_tf_odom_to_oak_base = Node(
+    # Only published in the plain single-frame default -- in "oakd_imu"
+    # multi-frame mode, imu_pose_estimate.launch.py publishes this live
+    # instead (publishing it here too would conflict, same as the
+    # ekf_fusing.launch.py bug we fixed).
+    static_tf_odom_to_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='odom_to_oak_base_static_tf',
-        arguments=['0', '0', '1.0', '0', '3.14', '1.5708', 'odom', 'oak-d-base-frame'],
+        name='odom_to_base_static_tf',
+        arguments=['0', '0', '0', '0', '0', '0', 'odom', 'sc2_base_link'],
+        condition=UnlessCondition(enable_multi_frame_mapping),
+    )
+    # Camera's static extrinsic, parented to sc2_base_link (not odom
+    # directly) so a live odom -> sc2_base_link (from either pose source)
+    # actually moves the camera -- same reasoning as ekf_fusing.launch.py's
+    # equivalent transform. Values unchanged from before, just re-parented.
+    static_tf_base_to_oak_base = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='base_to_oak_base_static_tf',
+        arguments=['0', '0', '1.0', '0', '3.14', '1.5708', 'sc2_base_link', 'oak-d-base-frame'],
+        condition=IfCondition(own_camera_tf_condition),
     )
     static_tf_oak_base_to_optical = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='oak_base_to_optical_static_tf',
         arguments=['0', '0', '0', '0', '0', '0', 'oak-d-base-frame', 'oak_rgb_camera_optical_frame'],
+        condition=IfCondition(own_camera_tf_condition),
+    )
+    # IMU extrinsic -- not needed by anything until imu_pose_estimate's
+    # ekf_node started requiring a TF path from oak_imu_frame (the IMU
+    # message's frame_id) to sc2_base_link to rotate measurements into the
+    # base frame before fusing them. Values match ekf_fusing.launch.py's
+    # equivalent transform.
+    static_tf_base_to_imu = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='base_to_imu_static_tf',
+        arguments=['0', '0', '0', str(1.5707963267948966), '0', '0', 'sc2_base_link', 'sc2_imu_link'],
+        condition=IfCondition(own_camera_tf_condition),
+    )
+    static_tf_imu_to_oak_imu = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='imu_to_oak_imu_static_tf',
+        arguments=['0', '0', '0', '0', '0', '0', 'sc2_imu_link', 'oak_imu_frame'],
+        condition=IfCondition(own_camera_tf_condition),
+    )
+
+    # --- multi-frame mapping pose source (optional) ---------------------------
+    imu_pose_estimate_include = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(package_share, 'launch', 'tools', 'imu_pose_estimate.launch.py')
+        ),
+        condition=IfCondition(PythonExpression([
+            "'", enable_multi_frame_mapping, "' == 'True' and '", pose_source, "' == 'oakd_imu'"
+        ])),
+    )
+
+    # --- multi-frame mapping map anchor (optional) -----------------------------
+    # Doesn't care which pose source is active -- just needs a live
+    # odom -> sc2_base_link, from whichever of the above is providing it.
+    map_frame_anchor_node = LoadComposableNodes(
+        condition=IfCondition(enable_multi_frame_mapping),
+        target_container='detection_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                name='map_frame_anchor',
+                package='oakd_isaac_ros',
+                plugin='map_frame_anchor',
+                parameters=[{
+                    'parent_frame': 'odom',
+                    'base_frame': 'sc2_base_link',
+                    'map_frame': 'tsdf_map_origin',
+                    'trigger_topic': depth_topic,
+                    'reset_every_n_frames': ParameterValue(reset_every_n_frames, value_type=int),
+                    'clear_map_service': '/nvblox_node/clear_map',
+                }],
+            )
+        ],
     )
 
     # NOTE: nvblox_mode "people_detection" needs a live /camera0/detection/mask
@@ -170,6 +312,17 @@ def generate_launch_description():
             'camera': 'oakd',
             'num_cameras': '1',
             'voxel_size': voxel_size,
+            # Only override nvblox_base.yaml's default ("odom") in
+            # multi-frame mode -- map_frame_anchor re-anchors
+            # tsdf_map_origin periodically; single-frame mode fuses
+            # straight into the (static, in that mode) odom frame.
+            'global_frame': PythonExpression([
+                "'tsdf_map_origin' if '", enable_multi_frame_mapping, "' == 'True' else ''"
+            ]),
+            'depth_topic': depth_topic,
+            'depth_camera_info_topic': depth_camera_info_topic,
+            'rgb_topic': rgb_topic,
+            'rgb_camera_info_topic': rgb_camera_info_topic,
         }.items(),
         condition=IfCondition(enable_nvblox),
     )
@@ -196,7 +349,7 @@ def generate_launch_description():
             # pipeline's converted copy) so RGB RTP works independently of
             # enable_object_detection.
             rgb_nodes = rtp_composable_nodes(
-                'rgb', '/oak/rgb/image_raw', rtp_cfg['rgb']['port'],
+                'rgb', rgb_topic, rtp_cfg['rgb']['port'],
                 destination_ips, headless,
             )
 
@@ -221,7 +374,7 @@ def generate_launch_description():
                 plugin='depth_colorizer',
                 name='depth_colorizer',
                 parameters=[{
-                    'depth_topic': '/oak/stereo/image_raw',
+                    'depth_topic': depth_topic,
                     'output_topic': '/oak/stereo/depth_color',
                 }],
                 extra_arguments=[{'use_intra_process_comms': True}],
@@ -238,11 +391,17 @@ def generate_launch_description():
     return LaunchDescription(
         declared_arguments + [
             detection_container,
+            camera_include,
             image_converter,
             detection_include,
             static_tf_map_to_odom,
-            static_tf_odom_to_oak_base,
+            static_tf_odom_to_base,
+            static_tf_base_to_oak_base,
             static_tf_oak_base_to_optical,
+            static_tf_base_to_imu,
+            static_tf_imu_to_oak_imu,
+            imu_pose_estimate_include,
             nvblox_include,
+            map_frame_anchor_node,
         ] + rtp_actions
     )
