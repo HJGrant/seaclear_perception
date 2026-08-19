@@ -40,7 +40,7 @@ from sc2_visual_servo_interfaces.msg import TargetObservation
 from msg_winch.srv import SetWinchLength
 from enum import Enum
 
-from state_estimation.msg import Vector6
+from sc2_interfaces.msg import Vector6
 #from waterlinked_dvl_msgs.msg import VelocityReport
 try:
     from marine_acoustic_msgs.msg import Dvl
@@ -1024,7 +1024,6 @@ class VisualServoControllerNode(Node):
         self._update_target_tracking_from_detection(now)
 
     def _tick(self) -> None:
-        print("tick called")
         now = self.get_clock().now()
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
@@ -1204,7 +1203,7 @@ class VisualServoControllerNode(Node):
             self._publish_status(str(self.current_state.name))
     
     def _publish_status(self, text: str) -> None:
-        print(f"publishing {text}")
+        #print(f"publishing {text}")
         msg = String()
         msg.data = text
         self._status_pub.publish(msg)

@@ -13,3 +13,9 @@
 [submodule "src/state_estimation"]
 	path = src/state_estimation
 	url = git@gitlab.lrz.de:itr-seaclear/tum/sc2/development/state_estimation.git
+[submodule "src/sc2_interfaces"]
+	path = src/sc2_interfaces
+	url = git@gitlab.lrz.de:itr-seaclear/tum/sc2/development/sc2_interfaces.git
+[submodule "msg_winch"]
+	path = msg_winch
+	url = git@gitlab.lrz.de:itr-seaclear/tum/sc2/development/msg_winch.git
