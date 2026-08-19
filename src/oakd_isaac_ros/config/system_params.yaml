@@ -32,8 +32,9 @@ perception:
 
 nvblox:
   # people_detection = masked/selective TSDF (only the detected target is
+  # TODO: people_detection with the SC2 object detection model still needs to be tested in the Simulation.
   #   reconstructed into the static map -- see publish_mask_nitros.cpp)
-  # static = full, unmasked TSDF of the whole scene
+  # static = full, unmasked TSDF of the whole scene 
   mode: static
 
   # TSDF voxel size, in meters. Smaller = finer detail, more GPU memory
