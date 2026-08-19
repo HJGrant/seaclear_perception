@@ -109,7 +109,16 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
         'force_engine_update': force_engine_update,
         # ADD THESE TWO LINES BELOW:
         'input_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32'],
-        'output_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32']
+        'output_tensor_formats': ['nitros_tensor_list_nchw_rgb_f32'],
+        # Depth-only override (profile stays the default RELIABLE, so this
+        # can't create a reliability mismatch like SENSOR_DATA did) --
+        # the chain only sustains ~27-36Hz against a 60Hz camera, so a
+        # deep queue here let stale frames back up, and TensorRT grinding
+        # through that backlog is what drove GPU util toward 100% and RGB
+        # RTP latency up even though the actual per-frame workload never
+        # changed. Depth 1 caps it to always working the newest frame.
+        'input_qos_depth': 1,
+        'output_qos_depth': 1,
     }]
 )
 
@@ -139,10 +148,10 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
             'keep_aspect_ratio': False,
             'disable_padding': False,
             'num_blocks': 40,
-            'input_qos_depth': 10,
-            'output_qos_depth': 10,
-            'camera_info_qos_depth': 10,
-            'image_qos_depth': 10,
+            'input_qos_depth': 1,
+            'output_qos_depth': 1,
+            'camera_info_qos_depth': 1,
+            'image_qos_depth': 1,
         }],
         remappings=[
             ('/image', '/camera0/detection/mask'),
@@ -155,13 +164,18 @@ def create_detection_pipeline(args: lu.ArgumentContainer) -> List[Action]:
     depth_mask_publisher = ComposableNode(
         name='depth_mask_publisher',
         package='oakd_isaac_ros',
-        plugin='publish_mask',
+        plugin='publish_mask_nitros',
         parameters=[{
             'target_class_id': int(mask_class_id),
             'confidence_threshold' : confidence_threshold
         }],
+        # NOT intra-process-enabled: this node's ManagedNitrosPublisher uses
+        # NITROS type-negotiation internally, which relies on TRANSIENT_LOCAL
+        # durability -- incompatible with use_intra_process_comms (throws at
+        # construction: "intraprocess communication allowed only with
+        # volatile durability").
         extra_arguments=[{
-            '--ros-args': '', 
+            '--ros-args': '',
             '--log-level': 'debug'}]
     )
 

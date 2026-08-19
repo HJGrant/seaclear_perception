@@ -26,19 +26,23 @@ find_package(foxglove_msgs REQUIRED)
 find_package(stereo_msgs REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(rclcpp_components REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+find_package(isaac_ros_gxf REQUIRED)
+find_package(isaac_ros_managed_nitros REQUIRED)
+find_package(isaac_ros_nitros_image_type REQUIRED)
 
 
 add_library(publish_mask_component SHARED src/publish_mask.cpp)
-ament_target_dependencies(publish_mask_component 
+ament_target_dependencies(publish_mask_component
   rclcpp_components
-  rclcpp 
-  std_msgs 
-  sensor_msgs 
-  OpenCV 
-  vision_msgs 
+  rclcpp
+  std_msgs
+  sensor_msgs
+  OpenCV
+  vision_msgs
   cv_bridge
   message_filters)
-  
+
 rclcpp_components_register_node(
     publish_mask_component
     PLUGIN "publish_mask"
@@ -48,6 +52,67 @@ rclcpp_components_register_node(
 ament_export_targets(export_publish_mask_component)
 install(TARGETS publish_mask_component
         EXPORT export_publish_mask_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
+add_library(depth_colorizer_component SHARED src/depth_colorizer.cpp)
+ament_target_dependencies(depth_colorizer_component
+  rclcpp_components
+  rclcpp
+  sensor_msgs
+  OpenCV
+  cv_bridge)
+
+rclcpp_components_register_node(
+    depth_colorizer_component
+    PLUGIN "depth_colorizer"
+    EXECUTABLE depth_colorizer
+)
+
+ament_export_targets(export_depth_colorizer_component)
+install(TARGETS depth_colorizer_component
+        EXPORT export_depth_colorizer_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
+# NITROS variant of publish_mask -- see src/publish_mask_nitros.cpp header
+# comment for what's converted and what's still unverified against the
+# real installed NITROS headers.
+add_library(publish_mask_nitros_component SHARED src/publish_mask_nitros.cpp)
+ament_target_dependencies(publish_mask_nitros_component
+  rclcpp_components
+  rclcpp
+  std_msgs
+  sensor_msgs
+  OpenCV
+  vision_msgs
+  cv_bridge
+  message_filters
+  isaac_ros_gxf
+  isaac_ros_managed_nitros
+  isaac_ros_nitros_image_type)
+target_link_libraries(publish_mask_nitros_component CUDA::cudart)
+# Same RPATH workaround isaac_ros_nvblox/isaac_ros_dnn_inference apply to
+# any target linking against nitros/gxf shared libs.
+set_target_properties(publish_mask_nitros_component PROPERTIES
+  BUILD_WITH_INSTALL_RPATH TRUE
+  BUILD_RPATH_USE_ORIGIN TRUE
+  INSTALL_RPATH_USE_LINK_PATH TRUE
+)
+
+rclcpp_components_register_node(
+    publish_mask_nitros_component
+    PLUGIN "publish_mask_nitros"
+    EXECUTABLE publish_mask_nitros
+)
+
+ament_export_targets(export_publish_mask_nitros_component)
+install(TARGETS publish_mask_nitros_component
+        EXPORT export_publish_mask_nitros_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin

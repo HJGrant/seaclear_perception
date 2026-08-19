@@ -1,0 +1,45 @@
+# Consolidated runtime parameters for the oakd_isaac_ros stack.
+# Loaded by launch files (see launch/perception.launch.py,
+# launch/debug/rtp.launch.py, launch/tools/camera.launch.py) rather than
+# hand-editing per-node config files for these common day-to-day toggles.
+
+camera:
+  rgb_fps: 60.0 # max is 60.0
+  depth_fps: 10.0 # test with 5.0 or 10.0
+
+# Toggles for launch/perception.launch.py (the no-visual-servoing pipeline).
+# Camera always runs; these let you run e.g. camera+rtp only, or
+# camera+detection+rtp without nvblox, etc.
+perception:
+  enable_object_detection: true
+  enable_nvblox: false
+
+nvblox:
+  # people_detection = masked/selective TSDF (only the detected target is
+  #   reconstructed into the static map -- see publish_mask_nitros.cpp)
+  # static = full, unmasked TSDF of the whole scene
+  mode: static
+
+# enable the RTP stream for teleoperation, and object detection + depth debugging
+# you can select insert multipl IPs where the stream should be sent to.
+# on each host, you need to run the Gstreamer command to receieve the stream.
+rtp:
+  enable: true
+  headless: true
+  destination_ips:
+    - "127.0.0.1"
+    - ""
+
+  rgb:
+    enabled: true
+    port: 8550
+    width: 1280
+    height: 720
+
+  mask_overlay:
+    enabled: true
+    port: 8552
+
+  depth:
+    enabled: false
+    port: 8551

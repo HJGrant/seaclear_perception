@@ -76,17 +76,20 @@ int main(int argc, char **argv)
 	std::string codec_str;
 
 	int video_bitrate = video_options.bitRate;
+	bool headless = true;
 
 	ROS_DECLARE_PARAMETER("resource", resource_str);
 	ROS_DECLARE_PARAMETER("codec", codec_str);
 	ROS_DECLARE_PARAMETER("bitrate", video_bitrate);
-	
+	ROS_DECLARE_PARAMETER("headless", headless);
+
 	/*
 	 * retrieve parameters
 	 */
 	ROS_GET_PARAMETER("resource", resource_str);
 	ROS_GET_PARAMETER("codec", codec_str);
 	ROS_GET_PARAMETER("bitrate", video_bitrate);
+	ROS_GET_PARAMETER("headless", headless);
 
 	if( resource_str.size() == 0 )
 	{
@@ -105,8 +108,21 @@ int main(int argc, char **argv)
 	/*
 	 * create stream
 	 */
-	stream = videoOutput::Create(resource_str.c_str(), video_options); 
-	
+	// videoOutput::Create()'s resource+options overload takes no argv, so it
+	// always evaluates headless=false internally and silently opens an extra
+	// local display:// output alongside whatever was requested (e.g. rtp://).
+	// Route through the argv-based overload so the "headless" ROS param can
+	// actually suppress that.
+	if( headless )
+	{
+		const char* headless_argv[] = { "video_output", "--headless" };
+		stream = videoOutput::Create(resource_str.c_str(), 2, (char**)headless_argv, -1, video_options);
+	}
+	else
+	{
+		stream = videoOutput::Create(resource_str.c_str(), video_options);
+	}
+
 	if( !stream )
 	{
 		ROS_ERROR("failed to open video output");

@@ -134,6 +134,11 @@ include_directories(/usr/include/gstreamer-1.0 /usr/lib/${CMAKE_SYSTEM_PROCESSOR
 file(GLOB inferenceSources c/*.cpp c/*.cu c/calibration/*.cpp c/tracking/*.cpp)
 file(GLOB inferenceIncludes c/*.h c/*.cuh c/calibration/*.h c/tracking/*.h)
 
+# c/plugins/pose submodule (trt_pose) not populated (unused for video
+# streaming) -- poseNet.cpp needs connect_parts.hpp from it, so exclude it.
+list(REMOVE_ITEM inferenceSources ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.cpp)
+list(REMOVE_ITEM inferenceIncludes ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.h)
+
 if(BUILD_EXPERIMENTAL)
 	message("-- BUILD_EXPERIMENTAL enabled")
 
@@ -187,7 +192,10 @@ add_subdirectory(docs)
 add_subdirectory(examples)
 add_subdirectory(tools)
 add_subdirectory(utils)
-add_subdirectory(python)
+# Python bindings not needed for ros_deep_learning (pure C++ package), and
+# PyPoseNet.cpp (registered in PyInference.cpp) would hit the same missing
+# c/plugins/pose submodule poseNet.cpp was excluded for above.
+#add_subdirectory(python)
 
 
 # set linker options

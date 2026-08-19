@@ -69,7 +69,7 @@
 
     static_mapper:
       # mapper
-      do_depth_preprocessing: true
+      do_depth_preprocessing: false
       depth_preprocessing_num_dilations: 3
       # projective integrator (tsdf/color/occupancy)
       projective_integrator_max_integration_distance_m: 5.0

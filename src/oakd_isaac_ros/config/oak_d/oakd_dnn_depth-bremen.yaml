@@ -16,7 +16,7 @@
 
     left:
       i_publish_topic: false
-      i_fps: 5.0
+      i_fps: 10.0
       i_resolution: 400P
       #i_low_bandiwdth_frame_freq: 30
       #i_low_bandwidth: false
@@ -27,7 +27,7 @@
 
     right:
       i_publish_topic: false
-      i_fps: 5.0
+      i_fps: 10.0
       i_resolution: 400P
       #i_low_bandiwdth_frame_freq: 30
       #i_low_bandwidth: false
@@ -38,7 +38,14 @@
 
     rgb:
       i_publish_topic: true
-      i_resolution: 720P
+      # IMX378 doesn't support 720P natively (driver was silently falling
+      # back to 1080P and letting a GPU resize node downstream scale it to
+      # 1280x720 -- that resize competed with TensorRT for the same GPU,
+      # which is why RGB RTP latency tracked detection load). 1080P with
+      # 2/3 ISP scaling is computed on the camera's own ISP hardware
+      # instead, so both the detection and RTP paths get native 1280x720
+      # with zero host GPU/CPU cost.
+      i_resolution: 1080P
       i_fps: 60.0
       i_low_bandwidth_frame_freq: 60
       i_low_bandwidth: true
@@ -49,8 +56,8 @@
       #i_publish_compressed: false
       #i_publish_topic: true
       #i_output_isp: false
-      #i_isp_den: 3
-      #i_isp_num: 2
+      i_isp_den: 3
+      i_isp_num: 2
 
     stereo:
       i_publish_topic: true

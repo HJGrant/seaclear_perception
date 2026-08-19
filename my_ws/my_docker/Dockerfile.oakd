@@ -128,6 +128,41 @@ RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
     ros-humble-isaac-ros-h264-decoder \
     && rm -rf /var/lib/apt/lists/*
 
+# Native/runtime deps for the vendored src/isaac_ros_dnn_inference and
+# src/isaac_ros_object_detection packages (tensor_rt, triton, dnn_image_encoder,
+# detectnet) -- these ROS packages build from local source, but need Triton's
+# client libraries etc. that only the .deb ships, not the git checkout.
+RUN apt-get update --allow-releaseinfo-change -y && apt install -y \
+    ros-humble-isaac-ros-tensor-rt \
+    ros-humble-isaac-ros-triton \
+    ros-humble-isaac-ros-dnn-image-encoder \
+    ros-humble-isaac-ros-detectnet \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---- jetson-utils / jetson-inference (needed by ros_deep_learning for RTP
+# video_output) built into the image, matching the jsoncpp pattern above.
+# Skips the pose (trt_pose) and camera-capture submodules and the Python
+# bindings -- none of it is needed for ros_deep_learning's video_output, and
+# skipping it avoids pulling in extra heavy deps (e.g. libtorch for trt_pose).
+WORKDIR /opt/jetson-inference
+RUN git clone --recurse-submodules https://github.com/dusty-nv/jetson-inference . && \
+    sed -i \
+      -e '/file(GLOB inferenceSources/a list(REMOVE_ITEM inferenceSources ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.cpp)' \
+      -e '/file(GLOB inferenceIncludes/a list(REMOVE_ITEM inferenceIncludes ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.h)' \
+      -e 's|add_subdirectory(python)|#add_subdirectory(python)  # not needed for ros_deep_learning; would hit PyPoseNet.cpp|' \
+      CMakeLists.txt && \
+    sed -i 's|add_subdirectory(posenet)|#add_subdirectory(posenet)  # links poseNet, excluded above|' examples/CMakeLists.txt && \
+    sed -i 's|add_subdirectory(camera-capture)|#add_subdirectory(camera-capture)  # GUI tool, unused for video streaming|' tools/CMakeLists.txt && \
+    sed -i \
+      's|target_link_libraries(${target} ${CUDA_LINK_LIBRARIES_KEYWORD} ${CUDA_cublas_LIBRARY} ${CUDA_cublas_device_LIBRARY})|if (CUDA_cublas_device_LIBRARY)\n      target_link_libraries(${target} ${CUDA_LINK_LIBRARIES_KEYWORD} ${CUDA_cublas_LIBRARY} ${CUDA_cublas_device_LIBRARY})\n    else()\n      target_link_libraries(${target} ${CUDA_LINK_LIBRARIES_KEYWORD} ${CUDA_cublas_LIBRARY})\n    endif()|' \
+      utils/cuda/FindCUDA.cmake && \
+    mkdir build && cd build && \
+    cmake -DBUILD_TESTING=OFF -DBUILD_INTERACTIVE=NO ../ && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+WORKDIR /
+
 # temporary fix while the foxglove-bridge is not available in the standard apt repository
 RUN apt-get update \
     && apt install -y ros2-testing-apt-source \

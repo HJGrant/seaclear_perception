@@ -25,9 +25,14 @@
   <depend>std_msgs</depend>
   <depend>vision_msgs</depend>
   <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>OpenCV</depend>
   <depend>geometry_msgs</depend>
   <depend>message_filters</depend>
   <depend>foxglove_msgs</depend>
+  <depend>isaac_ros_gxf</depend>
+  <depend>isaac_ros_managed_nitros</depend>
+  <depend>isaac_ros_nitros_image_type</depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>tf2_ros</exec_depend>

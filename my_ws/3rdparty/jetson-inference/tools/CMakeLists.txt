@@ -1,6 +1,7 @@
 
 # build subdirectories
-add_subdirectory(camera-capture)
+# camera-capture submodule not populated (unused for video streaming) -- skipped
+#add_subdirectory(camera-capture)
 add_subdirectory(depth-viewer)
 
 #add_subdirectory(trt-bench)

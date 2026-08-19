@@ -17,14 +17,17 @@ public:
         std::string resource_str = "";
         std::string codec_str = "";
         int video_bitrate = 2000000;
+        bool headless = true;
 
         this->declare_parameter("resource", resource_str);
         this->declare_parameter("codec", codec_str);
         this->declare_parameter("bitrate", video_bitrate);
+        this->declare_parameter("headless", headless);
 
         this->get_parameter("resource", resource_str);
         this->get_parameter("codec", codec_str);
         this->get_parameter("bitrate", video_bitrate);
+        this->get_parameter("headless", headless);
 
         if (resource_str.empty()) {
             RCLCPP_ERROR(this->get_logger(), "resource param not set");
@@ -39,7 +42,14 @@ public:
         video_options.bitRate = video_bitrate;
 
         // Create Stream & Converter
-        m_stream = videoOutput::Create(resource_str.c_str(), video_options);
+        // See node_video_output.cpp for why the headless toggle needs the
+        // argv-based overload rather than the resource+options one.
+        if (headless) {
+            const char* headless_argv[] = { "video_output", "--headless" };
+            m_stream = videoOutput::Create(resource_str.c_str(), 2, (char**)headless_argv, -1, video_options);
+        } else {
+            m_stream = videoOutput::Create(resource_str.c_str(), video_options);
+        }
         m_image_cvt = new imageConverter();
 
         if (!m_stream || !m_image_cvt) {

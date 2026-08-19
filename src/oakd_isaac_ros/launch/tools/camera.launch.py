@@ -84,6 +84,21 @@ def launch_setup(context, *args, **kwargs):
 
     print(f"#### OAKD PARAMS_FILE LOCATION: {params_file.perform(context)} #######")
 
+    # Optional FPS overrides (e.g. sourced from config/system_params.yaml by
+    # a caller) applied on top of params_file. Empty string = no override,
+    # so existing callers that don't pass these are unaffected.
+    camera_parameters = [params_file]
+    rgb_fps_str = LaunchConfiguration("rgb_fps", default="").perform(context)
+    depth_fps_str = LaunchConfiguration("depth_fps", default="").perform(context)
+    fps_overrides = {}
+    if rgb_fps_str:
+        fps_overrides["rgb.i_fps"] = float(rgb_fps_str)
+    if depth_fps_str:
+        fps_overrides["left.i_fps"] = float(depth_fps_str)
+        fps_overrides["right.i_fps"] = float(depth_fps_str)
+    if fps_overrides:
+        camera_parameters.append(fps_overrides)
+
     return [
         ComposableNodeContainer(
             name=f"{name}_container",
@@ -96,9 +111,7 @@ def launch_setup(context, *args, **kwargs):
                     plugin="depthai_ros_driver::Camera",
                     name=name,
                     namespace=namespace,
-                    parameters=[
-                        params_file,
-                    ],
+                    parameters=camera_parameters,
                     # Remap IMU topic if requested; default is no-op (imu/data -> imu/data)
                     remappings=[
                         ("/oak/imu/data", imu_topic_remapped),

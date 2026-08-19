@@ -51,9 +51,6 @@ class ImageResizer(Node):
         # Resize
         resized = cv2.resize(cv_image, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
 
-        print("OpenCV Resized Image: ")
-        print(resized)
-
         # Convert back to ROS Image
         #resized = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         resized_msg = self.bridge.cv2_to_imgmsg(resized, encoding="bgr8")
