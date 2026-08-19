@@ -12,7 +12,7 @@ camera:
 # camera+detection+rtp without nvblox, etc.
 perception:
   enable_object_detection: true
-  enable_nvblox: false
+  enable_nvblox: true
 
 nvblox:
   # people_detection = masked/selective TSDF (only the detected target is
@@ -41,5 +41,5 @@ rtp:
     port: 8552
 
   depth:
-    enabled: false
+    enabled: true
     port: 8551

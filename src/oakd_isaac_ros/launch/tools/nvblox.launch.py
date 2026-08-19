@@ -41,8 +41,8 @@ def get_oakd_remappings(mode: NvbloxMode) -> List[Tuple[str, str]]:
                 (f'camera_0/mask/camera_info', f'/camera0/segmentation/camera_info_resized'))
 
     else:
-        #remappings.append((f'camera_0/color/image', f'/oak/rgb/image_raw_rgb8'))
-        #remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
+        remappings.append((f'camera_0/color/image', f'/oak/rgb/image_raw_rgb8'))
+        remappings.append((f'camera_0/color/camera_info', f'/oak/rgb/camera_info'))
 
         if mode is NvbloxMode.people_detection:
             remappings.append((f'camera_0/mask/image', f'/camera0/detection/mask_resized'))
