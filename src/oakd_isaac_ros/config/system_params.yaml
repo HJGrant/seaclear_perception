@@ -65,7 +65,7 @@ nvblox:
 
 # enable the RTP stream for teleoperation, and object detection + depth debugging
 # you can select insert multipl IPs where the stream should be sent to.
-# on each host, you need to run the Gstreamer command to receieve the stream.
+# on each host, you need to run the src/oakd_isaac_ros/scripts/view_stream.py (rgb | depth | mask_overlay) script to receieve the stream(s).
 rtp:
   enable: true
   headless: true
