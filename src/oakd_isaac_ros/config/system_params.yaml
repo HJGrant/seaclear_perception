@@ -12,7 +12,7 @@ camera:
   # don't care where these topics come from, only that something publishes
   # them with these names before the real deployment. When false, nothing
   # in this stack tries to connect to the physical camera at all.
-  enable_camera: true
+  enable_camera: false
 
   # Topic names the rest of the pipeline reads. Defaults match the real
   # depthai_ros_driver's topics -- point these at your simulator's topics
@@ -27,8 +27,15 @@ camera:
 # Camera always runs; these let you run e.g. camera+rtp only, or
 # camera+detection+rtp without nvblox, etc.
 perception:
-  enable_object_detection: false
+  enable_object_detection: true
   enable_nvblox: false
+
+  # Which detector to run, by filename only -- must exist in
+  # isaac_ros_assets/models/seaclear/ as both <name>.onnx (source) and
+  # (once TensorRT has built it once) <name>.plan (cached engine, rebuilt
+  # automatically if missing or if the .onnx changes). Options currently in
+  # that directory: bistrina_camera.onnx, sc2_v12s.onnx, v12n.onnx, v12s.onnx.
+  object_detection_model: bistrina_camera.onnx
 
 nvblox:
   # people_detection = masked/selective TSDF (only the detected target is
@@ -70,8 +77,10 @@ rtp:
   enable: true
   headless: true
   destination_ips:
-    #- "127.0.0.1"  localhost
-    - "192.168.2.94"  # default
+    #- "127.0.0.1"   # localhost
+    #- "192.168.2.94"  # default
+    #- "192.168.2.100"
+    - "129.187.231.223"
 
   rgb:
     enabled: true
@@ -80,7 +89,7 @@ rtp:
     height: 720
 
   mask_overlay:
-    enabled: false
+    enabled: true
     port: 8552
 
   depth:
