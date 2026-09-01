@@ -31,16 +31,25 @@ from typing import Optional
 import numpy as np
 
 from geometry_msgs.msg import TwistStamped, PoseStamped, Vector3
+from nav_msgs.msg import Odometry
 from vision_msgs.msg import Detection2D
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float64, Bool
 from sensor_msgs.msg import CameraInfo
 from sc2_visual_servo_interfaces.msg import TargetObservation
-from msg_winch.srv import SetWinchLength
 from enum import Enum
 
 from state_estimation.msg import Vector6
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+try:
+    from msg_winch.srv import SetWinchLength
+    _HAS_MSG_WINCH = True
+except ImportError:
+    SetWinchLength = None
+    _HAS_MSG_WINCH = False
 #from waterlinked_dvl_msgs.msg import VelocityReport
 try:
     from marine_acoustic_msgs.msg import Dvl
@@ -68,6 +77,12 @@ from .hold_maintain_core import (
     should_enter_hold_maintain,
 )
 from .pid import PIDController, PIDGains
+from .ibvs.image_jacobian import (
+    apply_refraction_scale,
+    predict_pixel_centroid_velocity,
+    quaternion_to_rotation_matrix,
+)
+from .ibvs.centroid_kalman_filter import CentroidKFConfig, CentroidKalmanFilter
 
 class VisualServoControllerNode(Node):
     
@@ -107,6 +122,14 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
+        self.declare_parameter('filtered_centroid_error_topic', '/sc2/visual_servo/filtered_centroid_error')
+        # Debug-only: the raw image-Jacobian prediction itself (du, dv in
+        # px/s, z=range used), independent of the KF's own smoothing/tuning.
+        # Compare against a finite difference of consecutive raw detections
+        # to check the body-velocity -> pixel-velocity transform directly.
+        self.declare_parameter(
+            'jacobian_predicted_velocity_topic', '/sc2/visual_servo/jacobian_predicted_velocity',
+        )
         self.declare_parameter('dvl_altitude_topic', '/waterlinked_dvl_driver/velocity_report')
         self.declare_parameter('mavros_altitude_topic','/mavros/global_position/rel_alt')
         self.declare_parameter('mavros_depth_topic', '/mavros/global_position/rel_alt')
@@ -220,6 +243,22 @@ class VisualServoControllerNode(Node):
         # IBVS control parameters
         self.declare_parameter('decay_rate', 0.95)
 
+        # Centroid Kalman filter parameters (image-Jacobian body-velocity
+        # fusion). Disabled by default: unvalidated on hardware, opt in once
+        # ready to test. See sc2_visual_servo_controller/ibvs/{image_jacobian,
+        # centroid_kalman_filter}.py.
+        self.declare_parameter('centroid_kf_enable', False)
+        self.declare_parameter('centroid_kf_process_noise_px2_per_s', 4.0)
+        self.declare_parameter('centroid_kf_measurement_noise_px2', 25.0)
+        self.declare_parameter('centroid_kf_initial_variance_px2', 400.0)
+        # nav_msgs/Odometry; twist.twist is body-frame per REP-103.
+        self.declare_parameter('body_velocity_topic', '/sc2/odometry_ekf')
+        self.declare_parameter('body_velocity_timeout_ms', 500)
+        self.declare_parameter('camera_optical_frame_id', 'oak_rgb_camera_optical_frame')
+        # Placeholder refraction correction on the Jacobian's fx/fy; 1.0 = no-op.
+        # Real value TBD empirically from ROS bag data.
+        self.declare_parameter('image_jacobian_focal_scale', 1.0)
+
         # extract data topics
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
         self._target_obs_topic = str(self.get_parameter('target_topic').value)
@@ -232,6 +271,10 @@ class VisualServoControllerNode(Node):
         self._status_topic = str(self.get_parameter('status_topic').value)
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
+        self._filtered_centroid_error_topic = str(self.get_parameter('filtered_centroid_error_topic').value)
+        self._jacobian_predicted_velocity_topic = str(
+            self.get_parameter('jacobian_predicted_velocity_topic').value
+        )
         self._vs_control_finish_topic = str(self.get_parameter('vs_control_finish_topic').value)
 
         # extract frame IDs
@@ -278,6 +321,24 @@ class VisualServoControllerNode(Node):
 
         # IBVS paramters
         self.decay_rate_val = float(self.get_parameter('decay_rate').value)
+
+        # Centroid Kalman filter setup
+        self._centroid_kf_enable = self._as_bool(self.get_parameter('centroid_kf_enable').value)
+        self._camera_optical_frame_id = str(self.get_parameter('camera_optical_frame_id').value)
+        self._body_velocity_topic = str(self.get_parameter('body_velocity_topic').value)
+        self._body_velocity_timeout_sec = float(self.get_parameter('body_velocity_timeout_ms').value) * 1e-3
+        self._image_jacobian_focal_scale = float(self.get_parameter('image_jacobian_focal_scale').value)
+        self._centroid_kf = CentroidKalmanFilter(CentroidKFConfig(
+            process_noise_px2_per_s=float(self.get_parameter('centroid_kf_process_noise_px2_per_s').value),
+            measurement_noise_px2=float(self.get_parameter('centroid_kf_measurement_noise_px2').value),
+            initial_variance_px2=float(self.get_parameter('centroid_kf_initial_variance_px2').value),
+        ))
+        self._latest_body_velocity: Optional[np.ndarray] = None
+        self._last_body_velocity_time = None
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
+        self._r_cam_body: Optional[np.ndarray] = None
+        self._R_cam_body: Optional[np.ndarray] = None
 
         self.calibrated = bool(self.get_parameter('calibrated').value)
         self._fx = float(self.get_parameter('fx_px').value)
@@ -416,6 +477,13 @@ class VisualServoControllerNode(Node):
         self._completion_winch_service_enable = self._as_bool(
             self.get_parameter('completion_winch_service_enable').value
         )
+        if self._completion_winch_service_enable and not _HAS_MSG_WINCH:
+            self.get_logger().warn(
+                'msg_winch is unavailable in this environment; disabling the '
+                'completion winch service (staged PID completion still latches '
+                'and zeroes velocity, it just will not request a winch length).'
+            )
+            self._completion_winch_service_enable = False
         self._completion_winch_service_name = str(
             self.get_parameter('completion_winch_service_name').value
         )
@@ -517,6 +585,12 @@ class VisualServoControllerNode(Node):
         self._target_locked_pub = self.create_publisher(String, self._target_locked_topic, 10)
         self._vs_control_finish_pub = self.create_publisher(Bool, self._vs_control_finish_topic, 10)
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
+        self._filtered_centroid_error_publisher = self.create_publisher(
+            Vector3, self._filtered_centroid_error_topic, 10,
+        )
+        self._jacobian_predicted_velocity_publisher = self.create_publisher(
+            Vector3, self._jacobian_predicted_velocity_topic, 10,
+        )
         self._completion_winch_client = None
         self._completion_winch_request_sent = False
         self._completion_winch_length_m: Optional[float] = None
@@ -533,6 +607,10 @@ class VisualServoControllerNode(Node):
         self.create_subscription(TwistStamped, self._velocity_measurement_topic, self._vel_measurement_cb, 10)
 
         self.create_subscription(PoseStamped, self._target_point_topic, self._target_pose_cb, 10)
+        if self._centroid_kf_enable:
+            self.create_subscription(
+                Odometry, self._body_velocity_topic, self._body_velocity_cb, 10,
+            )
         if self._depth_mode == 'DVL':
             if self._has_marine_acoustic_dvl:
                 self.create_subscription(
@@ -564,7 +642,8 @@ class VisualServoControllerNode(Node):
         self.get_logger().info(
             f'visual_servo_controller_node mode={self._controller_mode} '
             f'target_bbox={self._target_bbox_topic} target_obs={self._target_obs_topic if self._use_target_observation else "<disabled>"} '
-            f'cmd={self._cmd_topic} control=always_enabled'
+            f'cmd={self._cmd_topic} control=always_enabled '
+            f'centroid_kf={"enabled body_velocity=" + self._body_velocity_topic if self._centroid_kf_enable else "<disabled>"}'
         )
 
     def _reset_staged_pid_state(self) -> None:
@@ -607,6 +686,7 @@ class VisualServoControllerNode(Node):
             self._last_accepted_target_centroid = None
             #self._staged_pid_state = self.StagedPIDState.NO_TARGET
             #print(f"Not tracked. Setting `self._staged_pid_state = sself.StagedPIDState.NO_TARGET")
+            self._centroid_kf.clear()
             self._reset_staged_pid_state()
 
     def _is_timestamp_fresh(self, stamp, timeout_sec: float) -> bool:
@@ -662,8 +742,9 @@ class VisualServoControllerNode(Node):
         )
 
     def _compute_staged_pid_horizontal_command(self, dt_ctrl: float) -> tuple[float, float, float, float, str]:
-        centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
-        centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+        centroid = self._get_control_centroid()
+        centroid_err_x = float(centroid[0] - self._staged_pid_target_centroid[0])
+        centroid_err_y = float(centroid[1] - self._staged_pid_target_centroid[1])
 
         vel_x_im = self._xy_pid_x.update(centroid_err_x, dt_ctrl)
         vel_y_im = self._xy_pid_y.update(centroid_err_y, dt_ctrl)
@@ -681,6 +762,7 @@ class VisualServoControllerNode(Node):
         cmd_vx_body = vel_x_im * cmd_vel_correction_coeff
         cmd_vy_body = -vel_y_im * cmd_vel_correction_coeff
         yaw = 0.0
+        
         if self._staged_pid_enable_yaw:
             yaw = clamp(
                 self._staged_pid_yaw_gain * (centroid_err_x / max(1.0, self.image_width * 0.5)),
@@ -692,8 +774,9 @@ class VisualServoControllerNode(Node):
     def _update_staged_pid_vertical_gate(self, obs_fresh: bool) -> tuple[bool, float]:
         horizontal_aligned = False
         if obs_fresh and hasattr(self, 'latest_centroid'):
-            centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
-            centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+            centroid = self._get_control_centroid()
+            centroid_err_x = float(centroid[0] - self._staged_pid_target_centroid[0])
+            centroid_err_y = float(centroid[1] - self._staged_pid_target_centroid[1])
             horizontal_aligned = (
                 abs(centroid_err_x) <= self._staged_pid_horizontal_tol_x_px and
                 abs(centroid_err_y) <= self._staged_pid_horizontal_tol_y_px
@@ -738,8 +821,9 @@ class VisualServoControllerNode(Node):
     def _is_staged_pid_vertical_gate_aligned(self) -> bool:
         if not hasattr(self, 'latest_centroid'):
             return False
-        centroid_err_x = float(self.latest_centroid[0] - self._staged_pid_target_centroid[0])
-        centroid_err_y = float(self.latest_centroid[1] - self._staged_pid_target_centroid[1])
+        centroid = self._get_control_centroid()
+        centroid_err_x = float(centroid[0] - self._staged_pid_target_centroid[0])
+        centroid_err_y = float(centroid[1] - self._staged_pid_target_centroid[1])
         return (
             abs(centroid_err_x) <= self._staged_pid_horizontal_tol_x_px and
             abs(centroid_err_y) <= self._staged_pid_horizontal_tol_y_px
@@ -923,6 +1007,100 @@ class VisualServoControllerNode(Node):
         source_suffix = str(z_source).upper()
         return vx_body, vy_body, vz_body, yaw, f'HOLD_MAINTAIN_{velocity_status}_DEPTH_{source_suffix}'
 
+    def _body_velocity_cb(self, msg: Odometry) -> None:
+        twist = msg.twist.twist
+        self._latest_body_velocity = np.array([
+            twist.linear.x, twist.linear.y, twist.linear.z,
+            twist.angular.x, twist.angular.y, twist.angular.z,
+        ])
+        self._last_body_velocity_time = self.get_clock().now()
+
+    def _ensure_camera_extrinsic(self) -> bool:
+        '''Lazily resolve and cache the body->camera extrinsic used by the
+        image Jacobian. The camera is rigidly mounted, so this is looked up
+        once and cached rather than re-queried every tick.
+        '''
+        if self._R_cam_body is not None:
+            return True
+        try:
+            # lookup_transform(target, source, ...) returns the transform of
+            # data FROM source TO target. With target=body_frame_id,
+            # source=camera frame, evaluating its translation gives the
+            # camera origin's position expressed in body-frame axes directly
+            # -- exactly the lever arm predict_pixel_centroid_velocity wants
+            # -- and its rotation maps camera-frame vectors into body-frame
+            # axes, so R_cam_body (body->camera) is that rotation's transpose.
+            transform = self._tf_buffer.lookup_transform(
+                self._body_frame_id,
+                self._camera_optical_frame_id,
+                rclpy.time.Time(),
+            )
+        except TransformException as ex:
+            self.get_logger().warn(
+                f'Waiting for TF {self._body_frame_id} -> {self._camera_optical_frame_id}: {ex}',
+                throttle_duration_sec=5.0,
+            )
+            return False
+
+        t = transform.transform.translation
+        q = transform.transform.rotation
+        self._r_cam_body = np.array([t.x, t.y, t.z])
+        self._R_cam_body = quaternion_to_rotation_matrix(q.x, q.y, q.z, q.w).T
+        self.get_logger().info(
+            f'Resolved camera extrinsic: r_cam_body={self._r_cam_body.tolist()}, '
+            f'R_cam_body={self._R_cam_body.tolist()}'
+        )
+        return True
+
+    def _compute_jacobian_pixel_velocity(self) -> tuple[float, float, float, str]:
+        '''Predicted (du, dv, z_used, status) from body velocity via the image
+        Jacobian. (du, dv) fall back to (0.0, 0.0) -- a position-hold -- if
+        any required input is unavailable; `status` distinguishes a
+        genuinely-computed near-zero prediction from a skipped one, for
+        debugging the transform independent of the KF's own smoothing.
+        '''
+        if not self._centroid_kf.is_initialized:
+            return 0.0, 0.0, 0.0, 'kf_uninitialized'
+        if not self._ensure_camera_extrinsic():
+            return 0.0, 0.0, 0.0, 'no_extrinsic'
+
+        body_velocity_fresh = (
+            self._latest_body_velocity is not None and
+            self._is_timestamp_fresh(self._last_body_velocity_time, self._body_velocity_timeout_sec)
+        )
+        if not body_velocity_fresh:
+            return 0.0, 0.0, 0.0, 'stale_body_velocity'
+
+        z_meas, _z_source, z_fresh = self._resolve_staged_pid_vertical_measurement()
+        if not z_fresh or z_meas is None or z_meas <= 0.0:
+            return 0.0, 0.0, 0.0, 'stale_depth'
+
+        u, v = self._centroid_kf.state
+        fx, fy = apply_refraction_scale(self._fx, self._fy, self._image_jacobian_focal_scale)
+        v_body = self._latest_body_velocity[0:3]
+        w_body = self._latest_body_velocity[3:6]
+        try:
+            du, dv = predict_pixel_centroid_velocity(
+                u, v, float(z_meas), v_body, w_body,
+                self._r_cam_body, self._R_cam_body,
+                fx, fy, self._cx, self._cy,
+            )
+        except ValueError:
+            return 0.0, 0.0, float(z_meas), 'invalid_depth'
+
+        return du, dv, float(z_meas), 'ok'
+
+    def _get_control_centroid(self) -> Optional[np.ndarray]:
+        '''Centroid used by the control law: the KF estimate when enabled and
+        initialized, else the raw latest detection (existing behavior).
+        '''
+        if self._centroid_kf_enable and self._centroid_kf.is_initialized:
+            u, v = self._centroid_kf.state
+            return np.array([u, v], dtype=np.float32)
+        if hasattr(self, 'latest_centroid'):
+            return np.array(self.latest_centroid, dtype=np.float32)
+        return None
+
     def _target_pose_cb(self, msg) -> None:
         '''Extract the depth information from the latest Pose estimate.'''
 
@@ -1021,7 +1199,25 @@ class VisualServoControllerNode(Node):
             err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
         self._centroid_error_publisher.publish(err_summary)
 
-        self._update_target_tracking_from_detection(now)
+        valid_target_observation = self._update_target_tracking_from_detection(now)
+        if self._centroid_kf_enable and valid_target_observation:
+            self._centroid_kf.update(self.latest_centroid[0], self.latest_centroid[1])
+
+    def _publish_filtered_centroid_error(self) -> None:
+        '''Published every tick (unlike the instantaneous error in
+        _detection_cb, which only fires on a new detection) so it stays
+        continuous through a detection dropout -- that continuity is the
+        whole point of comparing it against the instantaneous error live.
+        '''
+        if not self._centroid_kf.is_initialized:
+            return
+        u, v = self._centroid_kf.state
+        err_summary = Vector3()
+        err_summary.x = float(u - self._staged_pid_target_centroid[0])
+        err_summary.y = float(v - self._staged_pid_target_centroid[1])
+        if (self._latest_depth_measurement is not None) and (self._desired_target_dist is not None):
+            err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        self._filtered_centroid_error_publisher.publish(err_summary)
 
     def _tick(self) -> None:
         print("tick called")
@@ -1029,6 +1225,21 @@ class VisualServoControllerNode(Node):
         dt_obs = (now - self._last_obs_time).nanoseconds * 1e-9
         dt_ctrl = max(1e-4, (now - self._last_tick_time).nanoseconds * 1e-9)
         self._last_tick_time = now
+
+        if self._centroid_kf_enable:
+            du, dv, z_used, status = self._compute_jacobian_pixel_velocity()
+            self._centroid_kf.predict(dt_ctrl, du, dv)
+            self._publish_filtered_centroid_error()
+            jac_vel = Vector3()
+            jac_vel.x = du
+            jac_vel.y = dv
+            jac_vel.z = z_used
+            self._jacobian_predicted_velocity_publisher.publish(jac_vel)
+            if status != 'ok':
+                self.get_logger().warn(
+                    f'Jacobian prediction skipped ({status}); holding position for this tick.',
+                    throttle_duration_sec=5.0,
+                )
 
         self._tick_staged_pid(dt_ctrl, dt_obs)
 

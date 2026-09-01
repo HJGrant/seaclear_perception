@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 
@@ -229,12 +230,19 @@ def generate_launch_description():
     # Camera's static extrinsic, parented to sc2_base_link (not odom
     # directly) so a live odom -> sc2_base_link (from either pose source)
     # actually moves the camera -- same reasoning as ekf_fusing.launch.py's
-    # equivalent transform. Values unchanged from before, just re-parented.
+    # equivalent transform. Values match the transform_tree package's
+    # odom -> oak-d-base-frame transform (0, 0.115, 0 m; roll=0, pitch=pi,
+    # yaw=pi) -- that package's odom/base_link/sc2_base_link chain is all
+    # identity, so the numbers carry over directly onto sc2_base_link here.
     static_tf_base_to_oak_base = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_to_oak_base_static_tf',
-        arguments=['0', '0', '1.0', '0', '3.14', '1.5708', 'sc2_base_link', 'oak-d-base-frame'],
+        arguments=[
+            '--x', '0.0', '--y', '0.115', '--z', '0.0',
+            '--roll', '0.0', '--pitch', str(math.pi), '--yaw', str(math.pi),
+            '--frame-id', 'sc2_base_link', '--child-frame-id', 'oak-d-base-frame',
+        ],
         condition=IfCondition(own_camera_tf_condition),
     )
     static_tf_oak_base_to_optical = Node(
@@ -247,13 +255,16 @@ def generate_launch_description():
     # IMU extrinsic -- not needed by anything until imu_pose_estimate's
     # ekf_node started requiring a TF path from oak_imu_frame (the IMU
     # message's frame_id) to sc2_base_link to rotate measurements into the
-    # base frame before fusing them. Values match ekf_fusing.launch.py's
-    # equivalent transform.
+    # base frame before fusing them. transform_tree parents sc2_imu_link off
+    # oak-d-base-frame (not sc2_base_link directly), and that parent is not
+    # coincident with sc2_base_link (see static_tf_base_to_oak_base above),
+    # so this must chain off oak-d-base-frame too rather than reuse the same
+    # roll/pitch/yaw numbers against a different parent.
     static_tf_base_to_imu = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_to_imu_static_tf',
-        arguments=['0', '0', '0', str(1.5707963267948966), '0', '0', 'sc2_base_link', 'sc2_imu_link'],
+        arguments=['0', '0', '0', str(1.5707963267948966), '0', '0', 'oak-d-base-frame', 'sc2_imu_link'],
         condition=IfCondition(own_camera_tf_condition),
     )
     static_tf_imu_to_oak_imu = Node(
