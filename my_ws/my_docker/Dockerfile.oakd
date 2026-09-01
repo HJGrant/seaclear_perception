@@ -1,6 +1,15 @@
 ARG BASE_IMAGE=ubuntu:22.04
 FROM ${BASE_IMAGE}
 
+# The isaac_ros_common base layers this image is built on (ros2_humble.oakd
+# image key) sometimes come through with sudo's shipped files (/etc/sudo.conf,
+# /usr/libexec/sudo/sudoers.so, etc.) owned by uid 1000 instead of root, which
+# breaks every "sudo" call downstream (including the luxonis
+# install_dependencies.sh script used below). Reinstalling restores correct
+# ownership on everything the package ships, rather than chasing files one at
+# a time.
+RUN apt-get update && apt-get install --reinstall -y sudo && rm -rf /var/lib/apt/lists/*
+
 # Locate the failing RUN block:
 # RUN sed -i '/isaac\.download\.nvidia\.com/s/^deb /deb [check-valid-until=no] /' /etc/apt/sources.list.d/* && \
 #     apt update && apt-get upgrade -y
@@ -19,6 +28,13 @@ RUN apt-get update && \
     ros-humble-isaac-ros-jetson-stats && \
     rosdep update && \
     rosdep install isaac_ros_nvblox \
+    && rm -rf /var/lib/apt/lists/*
+
+# realsense_splitter (now vendored directly under src/isaac_ros_nvblox/nvblox_examples
+# instead of pulled in as a submodule) depends on realsense2_camera_msgs, which isn't
+# part of ros-humble-isaac-ros-nvblox above and isn't vendored in src/ either.
+RUN apt-get update && \
+    apt-get install -y ros-humble-realsense2-camera-msgs \
     && rm -rf /var/lib/apt/lists/*
 
 #Install depthai ros package for the OAK-D ROS driver
@@ -151,6 +167,7 @@ RUN git clone --recurse-submodules https://github.com/dusty-nv/jetson-inference 
       -e '/file(GLOB inferenceSources/a list(REMOVE_ITEM inferenceSources ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.cpp)' \
       -e '/file(GLOB inferenceIncludes/a list(REMOVE_ITEM inferenceIncludes ${CMAKE_CURRENT_SOURCE_DIR}/c/poseNet.h)' \
       -e 's|add_subdirectory(python)|#add_subdirectory(python)  # not needed for ros_deep_learning; would hit PyPoseNet.cpp|' \
+      -e 's|add_subdirectory(examples)|#add_subdirectory(examples)  # demo CLIs unused by ros_deep_learning; imagenet/segnet/depthnet fail to link against libcudla.so.1 since the Docker build has no L4T DLA libs (docker build does not pass through /usr/lib/aarch64-linux-gnu/nvidia)|' \
       CMakeLists.txt && \
     sed -i 's|add_subdirectory(posenet)|#add_subdirectory(posenet)  # links poseNet, excluded above|' examples/CMakeLists.txt && \
     sed -i 's|add_subdirectory(camera-capture)|#add_subdirectory(camera-capture)  # GUI tool, unused for video streaming|' tools/CMakeLists.txt && \
