@@ -7,7 +7,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
 from launch_ros.descriptions import ComposableNode, ParameterValue
 
@@ -25,12 +25,26 @@ def generate_launch_description():
     with open(os.path.join(package_share, 'config', 'system_params.yaml')) as f:
         params = yaml.safe_load(f)
 
+    # Same directory detection.launch.py's own model_file_path/engine_file_path
+    # defaults resolve against -- kept in sync here since object_detection_model
+    # below is filename-only (see system_params.yaml's comment on it).
+    detector_model_dir = os.path.join(
+        os.environ.get('ISAAC_ROS_WS', '/workspaces/oakd_isaac_ros'),
+        'isaac_ros_assets', 'models', 'seaclear')
+
     # --- launch args, defaulted from config/system_params.yaml -------------
     declared_arguments = [
         DeclareLaunchArgument(
             'target_class_id',
             default_value='3',
             description='Detection class id to track (also gates nvblox masking)',
+        ),
+        DeclareLaunchArgument(
+            'object_detection_model',
+            default_value=params['perception']['object_detection_model'],
+            description='Detector .onnx filename, must exist in '
+                        f'{detector_model_dir}/ (engine_file_path is derived '
+                        'by swapping the extension to .plan)',
         ),
         DeclareLaunchArgument(
             'nvblox_mode',
@@ -94,6 +108,7 @@ def generate_launch_description():
     ]
 
     target_class_id = LaunchConfiguration('target_class_id')
+    object_detection_model = LaunchConfiguration('object_detection_model')
     nvblox_mode = LaunchConfiguration('nvblox_mode')
     voxel_size = LaunchConfiguration('voxel_size')
     enable_object_detection = LaunchConfiguration('enable_object_detection')
@@ -188,6 +203,15 @@ def generate_launch_description():
     )
 
     # --- object detection (optional) -----------------------------------------
+    # engine_file_path is the same model, just with the extension swapped --
+    # TensorRT (re)builds it from the .onnx automatically if it's missing or
+    # stale, so only the .onnx needs to actually exist up front.
+    detector_model_file_path = PathJoinSubstitution([detector_model_dir, object_detection_model])
+    detector_engine_file_path = PathJoinSubstitution([
+        detector_model_dir,
+        PythonExpression(["'", object_detection_model, "'.replace('.onnx', '.plan')"]),
+    ])
+
     detection_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(package_share, 'launch', 'tools', 'detection.launch.py')
@@ -199,6 +223,8 @@ def generate_launch_description():
             'container_name': 'detection_container',
             'verbose': 'True',
             'target_class_id': target_class_id,
+            'model_file_path': detector_model_file_path,
+            'engine_file_path': detector_engine_file_path,
         }.items(),
         condition=IfCondition(enable_object_detection),
     )
