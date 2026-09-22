@@ -90,6 +90,11 @@ def generate_launch_description():
     launch_target_point_bool = LaunchConfiguration('launch_target_point')
     use_sim_time = LaunchConfiguration('use_sim_time')
     config_file = LaunchConfiguration('config_file')
+    centroid_kf_enable = LaunchConfiguration('centroid_kf_enable')
+    camera_optical_frame_id = LaunchConfiguration('camera_optical_frame_id')
+    body_frame_id = LaunchConfiguration('body_frame_id')
+    image_jacobian_swap_uv = LaunchConfiguration('image_jacobian_swap_uv')
+    depth_estimation_mode = LaunchConfiguration('depth_estimation_mode')
 
     declare_launch_ibvs_arg = DeclareLaunchArgument(
         'launch_ibvs',
@@ -127,6 +132,42 @@ def generate_launch_description():
         description='YAML parameter file for the visual-servoing bringup nodes',
     )
 
+    # Centroid Kalman filter overrides -- exposed here (defaults matching the
+    # node's own declared defaults, so omitting them is a no-op) so bag
+    # replay / KF validation doesn't need a separate `ros2 run ... -p ...`
+    # invocation alongside this launch file. See
+    # visual_servo_controller_node_implementation.py's own declare_parameter
+    # calls for what these do.
+    declare_centroid_kf_enable_arg = DeclareLaunchArgument(
+        'centroid_kf_enable',
+        default_value='false',
+        description='Enable the image-Jacobian body-velocity-fused centroid Kalman filter',
+    )
+
+    declare_camera_optical_frame_id_arg = DeclareLaunchArgument(
+        'camera_optical_frame_id',
+        default_value='oak_rgb_camera_optical_frame',
+        description='TF frame the centroid KF looks up the body->camera extrinsic against',
+    )
+
+    declare_body_frame_id_arg = DeclareLaunchArgument(
+        'body_frame_id',
+        default_value='base_link',
+        description='TF frame used as the body side of the body->camera extrinsic lookup',
+    )
+
+    declare_image_jacobian_swap_uv_arg = DeclareLaunchArgument(
+        'image_jacobian_swap_uv',
+        default_value='false',
+        description='Swap u/v before evaluating the image Jacobian, for detectors that report axes rotated from the standard pinhole convention',
+    )
+
+    declare_depth_estimation_mode_arg = DeclareLaunchArgument(
+        'depth_estimation_mode',
+        default_value='DVL',
+        description='Staged-PID depth source: MAVROS (BlueROV only), DVL (real SC2 field tests), RGBD, or SC2_ALTITUDE (sim only, reads /sc2/altitude directly)',
+    )
+
     # Phase 2 staged_pid notes:
     # - This launch keeps the grapple IF and only switches the controller logic
     #   to staged PID.
@@ -162,7 +203,14 @@ def generate_launch_description():
         name='visual_servo_controller_node',
         output='screen',
         condition=IfCondition(launch_ibvs_bool),
-        parameters=[config_file, {'use_sim_time': use_sim_time}],
+        parameters=[config_file, {
+            'use_sim_time': use_sim_time,
+            'centroid_kf_enable': centroid_kf_enable,
+            'camera_optical_frame_id': camera_optical_frame_id,
+            'body_frame_id': body_frame_id,
+            'image_jacobian_swap_uv': image_jacobian_swap_uv,
+            'depth_estimation_mode': depth_estimation_mode,
+        }],
     )
 
     return LaunchDescription([
@@ -172,6 +220,11 @@ def generate_launch_description():
         declare_use_sim_time_arg,
         declare_launch_detection_stack_arg,
         declare_config_file_arg,
+        declare_centroid_kf_enable_arg,
+        declare_camera_optical_frame_id_arg,
+        declare_body_frame_id_arg,
+        declare_image_jacobian_swap_uv_arg,
+        declare_depth_estimation_mode_arg,
         OpaqueFunction(function=_optional_detection_stack),
         # target_observer_node,
         target_pose_node,
