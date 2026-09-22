@@ -129,7 +129,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
-        self.declare_parameter('cmd_topic_vec_6', '/sc2/setpoint_velocity/cmd_vel_vec6') #the 
+        self.declare_parameter('cmd_topic_vec_6', '/sc2/velocity_controller_node/outer/visual_servoing_signals') #the 
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
         self.declare_parameter('camera_info_topic', '/oak/rgb/camera_info')
         self.declare_parameter('status_topic', '/sc2/visual_servo/status')
