@@ -95,6 +95,7 @@ def generate_launch_description():
     body_frame_id = LaunchConfiguration('body_frame_id')
     image_jacobian_swap_uv = LaunchConfiguration('image_jacobian_swap_uv')
     depth_estimation_mode = LaunchConfiguration('depth_estimation_mode')
+    image_jacobian_focal_scale = LaunchConfiguration('image_jacobian_focal_scale')
 
     declare_launch_ibvs_arg = DeclareLaunchArgument(
         'launch_ibvs',
@@ -168,6 +169,12 @@ def generate_launch_description():
         description='Staged-PID depth source: MAVROS (BlueROV only), DVL (real SC2 field tests), RGBD, or SC2_ALTITUDE (sim only, reads /sc2/altitude directly)',
     )
 
+    declare_image_jacobian_focal_scale_arg = DeclareLaunchArgument(
+        'image_jacobian_focal_scale',
+        default_value='1.3',
+        description='Empirical scale on the image Jacobian\'s fx/fy (e.g. a refraction correction); 1.0 is a no-op',
+    )
+
     # Phase 2 staged_pid notes:
     # - This launch keeps the grapple IF and only switches the controller logic
     #   to staged PID.
@@ -210,6 +217,7 @@ def generate_launch_description():
             'body_frame_id': body_frame_id,
             'image_jacobian_swap_uv': image_jacobian_swap_uv,
             'depth_estimation_mode': depth_estimation_mode,
+            'image_jacobian_focal_scale': image_jacobian_focal_scale,
         }],
     )
 

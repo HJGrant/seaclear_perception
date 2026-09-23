@@ -136,6 +136,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('target_locked_state', '/sc2/visual_servo/target_locked')
         self.declare_parameter('centroid_error_topic', '/sc2/visual_servo/centroid_error')
         self.declare_parameter('filtered_centroid_error_topic', '/sc2/visual_servo/filtered_centroid_error')
+        self.declare_parameter('centroid_kf_covariance_topic', '/sc2/visual_servo/centroid_kf_covariance')
         # Debug-only: the raw image-Jacobian prediction itself (du, dv in
         # px/s, z=range used), independent of the KF's own smoothing/tuning.
         # Compare against a finite difference of consecutive raw detections
@@ -287,7 +288,7 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('camera_optical_frame_id', 'oak-d-base-frame')
         # Placeholder refraction correction on the Jacobian's fx/fy; 1.0 = no-op.
         # Real value TBD empirically from ROS bag data.
-        self.declare_parameter('image_jacobian_focal_scale', 1.0)
+        self.declare_parameter('image_jacobian_focal_scale', 1.3)
         # Set True if the detector reports u as the vertical axis and v as
         # the horizontal one, rather than the standard pinhole convention
         # (u=horizontal, v=vertical) get_image_jacobian assumes -- confirmed
@@ -308,6 +309,7 @@ class VisualServoControllerNode(Node):
         self._target_locked_topic = str(self.get_parameter('target_locked_state').value)
         self._centroid_error_topic = str(self.get_parameter('centroid_error_topic').value)
         self._filtered_centroid_error_topic = str(self.get_parameter('filtered_centroid_error_topic').value)
+        self._centroid_kf_covariance_topic = str(self.get_parameter('centroid_kf_covariance_topic').value)
         self._jacobian_predicted_velocity_topic = str(
             self.get_parameter('jacobian_predicted_velocity_topic').value
         )
@@ -633,6 +635,9 @@ class VisualServoControllerNode(Node):
         self._centroid_error_publisher = self.create_publisher(Vector3, self._centroid_error_topic, 10)
         self._filtered_centroid_error_publisher = self.create_publisher(
             Vector3, self._filtered_centroid_error_topic, 10,
+        )
+        self._kf_centroid_covariance_publisher = self.create_publisher(
+            Vector3, self._centroid_kf_covariance_topic, 10,
         )
         self._jacobian_predicted_velocity_publisher = self.create_publisher(
             Vector3, self._jacobian_predicted_velocity_topic, 10,
@@ -1525,6 +1530,13 @@ class VisualServoControllerNode(Node):
         if (self._latest_depth_measurement is not None) and (self._desired_target_dist is not None):
             err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
         self._filtered_centroid_error_publisher.publish(err_summary)
+
+        # publish the state co-variance
+        kf_state_covariance = Vector3()
+        kf_state_covariance.x = float(self._centroid_kf.covariance[0, 0])  # variance in u
+        kf_state_covariance.y = float(self._centroid_kf.covariance[1, 1])  # variance in v
+        kf_state_covariance.z = 0.0
+        self._kf_centroid_covariance_publisher.publish(kf_state_covariance)
 
     def _publish_centroid_kf_marker(self) -> None:
         '''ImageMarker (pixel-space circle) on the KF's current centroid
