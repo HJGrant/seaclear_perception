@@ -33,11 +33,12 @@ def _optional_detection_stack(context):
         'isaac_ros_yolov8',
         'isaac_ros_image_proc',
     ]
+    # perception.launch.py's own foxglove_bridge node (see
+    # oakd_isaac_ros/config/system_params.yaml's foxglove.enable/port) --
+    # just the bridge package itself, no video-encoder package needed since
+    # it forwards raw topics over its own websocket protocol.
     if _as_bool(launch_foxglove):
-        base_required.extend([
-            'isaac_ros_h264_encoder',
-            'foxglove_bridge',
-        ])
+        base_required.append('foxglove_bridge')
 
     missing = [pkg for pkg in base_required if not _package_available(pkg)]
     mode = str(launch_detection_stack).strip().lower()
@@ -68,13 +69,18 @@ def _optional_detection_stack(context):
     return [
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(oakd_isaac_ros_dir, 'launch', 'debug', 'object_detection.launch.py')
+                os.path.join(oakd_isaac_ros_dir, 'launch', 'perception.launch.py')
             ),
+            # Only launch_foxglove passed through -- perception.launch.py's
+            # other args (enable_camera, enable_object_detection,
+            # object_detection_model, nvblox_mode, etc.) use their own
+            # defaults from oakd_isaac_ros/config/system_params.yaml. It
+            # declares an entirely different arg set than
+            # object_detection.launch.py did; none of the latter's args
+            # (camera_model, parent_frame) exist here.
             launch_arguments={
                 'launch_foxglove': LaunchConfiguration('launch_foxglove'),
-                'camera_model': 'OAK-D',
-                'parent_frame': 'oak-d-base-frame',
-            }.items()
+            }.items(),
         )
     ]
 
@@ -106,7 +112,12 @@ def generate_launch_description():
     declare_launch_foxglove_arg = DeclareLaunchArgument(
         'launch_foxglove',
         default_value='true',
-        description='Whether to start the Foxglove Bridge node',
+        description='Start foxglove_bridge via perception.launch.py -- only has an effect when '
+                    'launch_detection_stack includes that file (true, or auto with all packages '
+                    'present); with launch_detection_stack:=false (e.g. bag replay) this is a '
+                    'no-op, since perception.launch.py never gets included at all -- launch '
+                    'foxglove_bridge separately instead, e.g. '
+                    '`ros2 launch foxglove_bridge foxglove_bridge_launch.xml`.',
     )
 
     declare_launch_target_point_arg = DeclareLaunchArgument(

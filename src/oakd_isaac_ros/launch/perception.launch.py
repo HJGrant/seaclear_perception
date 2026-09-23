@@ -106,6 +106,11 @@ def generate_launch_description():
             'depth_camera_info_topic',
             default_value=params['camera']['depth_camera_info_topic'],
         ),
+        DeclareLaunchArgument(
+            'launch_foxglove',
+            default_value=str(params['foxglove']['enable']),
+            description='Start foxglove_bridge (websocket server on foxglove.port) for the Foxglove app to connect to',
+        ),
     ]
 
     target_class_id = LaunchConfiguration('target_class_id')
@@ -122,6 +127,7 @@ def generate_launch_description():
     rgb_camera_info_topic = LaunchConfiguration('rgb_camera_info_topic')
     depth_topic = LaunchConfiguration('depth_topic')
     depth_camera_info_topic = LaunchConfiguration('depth_camera_info_topic')
+    launch_foxglove = LaunchConfiguration('launch_foxglove')
 
     # perception.launch.py's own map->odom->oak-d-base-frame chain below is
     # only correct when nothing else owns those frames. That's true in
@@ -364,6 +370,20 @@ def generate_launch_description():
         condition=IfCondition(enable_nvblox),
     )
 
+    # --- Foxglove Bridge (optional, independent of everything else) ----------
+    foxglove_node = Node(
+        package='foxglove_bridge',
+        executable='foxglove_bridge',
+        name='foxglove_bridge_node',
+        condition=IfCondition(launch_foxglove),
+        parameters=[{
+            'port': int(params['foxglove']['port']),
+            'address': '0.0.0.0',
+            'tls': False,
+            'use_compression': True,
+        }],
+    )
+
     # --- RTP streaming (optional, independent of detection/nvblox) -----------
     rtp_cfg = params['rtp']
     rtp_actions = []
@@ -440,5 +460,6 @@ def generate_launch_description():
             imu_pose_estimate_include,
             nvblox_include,
             map_frame_anchor_node,
+            foxglove_node,
         ] + rtp_actions
     )

@@ -70,6 +70,14 @@ nvblox:
     #   is not reliable without DVL/GPS.
     pose_source: oakd_imu
 
+# Foxglove Bridge (websocket server) -- lets the Foxglove app connect live
+# to this stack's topics. Independent of the RTP video streams below (those
+# are for lower-bandwidth teleop viewing; this is for full introspection,
+# e.g. during bag replay or bring-up debugging).
+foxglove:
+  enable: true
+  port: 8765
+
 # enable the RTP stream for teleoperation, and object detection + depth debugging
 # you can select insert multipl IPs where the stream should be sent to.
 # on each host, you need to run the src/oakd_isaac_ros/scripts/view_stream.py (rgb | depth | mask_overlay) script to receieve the stream(s).
