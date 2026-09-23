@@ -22,6 +22,7 @@
   <depend>tf2_msgs</depend>
   <depend>rosbag2_py</depend>
   <depend>state_estimation</depend>
+  <depend>sc2_interfaces</depend>
   <depend>sc2_visual_servo_interfaces</depend>
 
   <test_depend>ament_flake8</test_depend>

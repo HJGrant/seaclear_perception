@@ -17,7 +17,7 @@ Current behavior notes:
 - Short stale gaps while `target_tracked` remains true decay the last horizontal
   command using `decay_rate`.
 - The command adapter keeps the grapple IF and publishes both
-  `TwistStamped` and `state_estimation/msg/Vector6`.
+  `TwistStamped` and `sc2_interfaces/msg/Vector6`.
 - `target_point.pose.position.z` is expected to be target-relative range in
   meters. Before hardware testing, still verify the resulting positive-z command
   convention against the vehicle frame.
@@ -41,7 +41,7 @@ from visualization_msgs.msg import ImageMarker
 from sc2_visual_servo_interfaces.msg import TargetObservation
 from enum import Enum
 
-from state_estimation.msg import Vector6
+from sc2_interfaces.msg import Vector6
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -282,6 +282,13 @@ class VisualServoControllerNode(Node):
         # centroid_kf_process_noise_px2_per_s floor above. Falls back to the
         # floor alone if the topic doesn't carry a usable covariance.
         self.declare_parameter('centroid_kf_use_ekf_covariance', True)
+        # Max time since the last detection during which the staged PID keeps
+        # running on the KF's Jacobian-predicted centroid (horizontal only)
+        # before falling back to the decaying stale command. <= 0: no time limit.
+        self.declare_parameter('centroid_kf_prediction_timeout_ms', 600)
+        # Stop controlling on the prediction once the KF's positional std
+        # (sqrt of the larger of var_u/var_v) exceeds this. <= 0: no limit.
+        self.declare_parameter('centroid_kf_prediction_max_std_px', 0.0)
         # nav_msgs/Odometry; twist.twist is body-frame per REP-103.
         self.declare_parameter('body_velocity_topic', '/sc2/odometry_ekf')
         self.declare_parameter('body_velocity_timeout_ms', 500)
@@ -380,6 +387,13 @@ class VisualServoControllerNode(Node):
             measurement_noise_px2=float(self.get_parameter('centroid_kf_measurement_noise_px2').value),
             initial_variance_px2=float(self.get_parameter('centroid_kf_initial_variance_px2').value),
         ))
+        self._centroid_kf_prediction_timeout_sec = (
+            float(self.get_parameter('centroid_kf_prediction_timeout_ms').value) * 1e-3
+        )
+        self._centroid_kf_prediction_max_std_px = float(
+            self.get_parameter('centroid_kf_prediction_max_std_px').value
+        )
+        self._last_jacobian_status = 'disabled'
         self._latest_body_velocity: Optional[np.ndarray] = None
         self._latest_body_velocity_cov: Optional[np.ndarray] = None
         self._last_body_velocity_time = None
@@ -804,6 +818,28 @@ class VisualServoControllerNode(Node):
             print("originally setting self._set_target_tracked(False) but now setting off")
             pass
 
+    def _can_control_on_kf_prediction(self, dt_obs: float) -> bool:
+        '''True if the KF centroid may drive the PID during a detection gap:
+        the KF is initialized, this tick's Jacobian prediction actually ran
+        (otherwise the KF just holds a stale centroid and the PID would chase
+        an error that motion never corrects), and the gap is still within the
+        optional time and uncertainty limits.
+        '''
+        if not (
+            self._centroid_kf_enable and
+            self._centroid_kf.is_initialized and
+            self._last_jacobian_status == 'ok'
+        ):
+            return False
+        if 0.0 < self._centroid_kf_prediction_timeout_sec < dt_obs:
+            return False
+        if self._centroid_kf_prediction_max_std_px > 0.0:
+            cov = self._centroid_kf.covariance
+            std_px = float(np.sqrt(max(cov[0, 0], cov[1, 1])))
+            if std_px > self._centroid_kf_prediction_max_std_px:
+                return False
+        return True
+
     def _tracked_horizontal_stale_command(self) -> tuple[float, float, float, float]:
         return (
             float(self.v_last_valid[0] * self.decay_rate),
@@ -931,8 +967,13 @@ class VisualServoControllerNode(Node):
         obs_fresh: bool,
         z_meas: Optional[float],
         z_fresh: bool,
+        kf_prediction_ok: bool = False,
     ) -> bool:
-        """Return true after bbox and distance have remained ready long enough.
+        """Return true after the bbox has remained centered long enough.
+
+        A tick counts if the centroid is centered and either a fresh detection
+        arrived (`obs_fresh`) or the KF is driving control on a valid
+        Jacobian prediction during a detection gap (`kf_prediction_ok`).
 
         This is a state-machine handoff condition for the staged PID path. It is
         deliberately stricter than target tracking: tracking only means that the
@@ -950,18 +991,14 @@ class VisualServoControllerNode(Node):
         if self._use_target_observation:
             selected_valid_ok = bool(self._target_observation_valid)
 
+        # Completion no longer requires reaching desired_vertical_distance_m;
+        # z_meas/z_fresh are kept in the signature for the caller only.
         horizontal_ok = self._is_staged_pid_vertical_gate_aligned()
-        distance_ok = (
-            z_fresh
-            and z_meas is not None
-            and abs(float(z_meas) - self._desired_vertical_dist) <= self._staged_pid_distance_tol_m
-        )
         completion_ok = (
             self._target_tracked
-            and obs_fresh
+            and (obs_fresh or kf_prediction_ok)
             and selected_valid_ok
             and horizontal_ok
-            and distance_ok
         )
 
         self._staged_pid_recent_completion_ok.append(bool(completion_ok))
@@ -1326,6 +1363,7 @@ class VisualServoControllerNode(Node):
         if self._centroid_kf_enable:
             du, dv, Q_dynamic, z_used, status = self._compute_jacobian_pixel_velocity()
             self._centroid_kf.predict(dt_ctrl, du, dv, Q=Q_dynamic)
+            self._last_jacobian_status = status
             self._publish_filtered_centroid_error()
             self._publish_centroid_kf_marker()
             jac_vel = Vector3()
@@ -1384,14 +1422,27 @@ class VisualServoControllerNode(Node):
             return
 
         if self._staged_pid_completion_latch and self._vs_control_finished:
-            # Handoff to the external operation state machine. Continue publishing
-            # zero velocity so MAVROS does not time out the setpoint while complete.
-            self.set_state(self.ControllerState.COMPLETE)
-            self.v_last_valid = np.zeros(6)
-            self._publish_vs_control_finish(True)
-            self._publish_status('COMPLETE_STAGED_PID_LATCHED')
-            self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
-            return
+            # Release the latch if the current centroid (fresh detection or
+            # usable KF prediction) has left the horizontal tolerance, and fall
+            # through to resume servoing this tick. With no current centroid
+            # there is no evidence either way, so the latch holds.
+            centroid_current = (
+                (obs_fresh and hasattr(self, 'latest_centroid')) or
+                self._can_control_on_kf_prediction(dt_obs)
+            )
+            if centroid_current and not self._is_staged_pid_vertical_gate_aligned():
+                self.get_logger().info('Target left the center tolerance; releasing completion latch.')
+                self._clear_staged_pid_completion()
+                self._publish_vs_control_finish(False)
+            else:
+                # Handoff to the external operation state machine. Continue publishing
+                # zero velocity so MAVROS does not time out the setpoint while complete.
+                self.set_state(self.ControllerState.COMPLETE)
+                self.v_last_valid = np.zeros(6)
+                self._publish_vs_control_finish(True)
+                self._publish_status('COMPLETE_STAGED_PID_LATCHED')
+                self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+                return
 
         if obs_fresh and hasattr(self, 'latest_centroid'):
             vx_body, vy_body, vz_body, yaw, status, _allow_z, z_meas, z_fresh, z_source = self._compute_staged_pid_command(
@@ -1404,18 +1455,33 @@ class VisualServoControllerNode(Node):
                 z_fresh=z_fresh,
             )
             if completion_reached:
-                # Handoff to the external operation state machine. Continue publishing
-                # zero velocity so MAVROS does not time out the setpoint while complete.
-                self.set_state(self.ControllerState.COMPLETE)
-                self._vs_control_finished = True
-                self.v_last_valid = np.zeros(6)
-                self._publish_vs_control_finish(True)
-                self._request_completion_winch_length(z_meas)
-                self._publish_status(f'COMPLETE_STAGED_PID_{z_source.upper()}')
-                self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
+                self._enter_staged_pid_completion(z_meas, z_source, dt_ctrl)
                 return
             self.set_state(self.ControllerState.VISUAL)
             self._publish_vs_control_finish(False)
+        elif self._can_control_on_kf_prediction(dt_obs):
+            # Detection gap: keep the horizontal PID running on the KF's
+            # Jacobian-predicted centroid. No Z motion while blind; the
+            # vertical gate sees a not-aligned tick so it still drops out if
+            # the gap persists. A centered KF estimate does count towards
+            # completion.
+            vx_body, vy_body, _, yaw, _ = self._compute_staged_pid_horizontal_command(dt_ctrl)
+            self._update_staged_pid_vertical_gate(obs_fresh=False)
+            self._z_pid.reset()
+            vz_body = 0.0
+            z_meas, z_source, z_fresh = self._resolve_staged_pid_vertical_measurement()
+            completion_reached = self._update_staged_pid_completion_gate(
+                obs_fresh=False,
+                z_meas=z_meas,
+                z_fresh=z_fresh,
+                kf_prediction_ok=True,
+            )
+            if completion_reached:
+                self._enter_staged_pid_completion(z_meas, f'kf_{z_source}', dt_ctrl)
+                return
+            self.set_state(self.ControllerState.VISUAL)
+            self._publish_vs_control_finish(False)
+            status = 'TRACKING_STAGED_PID_KF_PREDICTION'
         else:
             print("TRACKING_STAGED_PID_HORIZONTAL_STALE")
             #self._staged_pid_state = self.StagedPIDState.HORIZONTAL
@@ -1429,6 +1495,17 @@ class VisualServoControllerNode(Node):
         self.v_last_valid = np.array([vx_body, vy_body, vz_body, 0.0, 0.0, yaw])
         self._publish_status(status)
         self._publish_cmd_direct_body_with_slew(vx_body, vy_body, vz_body, yaw, dt_ctrl)
+
+    def _enter_staged_pid_completion(self, z_meas: Optional[float], z_source: str, dt_ctrl: float) -> None:
+        # Handoff to the external operation state machine. Continue publishing
+        # zero velocity so MAVROS does not time out the setpoint while complete.
+        self.set_state(self.ControllerState.COMPLETE)
+        self._vs_control_finished = True
+        self.v_last_valid = np.zeros(6)
+        self._publish_vs_control_finish(True)
+        self._request_completion_winch_length(z_meas)
+        self._publish_status(f'COMPLETE_STAGED_PID_{z_source.upper()}')
+        self._publish_cmd_direct_body_with_slew(0.0, 0.0, 0.0, 0.0, dt_ctrl)
 
     def _request_completion_winch_length(self, z_meas: Optional[float]) -> None:
         """Request winch desired length once when staged PID completion is reached.
