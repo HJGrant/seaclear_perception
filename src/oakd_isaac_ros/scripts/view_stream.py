@@ -71,11 +71,19 @@ def main():
         'application/x-rtp, media=(string)video, clock-rate=(int)90000, '
         'encoding-name=(string)H264, payload=(int)96'
     )
+    # Software decode (avdec_h264, from gstreamer1.0-libav) rather than
+    # decodebin: decodebin picks VA-API on some hosts, which silently never
+    # outputs frames. The jitter buffer + large socket buffer absorb bursty
+    # delivery over the tether; latency=200 trades ~0.2 s delay for fewer
+    # dropped frames.
     cmd = [
-        'gst-launch-1.0', '-v',
-        'udpsrc', f'port={port}', f'caps={caps}',
+        'gst-launch-1.0',
+        'udpsrc', f'port={port}', 'buffer-size=8388608', f'caps={caps}',
+        '!', 'rtpjitterbuffer', 'latency=200',
         '!', 'rtph264depay',
-        '!', 'decodebin',
+        '!', 'h264parse',
+        '!', 'queue',
+        '!', 'avdec_h264', 'max-threads=4',
         '!', 'videoconvert',
         '!', 'autovideosink', 'sync=false',
     ]
