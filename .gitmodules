@@ -4,9 +4,6 @@
 [submodule "src/isaac_ros_visual_slam"]
 	path = src/isaac_ros_visual_slam
 	url = https://github.com/NVIDIA-ISAAC-ROS/isaac_ros_visual_slam.git
-[submodule "src/webrtc_ros"]
-	path = src/webrtc_ros
-	url = https://github.com/RobotWebTools/webrtc_ros.git
 [submodule "src/state_estimation"]
 	path = src/state_estimation
 	url = git@gitlab.lrz.de:itr-seaclear/tum/sc2/development/state_estimation.git
