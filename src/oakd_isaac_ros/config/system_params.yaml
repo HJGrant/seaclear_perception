@@ -12,7 +12,7 @@ camera:
   # don't care where these topics come from, only that something publishes
   # them with these names before the real deployment. When false, nothing
   # in this stack tries to connect to the physical camera at all.
-  enable_camera: false
+  enable_camera: true
 
   # Topic names the rest of the pipeline reads. Defaults match the real
   # depthai_ros_driver's topics -- point these at your simulator's topics
@@ -86,19 +86,28 @@ rtp:
   headless: true
   destination_ips:
     #- "127.0.0.1"   # localhost
-    #- "192.168.2.94"  # default
-    - "192.168.2.100"
+    - "192.168.2.94"  # default
+    #- "192.168.2.100"
     #- "129.187.231.223"
 
+  # bitrate: H264 bits/s. The tether to the topside PC is shared with all other
+  # robot<->topside traffic (incl. ROS/DDS), and RTP over UDP breaks up badly
+  # as soon as the link congests, so keep the stream lean.
+  # width/height: streamed resolution; frames are GPU-downscaled inside the
+  # RTP node, so the camera/detection resolution is unaffected.
   rgb:
     enabled: true
     port: 8550
-    width: 1280
-    height: 720
+    width: 960
+    height: 540
+    bitrate: 1500000
 
   mask_overlay:
     enabled: true
     port: 8552
+    width: 960
+    height: 540
+    bitrate: 1500000
 
   depth:
     enabled: false
