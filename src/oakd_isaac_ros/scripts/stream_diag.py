@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Topside RTP stream diagnostics.
 
 Receives one RTP/H264 stream exactly like view_stream.py, but prints once per
