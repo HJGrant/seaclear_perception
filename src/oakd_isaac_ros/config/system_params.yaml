@@ -104,7 +104,7 @@ rtp:
 
   mask_overlay:
     enabled: true
-    port: 8552
+    port: 8554
     width: 960
     height: 540
     bitrate: 6000000
