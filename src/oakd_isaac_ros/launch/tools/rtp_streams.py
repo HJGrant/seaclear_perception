@@ -13,7 +13,7 @@ from launch_ros.descriptions import ComposableNode
 
 
 def rtp_composable_nodes(name_prefix, input_topic, port, destination_ips,
-                          headless, bitrate=4000000):
+                          headless, bitrate=4000000, width=0, height=0):
     """One VideoOutputNode per non-empty destination IP.
 
     Args:
@@ -23,6 +23,8 @@ def rtp_composable_nodes(name_prefix, input_topic, port, destination_ips,
         destination_ips: list of IP strings; empty entries are skipped.
         headless: passed straight through to the node's 'headless' param.
         bitrate: H264 encode bitrate.
+        width, height: GPU-downscale frames to this size before encoding
+            (0 = stream at the input topic's size).
 
     Returns:
         list[ComposableNode], one per active destination IP.
@@ -37,8 +39,10 @@ def rtp_composable_nodes(name_prefix, input_topic, port, destination_ips,
             parameters=[{
                 'resource': f'rtp://{ip}:{port}',
                 'codec': 'h264',
-                'bitrate': bitrate,
+                'bitrate': int(bitrate),
                 'headless': headless,
+                'output_width': int(width),
+                'output_height': int(height),
             }],
             extra_arguments=[{'use_intra_process_comms': True}],
         ))

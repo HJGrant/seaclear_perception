@@ -4,6 +4,8 @@
 
 #include "image_converter.h"
 #include <jetson-utils/videoOutput.h>
+#include <jetson-utils/cudaResize.h>
+#include <jetson-utils/cudaMappedMemory.h>
 
 namespace jetson_ros
 {
@@ -11,23 +13,43 @@ class VideoOutputNode : public rclcpp::Node
 {
 public:
     explicit VideoOutputNode(const rclcpp::NodeOptions& options)
-    : Node("video_output", options), m_stream(nullptr), m_image_cvt(nullptr)
+    : Node("video_output", options), m_stream(nullptr), m_image_cvt(nullptr),
+      m_resized_gpu(nullptr), m_resized_cpu(nullptr), m_out_width(0), m_out_height(0)
     {
         // Declare Parameters
         std::string resource_str = "";
         std::string codec_str = "";
         int video_bitrate = 2000000;
         bool headless = true;
+        // Optional GPU downscale before encoding (0 = stream at input size).
+        // Lets the stream fit a low-bandwidth tether without changing the
+        // camera resolution that the rest of the pipeline consumes.
+        int output_width = 0;
+        int output_height = 0;
 
         this->declare_parameter("resource", resource_str);
         this->declare_parameter("codec", codec_str);
         this->declare_parameter("bitrate", video_bitrate);
         this->declare_parameter("headless", headless);
+        this->declare_parameter("output_width", output_width);
+        this->declare_parameter("output_height", output_height);
 
         this->get_parameter("resource", resource_str);
         this->get_parameter("codec", codec_str);
         this->get_parameter("bitrate", video_bitrate);
         this->get_parameter("headless", headless);
+        this->get_parameter("output_width", output_width);
+        this->get_parameter("output_height", output_height);
+
+        if (output_width > 0 && output_height > 0) {
+            m_out_width = output_width;
+            m_out_height = output_height;
+            if (!cudaAllocMapped((void**)&m_resized_cpu, (void**)&m_resized_gpu,
+                                 m_out_width * m_out_height * sizeof(imageConverter::PixelType))) {
+                RCLCPP_ERROR(this->get_logger(), "failed to allocate resize buffer");
+                return;
+            }
+        }
 
         if (resource_str.empty()) {
             RCLCPP_ERROR(this->get_logger(), "resource param not set");
@@ -77,6 +99,7 @@ public:
     {
         if (m_stream) delete m_stream;
         if (m_image_cvt) delete m_image_cvt;
+        if (m_resized_cpu) CUDA(cudaFreeHost(m_resized_cpu));
     }
 
 private:
@@ -88,17 +111,36 @@ private:
             return;
         }
 
+        imageConverter::PixelType* frame = m_image_cvt->ImageGPU();
+        uint32_t width = m_image_cvt->GetWidth();
+        uint32_t height = m_image_cvt->GetHeight();
+
+        if (m_resized_gpu && (width != m_out_width || height != m_out_height)) {
+            if (CUDA_FAILED(cudaResize(frame, width, height,
+                                       m_resized_gpu, m_out_width, m_out_height, FILTER_LINEAR))) {
+                RCLCPP_INFO(this->get_logger(), "failed to resize image");
+                return;
+            }
+            frame = m_resized_gpu;
+            width = m_out_width;
+            height = m_out_height;
+        }
+
         // Render to WebRTC/Display
-        m_stream->Render(m_image_cvt->ImageGPU(), m_image_cvt->GetWidth(), m_image_cvt->GetHeight());
+        m_stream->Render(frame, width, height);
 
         // Update overlay
         char str[256];
-        sprintf(str, "%ux%u | %.1f FPS", m_image_cvt->GetWidth(), m_image_cvt->GetHeight(), m_stream->GetFrameRate());
+        sprintf(str, "%ux%u | %.1f FPS", width, height, m_stream->GetFrameRate());
         m_stream->SetStatus(str);
     }
 
     videoOutput* m_stream;
     imageConverter* m_image_cvt;
+    imageConverter::PixelType* m_resized_gpu;
+    imageConverter::PixelType* m_resized_cpu;
+    uint32_t m_out_width;
+    uint32_t m_out_height;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr m_img_sub;
 };
 } // namespace jetson_ros
