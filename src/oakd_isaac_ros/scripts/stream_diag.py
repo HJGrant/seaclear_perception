@@ -69,7 +69,14 @@ class Stats:
             if gap < 0x8000:  # ignore reordered/duplicate packets
                 self.lost += gap
                 self.total_lost += gap
+                if gap and self.log_loss:
+                    first = (self.last_seq + 1) & 0xFFFF
+                    last = (seq - 1) & 0xFFFF
+                    print(f'  LOST seq {first}..{last} ({gap} pkts) at {time.strftime("%H:%M:%S")}'
+                          f'.{int(time.time() * 1000) % 1000:03d}', flush=True)
         self.last_seq = seq
+
+    log_loss = False
 
 
 def main():
@@ -83,6 +90,8 @@ def main():
                         help='decode but do not display (fakesink) to rule out the display')
     parser.add_argument('--duration', type=int, default=0,
                         help='stop after this many seconds (0 = run until Ctrl-C)')
+    parser.add_argument('--log-loss', action='store_true',
+                        help='print the RTP sequence numbers of every lost packet')
     args = parser.parse_args()
 
     port = args.port if args.port is not None else port_for_stream(args.stream, args.config)
@@ -97,6 +106,7 @@ def main():
         f'! fpsdisplaysink name=sink video-sink={sink} text-overlay=false sync=false'
     )
     st = Stats()
+    st.log_loss = args.log_loss
 
     def rtp_probe(pad, info):
         buf = info.get_buffer()
