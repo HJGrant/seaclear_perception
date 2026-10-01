@@ -30,7 +30,8 @@ setup(
             'visual_servo_debug_viz_node = sc2_visual_servo_controller.visual_servo_debug_viz_node:main',
             'velocity_control_test_node = sc2_visual_servo_controller.velocity_control_test:main',
             'plot_centroid_kf_bag = sc2_visual_servo_controller.plot_centroid_kf_bag:main',
-            'calibration_maneuver_node = sc2_visual_servo_controller.calibration_maneuver_node:main'
+            'calibration_maneuver_node = sc2_visual_servo_controller.calibration_maneuver_node:main',
+            'annotate_centroid_kf_bag = sc2_visual_servo_controller.annotate_centroid_kf_bag:main'
         ],
     },
 )

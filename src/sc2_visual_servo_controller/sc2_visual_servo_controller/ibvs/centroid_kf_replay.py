@@ -5,7 +5,13 @@ import numpy as np
 
 from .centroid_kalman_filter import CentroidKFConfig, CentroidKalmanFilter
 from .controller_math import is_in_roi
-from .image_jacobian import apply_refraction_scale, predict_pixel_centroid_velocity
+from .image_jacobian import (
+    JacobianDebugInfo,
+    apply_refraction_scale,
+    is_valid_twist_covariance,
+    predict_pixel_centroid_velocity_debug,
+    predict_pixel_velocity_covariance,
+)
 
 
 @dataclass
@@ -20,6 +26,10 @@ class BodyVelocityEvent:
     t: float
     v_body: np.ndarray  # (3,) body-frame linear velocity
     w_body: np.ndarray  # (3,) body-frame angular velocity
+    # 6x6 twist covariance ([vx,vy,vz,wx,wy,wz]), e.g. from
+    # nav_msgs/Odometry.twist.covariance -- None if the source doesn't
+    # publish one (or it's being deliberately ignored).
+    covariance: Optional[np.ndarray] = None
 
 
 @dataclass
@@ -45,6 +55,27 @@ class ReplayConfig:
     # _update_target_tracked_from_tick). Set a value to explore what
     # re-enabling that reset would look like.
     clear_on_loss_after_s: Optional[float] = None
+    # get_image_jacobian assumes the standard pinhole convention (u increases
+    # rightward, v increases downward). If a detector instead reports u as
+    # the vertical axis and v as the horizontal one, the Jacobian's (du, dv)
+    # output needs swapping before it's used as this detector's centroid
+    # velocity, or the predicted motion lands on the wrong image axis
+    # entirely (not just the wrong sign). Doesn't touch the raw detections
+    # themselves -- those already are whatever the detector reports.
+    swap_uv: bool = False
+    # When set, use this fixed range (meters) for every Jacobian prediction
+    # instead of whatever the depth source reports -- bypasses depth
+    # freshness/validity entirely, so it works even with no depth topic at
+    # all. Since du/dv scale as 1/Z, this isolates whether the depth
+    # source's value (as opposed to the Jacobian geometry itself) is
+    # responsible for a magnitude mismatch against raw detections.
+    override_z: Optional[float] = None
+    # Multiplies whatever the real depth source reports (ignored when
+    # override_z is set, since that's already the intended final value) --
+    # e.g. 1.5 to test "target range is 150% of what altitude reports",
+    # without flattening out the depth signal's own real variation/timing
+    # the way a fixed override_z would.
+    z_scale_factor: float = 1.0
     fx: float = 600.0
     fy: float = 600.0
     cx: float = 640.0
@@ -53,6 +84,11 @@ class ReplayConfig:
     r_cam_body: np.ndarray = field(default_factory=lambda: np.zeros(3))
     R_cam_body: np.ndarray = field(default_factory=lambda: np.eye(3))
     kf_config: CentroidKFConfig = field(default_factory=CentroidKFConfig)
+    # When a BodyVelocityEvent carries a covariance, propagate it into the
+    # KF's process noise instead of relying solely on the flat
+    # kf_config.process_noise_px2_per_s floor. Set False to ignore any
+    # recorded covariance and match pre-covariance-aware behavior exactly.
+    use_velocity_covariance: bool = True
 
 
 @dataclass
@@ -64,6 +100,16 @@ class ReplaySample:
     filtered_u: Optional[float]
     filtered_v: Optional[float]
     gap_since_last_detection_s: Optional[float]
+    # The range (meters) actually fed to the Jacobian this tick -- after
+    # override_z/z_scale_factor are applied -- or None if no depth was
+    # available at all. Exposed so callers (e.g. annotate_centroid_kf_bag.py)
+    # can write it out for inspection alongside the raw depth source.
+    z_used: Optional[float] = None
+    # Full intermediate breakdown of this tick's Jacobian prediction (v_cam,
+    # w_cam, normalized position, pre/post swap_uv output), or None if the
+    # Jacobian didn't fire this tick. See JacobianDebugInfo -- use this
+    # instead of assuming which interaction-matrix term dominated.
+    jacobian_debug: Optional[JacobianDebugInfo] = None
 
 
 def replay_centroid_kf(
@@ -149,24 +195,55 @@ def replay_centroid_kf(
             last_accepted_centroid = None
 
         du = dv = 0.0
-        if (
-            kf.is_initialized and
-            latest_vel is not None and (t - latest_vel.t) <= config.body_velocity_timeout_s and
-            latest_depth is not None and (t - latest_depth.t) <= config.depth_timeout_s and
+        Q_dynamic = None
+        jacobian_debug: Optional[JacobianDebugInfo] = None
+        if config.override_z is not None:
+            z_value = config.override_z
+            z_fresh = True
+        elif (
+            latest_depth is not None and
+            (t - latest_depth.t) <= config.depth_timeout_s and
             latest_depth.z > 0.0
         ):
+            z_value = latest_depth.z * config.z_scale_factor
+            z_fresh = True
+        else:
+            z_value = None
+            z_fresh = False
+
+        velocity_source_fresh = (
+            kf.is_initialized and
+            latest_vel is not None and (t - latest_vel.t) <= config.body_velocity_timeout_s and
+            z_fresh
+        )
+        if velocity_source_fresh:
             u0, v0 = kf.state
             try:
-                du, dv = predict_pixel_centroid_velocity(
-                    u0, v0, latest_depth.z,
+                jacobian_debug = predict_pixel_centroid_velocity_debug(
+                    u0, v0, z_value,
                     latest_vel.v_body, latest_vel.w_body,
                     config.r_cam_body, config.R_cam_body,
                     fx, fy, config.cx, config.cy,
+                    swap_uv=config.swap_uv,
                 )
+                du, dv = jacobian_debug.du_final, jacobian_debug.dv_final
+                if (
+                    config.use_velocity_covariance and
+                    latest_vel.covariance is not None and
+                    is_valid_twist_covariance(latest_vel.covariance)
+                ):
+                    Q_dynamic = predict_pixel_velocity_covariance(
+                        u0, v0, z_value,
+                        latest_vel.covariance,
+                        config.r_cam_body, config.R_cam_body,
+                        fx, fy, config.cx, config.cy,
+                        swap_uv=config.swap_uv,
+                    )
             except ValueError:
                 du = dv = 0.0
+                jacobian_debug = None
 
-        kf.predict(dt, du, dv)
+        kf.predict(dt, du, dv, Q=Q_dynamic)
 
         state = kf.state
         samples.append(ReplaySample(
@@ -177,6 +254,8 @@ def replay_centroid_kf(
             gap_since_last_detection_s=(
                 (t - last_detection_time) if last_detection_time is not None else None
             ),
+            z_used=z_value,
+            jacobian_debug=jacobian_debug,
         ))
 
     return samples

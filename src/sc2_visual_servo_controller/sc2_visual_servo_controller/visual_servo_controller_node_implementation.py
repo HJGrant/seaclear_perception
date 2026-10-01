@@ -30,9 +30,9 @@ from collections import deque
 from typing import Optional
 import numpy as np
 
-from geometry_msgs.msg import TwistStamped, PoseStamped, Vector3, Point
+from geometry_msgs.msg import TwistStamped, PoseStamped, PointStamped, Vector3, Point
 from nav_msgs.msg import Odometry
-from vision_msgs.msg import Detection2D
+from vision_msgs.msg import BoundingBox2D, Detection2D
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float64, Bool, ColorRGBA
@@ -128,6 +128,14 @@ class VisualServoControllerNode(Node):
         self.declare_parameter('use_target_observation', False)
         self.declare_parameter('target_point_topic', '/sc2/visual_servo/target_point')
         self.declare_parameter('target_bounding_box', '/best_detection')
+        # Manual human-click override (see manual_tracking_viewer.py): while a
+        # PointStamped keeps arriving on this topic within
+        # human_override_timeout_ms, it's treated as the detection centroid
+        # and real /best_detection messages are ignored entirely -- real
+        # detections resume on the first one received after the override
+        # goes stale (e.g. mouse released).
+        self.declare_parameter('human_override_topic', '/sc2/visual_servo/human_override_point')
+        self.declare_parameter('human_override_timeout_ms', 200)
         self.declare_parameter('cmd_topic', '/mavros/setpoint_velocity/cmd_vel') #mavros commanded velocity topic taken from the mavros docs
         self.declare_parameter('cmd_topic_vec_6', '/sc2/velocity_controller_node/outer/visual_servoing_signals') #the 
         self.declare_parameter('vel_measurement_topic', '/mavros/local_position/velocity_body')
@@ -298,6 +306,9 @@ class VisualServoControllerNode(Node):
 
         # extract data topics
         self._target_bbox_topic = str(self.get_parameter('target_bounding_box').value)
+        self._human_override_topic = str(self.get_parameter('human_override_topic').value)
+        self._human_override_timeout_sec = float(self.get_parameter('human_override_timeout_ms').value) * 1e-3
+        self._last_human_override_time = None
         self._target_obs_topic = str(self.get_parameter('target_topic').value)
         self._use_target_observation = self._as_bool(self.get_parameter('use_target_observation').value)
         self._camera_info_topic = str(self.get_parameter('camera_info_topic').value)
@@ -655,6 +666,7 @@ class VisualServoControllerNode(Node):
             )
 
         self.create_subscription(Detection2D, self._target_bbox_topic, self._detection_cb, 10)
+        self.create_subscription(PointStamped, self._human_override_topic, self._human_override_cb, 10)
         if self._use_target_observation:
             self.create_subscription(TargetObservation, self._target_obs_topic, self._target_observation_cb, 10)
         self.create_subscription(CameraInfo, self._camera_info_topic, self._camera_info_cb, 10)
@@ -765,12 +777,13 @@ class VisualServoControllerNode(Node):
             return False
         return ((self.get_clock().now() - stamp).nanoseconds * 1e-9) <= timeout_sec
 
-    def _update_target_tracking_from_detection(self, now) -> bool:
+    def _update_target_tracking_from_detection(self, now, force_valid: bool = False) -> bool:
         if not hasattr(self, 'latest_centroid'):
             return False
 
         centroid = np.array(self.latest_centroid, dtype=np.float32)
         roi_consistent = (
+            force_valid or
             self._last_accepted_target_centroid is None or
             is_in_roi(centroid[0], centroid[1], self._last_accepted_target_centroid, self.roi_w)
         )
@@ -1262,6 +1275,42 @@ class VisualServoControllerNode(Node):
     def _target_observation_cb(self, msg: TargetObservation) -> None:
         pass
 
+    def _human_override_cb(self, msg: PointStamped) -> None:
+        '''Manual human-click override (see manual_tracking_viewer.py):
+        unconditionally treated as the current target centroid, bypassing
+        ROI-consistency entirely (a deliberate click should never be
+        second-guessed the way a noisy detection jump would be). Marking
+        _last_human_override_time here is also what makes _detection_cb
+        ignore real detections while this stays fresh -- see the guard at
+        its top.
+        '''
+        now = self.get_clock().now()
+        self._last_human_override_time = now
+        self._last_obs_time = now
+        self._latest_detection_time = now
+        # _tick_staged_pid's obs_fresh only checks _latest_obs is not None
+        # (plus _last_obs_time's age, set above) -- this just needs to exist,
+        # size is otherwise unused by the control path.
+        synthetic_bbox = BoundingBox2D()
+        synthetic_bbox.center.position.x = float(msg.point.x)
+        synthetic_bbox.center.position.y = float(msg.point.y)
+        self._latest_obs = synthetic_bbox
+        self.latest_centroid = [float(msg.point.x), float(msg.point.y)]
+
+        centroid_err_x = self.latest_centroid[0] - self._staged_pid_target_centroid[0]
+        centroid_err_y = self.latest_centroid[1] - self._staged_pid_target_centroid[1]
+
+        err_summary = Vector3()
+        err_summary.x = float(centroid_err_x)
+        err_summary.y = float(centroid_err_y)
+        if (self._latest_depth_measurement is not None) and (self._desired_target_dist is not None):
+            err_summary.z = float(self._latest_depth_measurement - self._desired_target_dist)
+        self._centroid_error_publisher.publish(err_summary)
+
+        self._update_target_tracking_from_detection(now, force_valid=True)
+        if self._centroid_kf_enable:
+            self._centroid_kf.update(self.latest_centroid[0], self.latest_centroid[1])
+
     def _detection_cb(self, detection_2D_msg: Detection2D):
         """This callback reads an incoming detection from the object detection model, extracts the detection with the desired class_id
         with the highest confidence, and then extracts it"s bounding box.
@@ -1283,6 +1332,13 @@ class VisualServoControllerNode(Node):
         if self._use_target_observation and self._controller_mode == 'staged_pid':
             # Compatibility path only: the tracker/selector TargetObservation
             # contract is the primary staged-PID gate when enabled.
+            return
+
+        if self._is_timestamp_fresh(self._last_human_override_time, self._human_override_timeout_sec):
+            # A human click is currently driving the target -- ignore the
+            # real detector entirely rather than blending the two. Real
+            # detections resume automatically once the override goes stale
+            # (e.g. mouse released), no action needed here for that.
             return
 
         self.get_logger().info(f'Detection Recieved!', throttle_duration_sec=2.0)
