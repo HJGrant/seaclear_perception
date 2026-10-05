@@ -75,7 +75,7 @@ nvblox:
 # are for lower-bandwidth teleop viewing; this is for full introspection,
 # e.g. during bag replay or bring-up debugging).
 foxglove:
-  enable: true
+  enable: false
   port: 8765
 
 # enable the RTP stream for teleoperation, and object detection + depth debugging
@@ -86,9 +86,9 @@ rtp:
   headless: true
   destination_ips:
     #- "127.0.0.1"   # localhost
-    #- "192.168.2.94"  # default
+    - "192.168.2.94"  # default
     #- "192.168.2.100"
-    - "129.187.231.223"
+    #- "129.187.231.223"
 
   rgb:
     enabled: true
