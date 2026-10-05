@@ -71,13 +71,16 @@ def main():
         'application/x-rtp, media=(string)video, clock-rate=(int)90000, '
         'encoding-name=(string)H264, payload=(int)96'
     )
+    # Explicit software decode + plain X sink: decodebin/autovideosink pick
+    # vaapidecodebin + xvimagesink on this host, which decodes fine but never
+    # shows anything in the window.
     cmd = [
         'gst-launch-1.0', '-v',
         'udpsrc', f'port={port}', f'caps={caps}',
         '!', 'rtph264depay',
-        '!', 'decodebin',
+        '!', 'avdec_h264',
         '!', 'videoconvert',
-        '!', 'autovideosink', 'sync=false',
+        '!', 'ximagesink', 'sync=false',
     ]
 
     print(f'Viewing "{args.stream}" on port {port} (Ctrl-C to stop)')

@@ -12,7 +12,7 @@ camera:
   # don't care where these topics come from, only that something publishes
   # them with these names before the real deployment. When false, nothing
   # in this stack tries to connect to the physical camera at all.
-  enable_camera: false
+  enable_camera: true
 
   # Topic names the rest of the pipeline reads. Defaults match the real
   # depthai_ros_driver's topics -- point these at your simulator's topics
@@ -86,9 +86,9 @@ rtp:
   headless: true
   destination_ips:
     #- "127.0.0.1"   # localhost
-    #- "192.168.2.94"  # default
+    - "192.168.2.94"  # default
     #- "192.168.2.100"
-    - "129.187.231.223"
+    #- "129.187.231.223"
 
   rgb:
     enabled: true
@@ -98,7 +98,7 @@ rtp:
 
   mask_overlay:
     enabled: true
-    port: 8552
+    port: 8554
 
   depth:
     enabled: false
