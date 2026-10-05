@@ -4,7 +4,7 @@
       i_nn_type: none
       i_tf_base_frame: oak-d_frame
       i_tf_parent_frame: oak-d-base-frame
-      i_pipeline_type: RGBD
+      i_pipeline_type: RGB
       i_enable_sync: false
       i_ip: "192.168.2.109"
       #i_ip: "10.1.1.210" # IP for the camera in the BlueROV setup
@@ -60,7 +60,7 @@
       i_isp_num: 2
 
     stereo:
-      i_publish_topic: true
+      i_publish_topic: false
       i_low_bandwidth: false
       i_synced: false
       i_align_depth: true

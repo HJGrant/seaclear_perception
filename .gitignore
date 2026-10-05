@@ -336,3 +336,6 @@ log/
 rosbag2*/
 rosbags/
 rosbags_*/
+
+.venv_export/
+exported_vs_data/
