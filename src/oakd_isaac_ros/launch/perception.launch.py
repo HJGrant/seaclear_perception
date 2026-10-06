@@ -171,8 +171,11 @@ def generate_launch_description():
     detection_container = ComposableNodeContainer(
         name='detection_container',
         namespace='',
-        package='rclcpp_components',
-        executable='component_container_mt',
+        # component_container_mt, except the loaded nodes don't publish
+        # /parameter_events -- that topic caused a Fast DDS heartbeat storm to
+        # remote hosts (see src/component_container_no_param_events.cpp).
+        package='oakd_isaac_ros',
+        executable='component_container_no_param_events',
         composable_node_descriptions=[],
         output='screen'
     )
@@ -394,12 +397,13 @@ def generate_launch_description():
 
         rgb_nodes = []
         if rtp_cfg['rgb']['enabled']:
-            # No host-side resize needed -- oakd_dnn_depth-bremen.yaml
-            # configures the camera's own ISP to output natively at
-            # rtp.rgb.width x height (1280x720 by default) via i_isp_num/
-            # i_isp_den, so /oak/rgb/image_raw is already the right size.
-            # (Previously this ran a GPU ResizeNode here, which shared the
-            # GPU with TensorRT and made RGB RTP latency track detection
+            # oakd_dnn_depth-bremen.yaml configures the camera's own ISP to
+            # output 1280x720 via i_isp_num/i_isp_den, which detection also
+            # consumes. The RTP node downscales to rtp.rgb.width x height
+            # itself (one small cudaResize inside the node) so the stream
+            # fits the tether without changing the camera resolution.
+            # (Previously a separate GPU ResizeNode ran here, which shared
+            # the GPU with TensorRT and made RGB RTP latency track detection
             # load -- see the comment in that config file.)
             #
             # Streams straight off the raw camera topic (not the detection
@@ -408,6 +412,9 @@ def generate_launch_description():
             rgb_nodes = rtp_composable_nodes(
                 'rgb', rgb_topic, rtp_cfg['rgb']['port'],
                 destination_ips, headless,
+                bitrate=rtp_cfg['rgb'].get('bitrate', 1500000),
+                width=rtp_cfg['rgb'].get('width', 0),
+                height=rtp_cfg['rgb'].get('height', 0),
             )
 
         mask_nodes = []
@@ -417,6 +424,9 @@ def generate_launch_description():
             mask_nodes = rtp_composable_nodes(
                 'mask', '/mask_overlay', rtp_cfg['mask_overlay']['port'],
                 destination_ips, headless,
+                bitrate=rtp_cfg['mask_overlay'].get('bitrate', 1500000),
+                width=rtp_cfg['mask_overlay'].get('width', 0),
+                height=rtp_cfg['mask_overlay'].get('height', 0),
             )
 
         if rgb_nodes or mask_nodes:

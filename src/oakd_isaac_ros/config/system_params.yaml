@@ -90,15 +90,24 @@ rtp:
     #- "192.168.2.100"
     #- "129.187.231.223"
 
+  # bitrate: H264 bits/s. The tether to the topside PC is shared with all other
+  # robot<->topside traffic (incl. ROS/DDS), and RTP over UDP breaks up badly
+  # as soon as the link congests, so keep the stream lean.
+  # width/height: streamed resolution; frames are GPU-downscaled inside the
+  # RTP node, so the camera/detection resolution is unaffected.
   rgb:
     enabled: true
     port: 8550
-    width: 1280
-    height: 720
+    width: 960
+    height: 540
+    bitrate: 6000000
 
   mask_overlay:
     enabled: true
     port: 8554
+    width: 960
+    height: 540
+    bitrate: 6000000
 
   depth:
     enabled: false

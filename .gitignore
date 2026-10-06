@@ -337,5 +337,9 @@ rosbag2*/
 rosbags/
 rosbags_*/
 
+rosbag/clear/
+rosbag/ctrl_bag_2026-06-08_08-21-39/
 .venv_export/
+*.tar
+*.csv
 exported_vs_data/

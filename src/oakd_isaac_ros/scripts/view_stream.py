@@ -29,6 +29,21 @@ STREAMS = ('rgb', 'mask_overlay', 'depth')
 
 DEFAULT_CONFIG = Path(__file__).resolve().parent.parent / 'config' / 'system_params.yaml'
 
+# Software decode (avdec_h264, from gstreamer1.0-libav) rather than
+# decodebin: decodebin picks VA-API on some hosts, which silently never
+# outputs frames. The jitter buffer + large socket buffer absorb bursty
+# delivery over the tether; latency=200 trades ~0.2 s delay for fewer
+# dropped frames. Kept free of spaces inside elements so it can also be
+# split() into gst-launch-1.0 arguments. Display via ximagesink, not
+# autovideosink: on the topside PC autovideosink picks xvimagesink, whose
+# window stays blank.
+RECEIVE_PIPELINE = (
+    'udpsrc port={port} buffer-size=8388608 '
+    'caps=application/x-rtp,media=video,clock-rate=90000,encoding-name=H264,payload=96 '
+    '! rtpjitterbuffer latency=200 ! rtph264depay ! h264parse ! queue '
+    '! avdec_h264 max-threads=4 ! videoconvert'
+)
+
 
 def port_for_stream(stream, config_path):
     if not config_path.exists():
@@ -61,29 +76,71 @@ def main():
                          help='Override the port instead of reading it from config')
     args = parser.parse_args()
 
+    port = args.port if args.port is not None else port_for_stream(args.stream, args.config)
+
+    print(f'Viewing "{args.stream}" on port {port} (Ctrl-C to stop)')
+    try:
+        run_with_fps_overlay(port)
+    except ImportError:
+        print('python3-gi / GStreamer introspection not found -- running without '
+              'the FPS overlay (install with: sudo apt install python3-gi '
+              'gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0)')
+        run_gst_launch(port)
+
+
+def run_with_fps_overlay(port):
+    """Run the pipeline in-process so the measured FPS can be drawn top-right."""
+    import gi
+    gi.require_version('Gst', '1.0')
+    gi.require_version('GLib', '2.0')
+    from gi.repository import Gst, GLib
+
+    Gst.init(None)
+    # fpsdisplaysink's built-in overlay can't be repositioned (it's created
+    # late, after properties are applied), so measure with it but draw the
+    # number with our own textoverlay.
+    pipeline = Gst.parse_launch(
+        f'{RECEIVE_PIPELINE.format(port=port)} '
+        '! textoverlay name=fps_text text="-- FPS" halignment=right valignment=top '
+        'font-desc="Sans Bold 20" shaded-background=true '
+        '! fpsdisplaysink name=fps_sink video-sink=ximagesink '
+        'text-overlay=false signal-fps-measurements=true sync=false'
+    )
+    fps_text = pipeline.get_by_name('fps_text')
+    pipeline.get_by_name('fps_sink').connect(
+        'fps-measurements',
+        lambda _sink, fps, _droprate, _avgfps: fps_text.set_property('text', f'{fps:.1f} FPS'),
+    )
+
+    loop = GLib.MainLoop()
+
+    def on_message(_bus, msg):
+        if msg.type == Gst.MessageType.ERROR:
+            err, dbg = msg.parse_error()
+            print(f'ERROR: {err.message}\n{dbg}')
+            loop.quit()
+        elif msg.type == Gst.MessageType.EOS:
+            loop.quit()
+
+    bus = pipeline.get_bus()
+    bus.add_signal_watch()
+    bus.connect('message', on_message)
+
+    pipeline.set_state(Gst.State.PLAYING)
+    try:
+        loop.run()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        pipeline.set_state(Gst.State.NULL)
+
+
+def run_gst_launch(port):
     if shutil.which('gst-launch-1.0') is None:
         print('gst-launch-1.0 not found on this machine.')
         sys.exit(1)
-
-    port = args.port if args.port is not None else port_for_stream(args.stream, args.config)
-
-    caps = (
-        'application/x-rtp, media=(string)video, clock-rate=(int)90000, '
-        'encoding-name=(string)H264, payload=(int)96'
-    )
-    # Explicit software decode + plain X sink: decodebin/autovideosink pick
-    # vaapidecodebin + xvimagesink on this host, which decodes fine but never
-    # shows anything in the window.
-    cmd = [
-        'gst-launch-1.0', '-v',
-        'udpsrc', f'port={port}', f'caps={caps}',
-        '!', 'rtph264depay',
-        '!', 'avdec_h264',
-        '!', 'videoconvert',
-        '!', 'ximagesink', 'sync=false',
-    ]
-
-    print(f'Viewing "{args.stream}" on port {port} (Ctrl-C to stop)')
+    cmd = (['gst-launch-1.0'] + RECEIVE_PIPELINE.format(port=port).split()
+           + ['!', 'ximagesink', 'sync=false'])
     try:
         subprocess.run(cmd)
     except KeyboardInterrupt:

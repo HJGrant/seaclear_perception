@@ -130,9 +130,9 @@ visual_servo_controller_node:
     # Phase 2 vertical gate: both u and v must stay within 150 px.
     # At 0.5 m range with HFOV ~= 66 deg and 640 px width,
     # 150 px is roughly 15 cm lateral offset.
-    staged_pid_horizontal_tolerance_px: 150.0
-    staged_pid_horizontal_tolerance_x_px: 150.0
-    staged_pid_horizontal_tolerance_y_px: 150.0
+    staged_pid_horizontal_tolerance_px: 50.0
+    staged_pid_horizontal_tolerance_x_px: 50.0
+    staged_pid_horizontal_tolerance_y_px: 50.0
     # Deprecated alias retained for older configs; controller uses the x/y
     # horizontal tolerances for vertical on/off.
     staged_pid_vertical_tolerance_px: 150.0
@@ -170,3 +170,7 @@ visual_servo_controller_node:
     ibvs_lambda: 0.1
     alpha_1: 0.5
     decay_rate: 0.1
+    # detection gap: run the staged PID on the KF-predicted centroid (needs
+    # centroid_kf_enable and a valid Jacobian prediction). <= 0 disables a limit.
+    centroid_kf_prediction_timeout_ms: 0
+    centroid_kf_prediction_max_std_px: 0.0

@@ -221,6 +221,14 @@ install(TARGETS map_frame_anchor_component
         RUNTIME DESTINATION bin
 )
 
+# component_container_mt variant whose nodes don't publish /parameter_events
+# (see the comment in the source for the heartbeat-storm background).
+add_executable(component_container_no_param_events src/component_container_no_param_events.cpp)
+ament_target_dependencies(component_container_no_param_events rclcpp rclcpp_components)
+install(TARGETS component_container_no_param_events
+        DESTINATION lib/${PROJECT_NAME}
+)
+
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 

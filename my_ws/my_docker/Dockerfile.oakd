@@ -194,3 +194,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 #RUN pip install "numpy<2"
+
+# Git settings for building the bind-mounted workspace inside the container.
+# - setuptools-scm runs `git archive` during every Python egg step, which makes
+#   git-lfs SSH to gitlab.lrz.de (no key in here -> host-key prompts / failed
+#   builds). LFS files are already checked out by the host, so disable the
+#   smudge/download side here. (Must be config files: setuptools-scm strips
+#   GIT_* env vars before calling git.)
+# - The workspace is owned by the host user, so git refuses it when building
+#   as root ("dubious ownership") unless it's marked safe.
+RUN git config --system filter.lfs.process "" && \
+    git config --system filter.lfs.smudge cat && \
+    git config --system filter.lfs.required false && \
+    git config --system --add safe.directory '*'

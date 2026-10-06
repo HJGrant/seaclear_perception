@@ -84,6 +84,7 @@ def generate_launch_description():
         rgb_nodes = rtp_composable_nodes(
             'rgb', '/oak/rgb/image_resized', rtp_cfg['rgb']['port'],
             destination_ips, headless,
+            bitrate=rtp_cfg['rgb'].get('bitrate', 1500000),
         )
         actions.append(LoadComposableNodes(
             target_container='/oak_container',
