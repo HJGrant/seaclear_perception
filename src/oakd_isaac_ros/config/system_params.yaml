@@ -37,6 +37,15 @@ perception:
   # that directory: bistrina_camera.onnx, sc2_v12s.onnx, v12n.onnx, v12s.onnx.
   object_detection_model: bistrina_camera.onnx
 
+# Static transforms (map -> odom, odom -> sc2_base_link, and the camera/IMU
+# extrinsics) published by perception.launch.py itself.
+#   false: the vehicle's state_estimation stack (ekf_fusing.launch.py) owns
+#     the TF tree -- publishing here as well gives frames two parents and a
+#     static identity odom -> sc2_base_link that fights the EKF.
+#   true: running the camera stack standalone (bench, no state estimation).
+tf:
+  publish_static_tfs: false
+
 nvblox:
   # people_detection = masked/selective TSDF (only the detected target is
   # TODO: people_detection with the SC2 object detection model still needs to be tested in the Simulation.
@@ -96,17 +105,20 @@ rtp:
   # width/height: streamed resolution; frames are GPU-downscaled inside the
   # RTP node, so the camera/detection resolution is unaffected.
   rgb:
-    enabled: true
+    enabled: false  # off: RGB + mask together overrun the tether (~25 Mbit/s)
     port: 8550
     width: 960
     height: 540
     bitrate: 6000000
 
+  # mask_overlay is drawn in the 640x640 YOLO input frame, and
+  # manual_tracking_viewer.py's clicks feed the controller/KF in that same
+  # frame -- keep it at native 640x640 rather than stretching it to 16:9.
   mask_overlay:
     enabled: true
     port: 8554
-    width: 960
-    height: 540
+    width: 640
+    height: 640
     bitrate: 6000000
 
   depth:

@@ -6,7 +6,7 @@ import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import ComposableNodeContainer, LoadComposableNodes, Node
@@ -84,6 +84,13 @@ def generate_launch_description():
                         "ourselves, for debugging with just the OAK-D connected)",
         ),
         DeclareLaunchArgument(
+            'publish_static_tfs',
+            default_value=str(params['tf']['publish_static_tfs']),
+            description='Publish our own static TF tree (map/odom/base, camera and '
+                        'IMU extrinsics). Turn off while the vehicle state_estimation '
+                        'stack is running -- it owns those frames.',
+        ),
+        DeclareLaunchArgument(
             'enable_camera',
             default_value=str(params['camera']['enable_camera']),
             description='Run the real depthai_ros_driver camera node. Turn off '
@@ -122,6 +129,7 @@ def generate_launch_description():
     enable_multi_frame_mapping = LaunchConfiguration('enable_multi_frame_mapping')
     reset_every_n_frames = LaunchConfiguration('reset_every_n_frames')
     pose_source = LaunchConfiguration('pose_source')
+    publish_static_tfs = LaunchConfiguration('publish_static_tfs')
     enable_camera = LaunchConfiguration('enable_camera')
     rgb_topic = LaunchConfiguration('rgb_topic')
     rgb_camera_info_topic = LaunchConfiguration('rgb_camera_info_topic')
@@ -138,8 +146,12 @@ def generate_launch_description():
     # stack (ekf_fusing.launch.py) is assumed already running and owns all
     # of those transforms; publishing them here too would create the same
     # two-publishers-one-child-frame conflict we just fixed there.
+    # publish_static_tfs (tf.publish_static_tfs in system_params.yaml) is the
+    # explicit override for the single-frame default too: the vehicle stack
+    # can be running even when multi-frame mapping is off.
     own_camera_tf_condition = PythonExpression([
-        "'", enable_multi_frame_mapping, "' == 'False' or '", pose_source, "' == 'oakd_imu'"
+        "('", enable_multi_frame_mapping, "' == 'False' or '", pose_source, "' == 'oakd_imu')"
+        " and '", publish_static_tfs, "' == 'True'"
     ])
 
     # --- camera --------------------------------------------------------------
@@ -260,7 +272,9 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='odom_to_base_static_tf',
         arguments=['0', '0', '0', '0', '0', '0', 'odom', 'sc2_base_link'],
-        condition=UnlessCondition(enable_multi_frame_mapping),
+        condition=IfCondition(PythonExpression([
+            "'", enable_multi_frame_mapping, "' == 'False' and '", publish_static_tfs, "' == 'True'"
+        ])),
     )
     # Camera's static extrinsic, parented to sc2_base_link (not odom
     # directly) so a live odom -> sc2_base_link (from either pose source)

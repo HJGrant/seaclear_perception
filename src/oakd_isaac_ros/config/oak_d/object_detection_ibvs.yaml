@@ -97,12 +97,12 @@ visual_servo_controller_node:
     vertical_gain: 1.0
     staged_pid_z_source: dvl
 
-    max_vx: 20.0
-    max_vy: 20.0
+    max_vx: 10.0
+    max_vy: 10.0
     max_vz: 0.50
     max_yaw_rate: 0.35
-    slew_vx: 0.5
-    slew_vy: 0.5
+    slew_vx: 8.3 # m/s per s; x16.7 with staged_pid_xy_kp, keeps the ~1.2 s ramp to full speed
+    slew_vy: 8.3 # m/s per s; scaled with staged_pid_xy_kp
     slew_vz: 0.0
     slew_yaw_rate: 2.0
 
@@ -113,7 +113,7 @@ visual_servo_controller_node:
     camera_info_use_msg_intrinsics: false
 
 
-    staged_pid_xy_kp: 0.0025 #Dubrovnik: 0.05
+    staged_pid_xy_kp: 0.0417 # x16.7 of 0.0025 (~0.6 -> ~10 m/s command); Dubrovnik: 0.05
     staged_pid_xy_ki: 0.0
     staged_pid_xy_kd: 0.0 #Dubrovnik: 0.0008
     staged_pid_xy_integral_limit: 200.0

@@ -203,6 +203,7 @@ MY_TOPIC_LIST = [
     '/sc2/velocity_controller_node/estimated_values_visual',
     '/sc2/velocity_controller_node/outer/console_signals',
     '/sc2/velocity_controller_node/outer/gamepad_signals',
+    '/sc2/velocity_controller_node/outer/visual_servoing_signals',
     '/sc2/wrench_order_enable',
     '/sc2/wrench_rov',
     '/sc2/wrench_rov_console',

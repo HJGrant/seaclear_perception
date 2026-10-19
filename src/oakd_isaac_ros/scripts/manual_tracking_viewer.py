@@ -14,10 +14,17 @@ real detections stand down while an override stays fresh.
 The override point itself is a tiny, infrequent ROS2 publish (a few
 PointStamped messages a second) -- that's negligible bandwidth and fine over
 DDS even on a constrained link; only the video feed needs the RTP/H264
-treatment. mask_overlay's RTP stream carries native resolution (confirmed
-640x640, no resize in the encode pipeline), so clicks on the decoded frame
-land on the same pixel coordinates the detector/KF use -- no rescaling
-needed.
+treatment. /mask_overlay is drawn in the 640x640 YOLO input frame, which
+is also the pixel frame the controller/KF use, but the RTP node may resize
+it (rtp.mask_overlay.width/height in system_params.yaml), so clicks are
+rescaled from the decoded frame's size to --detection-width/height before
+publishing.
+
+The controller's centroid KF estimate (the ImageMarker it publishes on
+centroid_kf_marker_topic, only while centroid_kf_enable is true) is drawn on
+top of the stream, scaled back into the displayed frame, so you can see the
+filter follow your clicks. It's hidden once no marker has arrived for
+--kf-marker-timeout seconds.
 
 Needs: gstreamer with an H264 decoder, and OpenCV built with GStreamer
 support (`python3 -c "import cv2; print('GStreamer' in cv2.getBuildInformation())"`).
@@ -31,8 +38,10 @@ Usage:
     python3 manual_tracking_viewer.py --override-topic /sc2/visual_servo/human_override_point
 """
 import argparse
+import math
 import os
 import sys
+import time
 from pathlib import Path
 
 # In the Isaac ROS dev container, apt's python3-opencv (which has GStreamer
@@ -54,6 +63,7 @@ import cv2
 import rclpy
 from geometry_msgs.msg import PointStamped
 from rclpy.node import Node
+from visualization_msgs.msg import ImageMarker
 
 from view_stream import DEFAULT_CONFIG, port_for_stream
 
@@ -68,14 +78,16 @@ def _build_capture(port: int) -> cv2.VideoCapture:
     )
     # appsink (not autovideosink, what view_stream.py uses) so OpenCV
     # actually gets frame buffers to display/click on, not just a GStreamer-
-    # owned window. drop=true + sync=false: always show the latest frame
-    # rather than buffering/catching up, which would add click-to-display
-    # lag on a real control feed.
+    # owned window. drop=true + max-buffers=1 + sync=false: always show the
+    # latest frame rather than buffering/catching up, which would add
+    # click-to-display lag on a real control feed (drop does nothing without
+    # a max-buffers limit). avdec_h264 rather than decodebin, which picks
+    # VA-API on some hosts -- same reason as view_stream.py.
     pipeline = (
         f'udpsrc port={port} caps="{caps}" ! '
-        'rtph264depay ! decodebin ! videoconvert ! '
+        'rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! '
         'video/x-raw,format=BGR ! '
-        'appsink drop=true sync=false'
+        'appsink drop=true max-buffers=1 sync=false'
     )
     cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
     if not cap.isOpened():
@@ -89,10 +101,24 @@ def _build_capture(port: int) -> cv2.VideoCapture:
 
 
 class ManualOverridePublisher(Node):
-    def __init__(self, override_topic: str):
+    def __init__(self, override_topic: str, kf_marker_topic: str):
         super().__init__('manual_tracking_viewer')
         self._pub = self.create_publisher(PointStamped, override_topic, 10)
         self.get_logger().info(f'Publishing override on {override_topic} while held.')
+
+        # Latest KF centroid marker and its local receive time (monotonic,
+        # so staleness doesn't depend on robot/topside clock sync).
+        self.kf_marker = None
+        self.kf_marker_rx_time = None
+        self.create_subscription(ImageMarker, kf_marker_topic, self._kf_marker_cb, 10)
+        self.get_logger().info(f'Drawing KF estimate from {kf_marker_topic}.')
+
+    def _kf_marker_cb(self, msg: ImageMarker) -> None:
+        if msg.action == ImageMarker.REMOVE:
+            self.kf_marker = None
+            return
+        self.kf_marker = msg
+        self.kf_marker_rx_time = time.monotonic()
 
     def publish(self, x: float, y: float) -> None:
         msg = PointStamped()
@@ -102,6 +128,26 @@ class ManualOverridePublisher(Node):
         self._pub.publish(msg)
 
 
+def _draw_kf_marker(frame, node, scale_x, scale_y, timeout_sec) -> None:
+    """Draw the controller's KF centroid estimate, mapped from the detection
+    frame back into the displayed frame (inverse of the click rescale)."""
+    marker = node.kf_marker
+    if marker is None or time.monotonic() - node.kf_marker_rx_time > timeout_sec:
+        return
+    # A diverged filter publishes NaN/inf -- nothing meaningful to draw.
+    if not all(math.isfinite(v) for v in (marker.position.x, marker.position.y, marker.scale)):
+        return
+    center = (int(round(marker.position.x / scale_x)), int(round(marker.position.y / scale_y)))
+    radius = max(2, int(round(marker.scale / min(scale_x, scale_y))))
+    c = marker.outline_color
+    # ImageMarker colors are RGBA floats; OpenCV wants BGR 0-255. Fall back
+    # to the controller's orange if the color is unset (all zeros).
+    color = (int(c.b * 255), int(c.g * 255), int(c.r * 255)) if (c.r or c.g or c.b) else (0, 140, 255)
+    cv2.circle(frame, center, radius, color, thickness=2)
+    cv2.putText(frame, 'KF', (center[0] + radius + 3, center[1] + 5),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, default=DEFAULT_CONFIG,
@@ -109,13 +155,23 @@ def main():
     parser.add_argument('--port', type=int, default=None,
                          help='Override the mask_overlay RTP port instead of reading it from config')
     parser.add_argument('--override-topic', default='/sc2/visual_servo/human_override_point')
+    # Must match the controller's image_width/image_height
+    # (object_detection_ibvs.yaml) -- the YOLO input frame detections are in.
+    parser.add_argument('--detection-width', type=float, default=640.0)
+    parser.add_argument('--detection-height', type=float, default=640.0)
+    parser.add_argument('--kf-marker-topic', default='/sc2/visual_servo/centroid_kf_marker')
+    # The controller publishes the marker every tick (10 Hz), so this is a
+    # few missed ticks -- long enough to ride out jitter, short enough that a
+    # stopped controller/KF doesn't leave a frozen circle on screen.
+    parser.add_argument('--kf-marker-timeout', type=float, default=0.5,
+                         help='Hide the KF marker after this many seconds without an update')
     args = parser.parse_args()
 
     port = args.port if args.port is not None else port_for_stream(STREAM, args.config)
     cap = _build_capture(port)
 
     rclpy.init()
-    node = ManualOverridePublisher(args.override_topic)
+    node = ManualOverridePublisher(args.override_topic, args.kf_marker_topic)
 
     mouse_down = False
     mouse_xy = (0, 0)
@@ -140,18 +196,33 @@ def main():
     print(f'Viewing {STREAM} on port {port}. Hold left click and drag over the '
           'target; release to hand control back to the object detector. q/Ctrl-C to quit.')
 
+    frame_size = None
     try:
         while rclpy.ok():
             ret, frame = cap.read()
             if not ret:
                 continue
 
+            frame_h, frame_w = frame.shape[:2]
+            if frame_size != (frame_w, frame_h):
+                frame_size = (frame_w, frame_h)
+                scale_x = args.detection_width / frame_w
+                scale_y = args.detection_height / frame_h
+                print(f'Stream is {frame_w}x{frame_h}; clicks are rescaled to the '
+                      f'{args.detection_width:.0f}x{args.detection_height:.0f} detection frame.')
+                if abs(scale_x - scale_y) > 1e-3:
+                    print('Warning: stream aspect ratio differs from the detection '
+                          'frame -- the image is stretched; set rtp.mask_overlay.width/'
+                          'height to the detection size for an undistorted view.')
+
             # Each displayed frame is also the override-publish tick while
             # held -- tied to the stream's own delivery rate rather than a
             # separate timer, and still comfortably faster than the
             # controller's human_override_timeout_ms (default 200ms).
+            _draw_kf_marker(frame, node, scale_x, scale_y, args.kf_marker_timeout)
+
             if mouse_down:
-                node.publish(mouse_xy[0], mouse_xy[1])
+                node.publish(mouse_xy[0] * scale_x, mouse_xy[1] * scale_y)
                 cv2.drawMarker(
                     frame, mouse_xy, (0, 140, 255),
                     markerType=cv2.MARKER_CROSS, markerSize=16, thickness=2,
@@ -167,7 +238,8 @@ def main():
         cap.release()
         cv2.destroyAllWindows()
         node.destroy_node()
-        rclpy.shutdown()
+        # rclpy's own SIGINT handler may already have shut the context down.
+        rclpy.try_shutdown()
 
 
 if __name__ == '__main__':
