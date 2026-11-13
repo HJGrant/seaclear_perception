@@ -1,6 +1,8 @@
 # oakd_isaac_ros
+## Introduction
 
-This is a package for interfacing the OAK-D PoE with the NVIDIA Isaac ROS packages. 
+This package was developed by Hamish Grant and Nobuaki Aoki 
+
 
 
 ## Launching nvBlox with the OAK-D PoE
