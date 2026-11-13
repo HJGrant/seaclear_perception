@@ -328,14 +328,14 @@ python3 manual_tracking_viewer.py
 #### 🧊 3D Reconstruction
 Visualize the output of the algorithm in Foxglove. For this, display the static map and the dynamic map of the detect objects by subscribing to `/nvblox_node/color_layer` and '/nvblox_node/dynamic_occupancy_layer', respectively. Diplay these topics in a 3D panel in Foxglove. 
 
-![selective_3d_reconstruction](docs/SC2/gifs/3d_reconstruction.gif)
+[![selective_3d_reconstruction](docs/SC2/gifs/3d_reconstruction.gif)](https://youtu.be/OIjGRGrXV9s)
 
 
 ## 🎬 Demos 
 
 | 🎯 Visual Servoing | 🖱️ Manual Tracking |
 |:---:|:---:|
-| ![tracking small object](docs/SC2/gifs/tracking_small_object.gif) | ![manual tracking demo](docs/SC2/gifs/testing_manual_tracking.gif) |
+| [![tracking small object](docs/SC2/gifs/tracking_small_object.gif)](https://youtu.be/qE2owu7qYik) | [![manual tracking demo](docs/SC2/gifs/testing_manual_tracking.gif)](https://youtu.be/w7PfHM_1Z6w) |
 
 
 ## 🔧 Troubleshooting
