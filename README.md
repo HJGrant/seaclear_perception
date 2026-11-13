@@ -343,6 +343,8 @@ Visualize the output of the algorithm in Foxglove. For this, display the static 
 ### ❌ Cannot Recieve Data from OAK-D
 Check basic functionality of the OAK-D by running ` python -m depthai_viewer `.
 
+Or download the [OAK viewer application](https://docs.luxonis.com/software-v3/depthai/tools/oak-viewer/).
+
 If you can't see the OAK-D, follow this [troubleshooting guide.](https://docs.luxonis.com/hardware/platform/deploy/poe-deployment-guide#connected-to-the-same-lan-via-2-interfaces-wifi-ethernet)
 
 ## 📚 Additional Information
